@@ -5,6 +5,12 @@
 //       Runs a game: loads <player-dir>/js/boot.js, which starts the game in
 //       <www-dir>. The log goes to <www-dir>/save/mvplayer.log, so that
 //       everything the player writes stays in the game's save folder.
+//   mvplayer --pick <games-dir> [<games-dir> ...] [--log <file>]
+//       Shows the games found in those folders (each game is a folder that
+//       holds the game's www folder) and lets the user choose one. Prints
+//       "MVPLAYER_GAME=<www-dir>" on standard output and exits with 0, or
+//       exits with 10 if the user leaves without choosing. The program that
+//       started the player then runs it again with --game.
 //   mvplayer <script.js> [--log <file>]
 //       Runs one script, for tests.
 // --no-patches runs the game without the per-game patches in patches/.
@@ -58,19 +64,30 @@ int main(int argc, char** argv) {
   std::string script, game_dir, player_dir, log_path;
   std::vector<std::string> extra_scripts;
   bool no_patches = false;
+  bool pick = false;
+  std::vector<std::string> library_dirs;
   for (int i = 1; i < argc; i++) {
     std::string arg = argv[i];
     if (arg == "--log" && i + 1 < argc) log_path = argv[++i];
     else if (arg == "--run" && i + 1 < argc) extra_scripts.push_back(argv[++i]);
     else if (arg == "--no-patches") no_patches = true;
+    else if (arg == "--pick") {
+      pick = true;
+      while (i + 1 < argc && argv[i + 1][0] != '-') library_dirs.push_back(WithoutTrailingSlash(argv[++i]));
+    }
     else if (arg == "--game" && i + 1 < argc) game_dir = WithoutTrailingSlash(argv[++i]);
     else if (arg == "--player" && i + 1 < argc) player_dir = WithoutTrailingSlash(argv[++i]);
     else if (script.empty()) script = arg;
   }
   if (player_dir.empty()) player_dir = ExecutableDir();
   if (script.empty() && !game_dir.empty()) script = player_dir + "/js/boot.js";
+  if (script.empty() && pick) {
+    script = player_dir + "/js/picker.js";
+    if (log_path.empty()) log_path = "/tmp/mvplayer-picker.log";
+  }
   if (script.empty()) {
     std::fprintf(stderr, "usage: mvplayer --game <www-dir> [--player <dir>] [--log <file>]\n"
+                         "       mvplayer --pick <games-dir> [<games-dir> ...]\n"
                          "       mvplayer <script.js> [--log <file>]\n");
     return 1;
   }
@@ -106,6 +123,7 @@ int main(int argc, char** argv) {
     host.InstallBindings(window.width(), window.height());
     host.SetDirectories(game_dir, player_dir);
     host.SetFlag("noPatches", no_patches);
+    host.SetStringList("libraryDirs", library_dirs);
     bool started = host.RunFile(script);
     for (const std::string& extra : extra_scripts) {
       if (started) started = host.RunFile(extra);

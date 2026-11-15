@@ -21,6 +21,43 @@
   // title, its engine and the plugins it has switched on. Each patch file
   // adds an install function to player.patches. They are installed when the
   // engine has finished booting, just before the first real scene.
+  // Every ten seconds of play, one log line says how the game ran: where
+  // (scene and map), frames shown, logic steps per frame, and the average
+  // time of a logic step and of a drawing step, with the slowest frame. It
+  // costs two clock readings per step, and lets a slow stretch of real play
+  // be understood afterwards from the log alone.
+  function installPerformanceLog() {
+    if (!globalThis.SceneManager || !SceneManager.updateScene || !SceneManager.renderScene) return;
+    var PERIOD_MS = 10000;
+    var since = performance.now(), frames = 0, steps = 0, logic = 0, draw = 0, worst = 0, frameStart = 0, lastFrameEnd = 0;
+    var updateScene = SceneManager.updateScene, renderScene = SceneManager.renderScene, updateMain = SceneManager.updateMain;
+    SceneManager.updateScene = function () {
+      var before = performance.now();
+      try { return updateScene.apply(this, arguments); }
+      finally { logic += performance.now() - before; steps++; }
+    };
+    SceneManager.renderScene = function () {
+      var before = performance.now();
+      try { return renderScene.apply(this, arguments); }
+      finally { draw += performance.now() - before; }
+    };
+    SceneManager.updateMain = function () {
+      var now = performance.now();
+      if (lastFrameEnd) worst = Math.max(worst, now - lastFrameEnd);
+      lastFrameEnd = now;
+      frames++;
+      if (now - since >= PERIOD_MS) {
+        var scene = this._scene ? this._scene.constructor.name : 'none';
+        var where = scene + (globalThis.$gameMap && /Map/.test(scene) ? ' map ' + $gameMap.mapId() + ' (' + $gameMap.events().length + ' events)' : '');
+        console.info('perf: ' + where + ': ' + (frames * 1000 / (now - since)).toFixed(0) + ' frames per second, ' +
+          (steps / frames).toFixed(1) + ' steps per frame, logic ' + (logic / Math.max(1, steps)).toFixed(1) + ' ms per step, draw ' +
+          (draw / frames).toFixed(1) + ' ms per frame, slowest frame ' + worst.toFixed(0) + ' ms');
+        since = now; frames = 0; steps = 0; logic = 0; draw = 0; worst = 0;
+      }
+      return updateMain.apply(this, arguments);
+    };
+  }
+
   function selectPatches() {
     if (player.noPatches) return console.info('patches: switched off'), [];
     var text = player.readTextFile(player.playerDir + '/patches/index.json');
@@ -93,6 +130,7 @@
   }
   console.info('boot: ' + count + ' scripts loaded from index.html');
   installPatches();
+  installPerformanceLog();
 
   // The engine catches its own errors and shows them on the page. Record the
   // full error in the log as well, and stop: the on-screen error display

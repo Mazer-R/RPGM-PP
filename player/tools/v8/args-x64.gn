@@ -1,0 +1,52 @@
+# V8 build options for the x86-64 Linux build of the player, cross-compiled
+# from a 64-bit ARM host. Everything that affects V8's object layout or
+# feature set is identical to args.gn (the ARM build); only the target and
+# the toolchains differ. Keep the two files in step.
+
+target_cpu = "x64"
+target_os = "linux"
+is_debug = false
+symbol_level = 0
+
+# Everything is compiled with the cross compiler named by the CC, CXX, AR
+# and NM environment variables (set in build-x64.sh), including the programs
+# V8 runs during its own build (torque, mksnapshot). Those run through the
+# host's x86-64 emulation.
+#
+# The usual arrangement, build tools compiled for the ARM host that generate
+# x86-64 output (v8_snapshot_toolchain = "//build/toolchain/linux:arm64"),
+# builds without errors but produces a startup snapshot that crashes on
+# x86-64 while the read-only heap is being loaded (segmentation fault in
+# ReadOnlyDeserializer::PostProcessNewObjects, seen under both qemu-user and
+# Rosetta). Generating the snapshot with an x86-64 mksnapshot avoids it.
+custom_toolchain = "//build/toolchain/linux/unbundle:default"
+host_toolchain = "//build/toolchain/linux:arm64"
+v8_snapshot_toolchain = "//build/toolchain/linux/unbundle:default"
+
+# One static library holding V8, its platform helpers and its base library.
+is_component_build = false
+v8_monolithic = true
+v8_use_external_startup_data = false
+
+# Use the system compiler and the system C++ standard library, not the
+# compiler and libc++ that V8's tooling would otherwise download.
+is_clang = false
+use_custom_libcxx = false
+use_sysroot = false
+use_lld = false
+use_gold = false
+treat_warnings_as_errors = false
+
+# The shared Chromium build configuration looks for desktop libraries that
+# V8 itself does not use. Turn those lookups off instead of installing them.
+use_glib = false
+
+# Same object layout as the ARM build: full 64-bit pointers and no sandbox.
+v8_enable_pointer_compression = false
+v8_enable_sandbox = false
+
+# Not needed by the player; leaving them out makes the library smaller.
+v8_enable_i18n_support = false
+v8_enable_webassembly = false
+v8_enable_test_features = false
+v8_enable_gdbjit = false

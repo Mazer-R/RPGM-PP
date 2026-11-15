@@ -1,0 +1,22 @@
+# Build environment for the x86-64 Linux build of the player, cross-compiled
+# from a 64-bit ARM host.
+#
+# Same base system as the ARM image (Dockerfile next to this file). The
+# compiler is Debian's GCC cross compiler for x86-64, and the development
+# packages are the amd64 ones, installed next to the native system through
+# Debian's multiarch support. The binary is therefore linked against Debian
+# bookworm's glibc (2.36) and runs on any distribution with that or newer.
+#
+# qemu-user-static is only used by package-x64.sh to start the finished
+# x86-64 binary once, as a check that it loads.
+FROM debian:bookworm
+
+RUN dpkg --add-architecture amd64 \
+    && apt-get update && apt-get install -y --no-install-recommends \
+      ca-certificates cmake ninja-build pkg-config file \
+      crossbuild-essential-amd64 qemu-user-static \
+      libsdl2-dev:amd64 libgles-dev:amd64 libegl-dev:amd64 \
+      libcairo2-dev:amd64 libfreetype-dev:amd64 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /work

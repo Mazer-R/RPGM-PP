@@ -1,0 +1,44 @@
+# Build environment for V8 targeting x86-64 Linux, cross-compiled from a
+# 64-bit ARM host.
+#
+# Same base system as the ARM image (Dockerfile next to this file), plus the
+# Debian GCC cross compiler for x86-64, which is GCC 12 with libstdc++ like
+# the native one and links against Debian bookworm's glibc (2.36).
+#
+# V8's build runs some of its own programs while building (torque,
+# mksnapshot). Here they are built for x86-64 too and run through the host's
+# x86-64 emulation (see args-x64.gn for why), so the image also carries the
+# x86-64 C and C++ runtime libraries, and the machine that runs the container
+# must be able to execute x86-64 programs (Rosetta or qemu-user registered
+# with binfmt_misc; podman machine on Apple Silicon has Rosetta by default).
+FROM debian:bookworm
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      build-essential ca-certificates curl git ninja-build pkg-config python3 \
+      python3-httplib2 xz-utils \
+      g++-x86-64-linux-gnu binutils-x86-64-linux-gnu \
+    && rm -rf /var/lib/apt/lists/*
+
+# gn, built from source with the system compiler.
+RUN git clone https://gn.googlesource.com/gn /opt/gn-src \
+    && cd /opt/gn-src \
+    && CXX=g++ CC=gcc AR=ar /usr/bin/python3 build/gen.py --allow-warnings \
+    && ninja -C out gn \
+    && install -m 0755 out/gn /usr/local/bin/gn \
+    && rm -rf /opt/gn-src
+
+# gclient, used only to fetch V8 and its dependencies. It is run with the
+# system Python (see build-x64.sh); depot_tools ships its own `python3`
+# wrapper that needs a bootstrap step, so the folder is deliberately not put
+# first on PATH. Auto-update is disabled so the image stays as built.
+ENV DEPOT_TOOLS_UPDATE=0
+RUN git clone --depth 1 https://chromium.googlesource.com/chromium/tools/depot_tools.git /opt/depot_tools
+ENV PATH="${PATH}:/opt/depot_tools"
+
+# The x86-64 runtime libraries the emulated build tools load.
+RUN dpkg --add-architecture amd64 \
+    && apt-get update && apt-get install -y --no-install-recommends \
+      libc6:amd64 libstdc++6:amd64 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /work

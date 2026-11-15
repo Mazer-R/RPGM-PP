@@ -14,5 +14,7 @@
 player/build*/
 player/sysroot/
 player/third_party/v8/
+player/third_party/v8-x64/
 player/third_party/headers/*/
 player/tools/*/logs/
+__pycache__/

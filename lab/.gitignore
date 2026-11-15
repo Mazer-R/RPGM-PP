@@ -3,3 +3,4 @@ out/
 build.log
 node_modules/
 __pycache__/
+game2/

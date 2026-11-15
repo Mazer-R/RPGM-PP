@@ -29,8 +29,11 @@
   function gamePath(url) {
     var clean = String(url).split('?')[0].split('#')[0];
     try { clean = decodeURIComponent(clean); } catch (e) { /* keep as written */ }
-    if (clean.charAt(0) === '/') return clean;
-    return player.gameDir + '/' + clean.replace(/^(\.\/)+/, '');
+    // A full path into the game or the player is used as it is. Any other
+    // address starting with "/" is relative to the page's root, which for
+    // a desktop game is the game folder.
+    if (clean.indexOf(player.gameDir + '/') === 0 || clean.indexOf(player.playerDir + '/') === 0) return clean;
+    return player.gameDir + '/' + clean.replace(/^\/+/, '').replace(/^(\.\/)+/, '');
   }
   browser.gamePath = gamePath;
 
@@ -170,6 +173,11 @@
   };
 
   // --- Elements -------------------------------------------------------------
+  // Lists of elements are arrays with the item() method page lists have.
+  function nodeList(array) {
+    array.item = function (index) { return this[index] || null; };
+    return array;
+  }
   function Element(tag) {
     this.tagName = this.nodeName = String(tag).toUpperCase();
     this.style = {};
@@ -209,7 +217,7 @@
       (function visit(node) {
         node.children.forEach(function (child) { if (wanted === '*' || child.tagName === wanted) found.push(child); visit(child); });
       })(this);
-      return found;
+      return nodeList(found);
     },
     getBoundingClientRect: function () {
       var w = this.width || 0, h = this.height || 0;
@@ -339,6 +347,7 @@
   // kept, up to DECODED_BUDGET bytes, and an image needed again later is
   // decoded again.
   var DECODED_BUDGET = 32 * 1024 * 1024;
+  var failedImages = {};
   var decoded = [];        // images holding decoded pixels, oldest first
   var decodedBytes = 0;
   function dropDecoded(image) {
@@ -395,7 +404,9 @@
         var size = /^(data|blob):/.test(url) ? null : c2d.imageSize(file);
         if (!size) {
           if (/^(data|blob):/.test(url)) browser.missing('images from data: or blob: addresses');
-          console.warn('image: cannot load ' + url.slice(0, 120));
+          // Reported once per address: the engine asks again and again.
+          if (!failedImages[url]) console.warn('image: cannot load ' + url.slice(0, 120));
+          failedImages[url] = true;
           return emit(image, 'error');
         }
         dropDecoded(image);
@@ -481,7 +492,7 @@
   var elementsByTag = Element.prototype.getElementsByTagName;
   document.getElementsByTagName = function (tag) {
     // Plugins look up their own <script> element to read its address.
-    return String(tag).toLowerCase() === 'script' ? scripts.slice() : elementsByTag.call(document, tag);
+    return String(tag).toLowerCase() === 'script' ? nodeList(scripts.slice()) : elementsByTag.call(document, tag);
   };
 
   // The global object is the window.

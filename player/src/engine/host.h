@@ -50,6 +50,8 @@ class Host {
   void StartWatchdog(const volatile std::sig_atomic_t* stop_flag);
   void Heartbeat();
 
+  // Sets player.<name> to a list of strings.
+  void SetStringList(const std::string& name, const std::vector<std::string>& values);
   // Sets player.<name> to true or false, for options scripts consult.
   void SetFlag(const std::string& name, bool value);
   void RunFrameCallbacks(double now_ms);
@@ -86,6 +88,8 @@ class Host {
   static void WriteSaveFileCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RemoveSaveFileCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void MakeSaveDirCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ListDirCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void PrintCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   // True if `path` is inside the game's save folder and has no "..".
   bool IsSavePath(const std::string& path) const;

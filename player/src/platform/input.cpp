@@ -20,6 +20,9 @@ constexpr int kKeyX = 88, kKeyZ = 90;
 // How far the stick must be pushed (of 32767) to count as a direction.
 constexpr int kStickThreshold = 16000;
 
+// Start must follow the menu button within this time to count as "quit".
+constexpr unsigned kQuitWindowMs = 3000;
+
 // The layout follows the engine's own gamepad defaults: A confirms, B
 // cancels, X dashes, Y opens the menu, the shoulders page.
 int KeyForButton(int button) {
@@ -135,7 +138,13 @@ void Input::HandleEvent(const SDL_Event& event) {
       bool down = event.type == SDL_CONTROLLERBUTTONDOWN;
       if (event.cbutton.button == SDL_CONTROLLER_BUTTON_GUIDE) {
         guide_down_ = down;
-      } else if (down && guide_down_ && event.cbutton.button == SDL_CONTROLLER_BUTTON_START) {
+        if (down) guide_down_at_ms_ = event.cbutton.timestamp;
+        log_.Write(LogLevel::kInfo, "input", down ? "menu button down" : "menu button up");
+      } else if (down && guide_down_ && event.cbutton.button == SDL_CONTROLLER_BUTTON_START &&
+                 event.cbutton.timestamp - guide_down_at_ms_ <= kQuitWindowMs) {
+        // The time limit guards against a menu button whose release was never
+        // reported (the system may keep that event for itself): without it,
+        // the next Start press, however much later, would quit the game.
         quit_requested_ = true;
       } else {
         Queue(KeyForButton(event.cbutton.button), down);

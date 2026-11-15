@@ -1,10 +1,12 @@
 #include "engine/host.h"
 
+#include <dirent.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
 #include <cstdio>
 #include <fstream>
+#include <algorithm>
 #include <chrono>
 #include <sstream>
 #include <utility>
@@ -146,6 +148,33 @@ void Host::FileExistsCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(stat(ToStdString(args.GetIsolate(), args[0]).c_str(), &info) == 0);
 }
 
+// player.listDir(path): the names in a folder, sorted, without "." and "..";
+// an empty list if the folder cannot be read.
+void Host::ListDirCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::Isolate* isolate = args.GetIsolate();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  std::vector<std::string> names;
+  if (DIR* dir = opendir(ToStdString(isolate, args[0]).c_str())) {
+    while (dirent* entry = readdir(dir)) {
+      std::string name = entry->d_name;
+      if (name != "." && name != "..") names.push_back(name);
+    }
+    closedir(dir);
+  }
+  std::sort(names.begin(), names.end());
+  v8::Local<v8::Array> list = v8::Array::New(isolate, static_cast<int>(names.size()));
+  for (uint32_t i = 0; i < names.size(); i++) list->Set(context, i, ToV8String(isolate, names[i])).Check();
+  args.GetReturnValue().Set(list);
+}
+
+// player.print(text): one line on standard output, for a script whose
+// result is read by the program that started the player.
+void Host::PrintCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  std::string text = ToStdString(args.GetIsolate(), args[0]);
+  std::fprintf(stdout, "%s\n", text.c_str());
+  std::fflush(stdout);
+}
+
 void Host::LoadScriptCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Host* host = FromArgs(args);
   // A script that fails here is logged and reported to the caller, which
@@ -258,6 +287,8 @@ void Host::InstallGlobals(v8::Local<v8::Context> context) {
   set(player, "writeSaveFile", make_function(WriteSaveFileCallback, "writeSaveFile"));
   set(player, "removeSaveFile", make_function(RemoveSaveFileCallback, "removeSaveFile"));
   set(player, "makeSaveDir", make_function(MakeSaveDirCallback, "makeSaveDir"));
+  set(player, "listDir", make_function(ListDirCallback, "listDir"));
+  set(player, "print", make_function(PrintCallback, "print"));
   set(player, "v8Version", ToV8String(isolate_, v8::V8::GetVersion()));
   set(global, "player", player);
 }
@@ -390,6 +421,18 @@ void Host::StartWatchdog(const volatile std::sig_atomic_t* stop_flag) {
       }
     }
   });
+}
+
+void Host::SetStringList(const std::string& name, const std::vector<std::string>& values) {
+  v8::Isolate::Scope isolate_scope(isolate_);
+  v8::HandleScope handle_scope(isolate_);
+  v8::Local<v8::Context> context = context_.Get(isolate_);
+  v8::Context::Scope context_scope(context);
+  v8::Local<v8::Value> player;
+  if (!context->Global()->Get(context, ToV8String(isolate_, "player")).ToLocal(&player) || !player->IsObject()) return;
+  v8::Local<v8::Array> list = v8::Array::New(isolate_, static_cast<int>(values.size()));
+  for (uint32_t i = 0; i < values.size(); i++) list->Set(context, i, ToV8String(isolate_, values[i])).Check();
+  player.As<v8::Object>()->Set(context, ToV8String(isolate_, name), list).Check();
 }
 
 void Host::SetFlag(const std::string& name, bool value) {

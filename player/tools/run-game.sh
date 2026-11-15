@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copies the built player and its JavaScript layer to the handheld over adb,
+# Copies the built player and its JavaScript layer to the handheld,
 # runs a game that is already on the handheld with the muOS menu paused,
 # resumes the menu, and prints the player's exit code and log.
 #
@@ -9,8 +9,10 @@
 # The player is stopped after $PLAY_SECONDS (default 120), so the menu always
 # comes back; set it higher to play for longer. On the console, the menu
 # button held plus Start quits the player.
-# Needs: adb on PATH or in $ADB, the handheld connected with USB in ADB mode,
-#        and the player built in build-device/.
+# Needs: the player built in build-device/, and a way to reach the handheld:
+#   - over USB: adb on PATH or in $ADB, the handheld in ADB mode; or
+#   - over the network: $SSH_HOST set (for example root@192.168.1.33) and,
+#     optionally, $SSH_KEY naming the private key to use.
 # The log is the game's own save/mvplayer.log, as in normal use.
 set -eu
 ADB="${ADB:-adb}"
@@ -20,16 +22,29 @@ REMOTE=/opt/mvplayer
 RUN=""
 PLAY_SECONDS="${PLAY_SECONDS:-120}"
 
-"$ADB" shell "mkdir -p $REMOTE/js $REMOTE/patches"
-"$ADB" push build-device/mvplayer "$REMOTE/mvplayer" >/dev/null
-for FILE in js/*.js patches/*; do "$ADB" push "$FILE" "$REMOTE/$FILE" >/dev/null; done
+# remote <command>: runs a command on the handheld. put <file> <remote path>:
+# copies a file to it.
+if [ -n "${SSH_HOST:-}" ]; then
+  SSH="ssh -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=8"
+  [ -n "${SSH_KEY:-}" ] && SSH="$SSH -i $SSH_KEY"
+  remote() { $SSH "$SSH_HOST" "$1"; }
+  put() { rsync -a -e "$SSH" "$1" "$SSH_HOST:$2"; }
+else
+  remote() { "$ADB" shell "$1"; }
+  put() { "$ADB" push "$1" "$2" >/dev/null; }
+fi
+
+remote "mkdir -p $REMOTE/js $REMOTE/patches"
+put build-device/mvplayer "$REMOTE/mvplayer"
+for FILE in js/*.js patches/*; do put "$FILE" "$REMOTE/$FILE"; done
 if [ -n "$WATCH" ]; then
-  "$ADB" push "$WATCH" "$REMOTE/$(basename "$WATCH")" >/dev/null
+  put "$WATCH" "$REMOTE/$(basename "$WATCH")"
   RUN="--run $REMOTE/$(basename "$WATCH")"
 fi
 
-# The menu is paused with SIGSTOP so it stops drawing, and always resumed.
-"$ADB" shell "
+# The menu is paused with SIGSTOP so it stops drawing; afterwards its loop
+# is resumed and the paused screen replaced by a fresh one.
+remote "
   cd $REMOTE && chmod +x mvplayer
   # Matched by process name, not by command line: a command-line match also
   # finds this very shell, whose command line contains the same text.
@@ -48,7 +63,15 @@ fi
   # TERM after the time limit, KILL five seconds later if it is still there.
   timeout -k 5 $PLAY_SECONDS ./mvplayer --game $GAME $RUN ${PLAYER_OPTIONS:-}
   CODE=\$?
-  [ -n \"\$MODULE\" ] && kill -CONT \$MODULE
+  # The paused menu screen has every button press of the game queued up and
+  # would act on all of them when resumed (moving around, even starting
+  # something). It is ended instead; the menu's own loop starts a fresh one.
+  [ -n \"\$MODULE\" ] && kill -KILL \$MODULE
+  # The menu's loop waits for the screen it started to report a clean exit
+  # (this file), then starts whatever act_go names. Without both, the loop
+  # waits for ever and the screen stays on the game's last picture.
+  echo launcher > /tmp/act_go
+  echo 0 > /tmp/safe_quit
   [ -n \"\$FRONTEND\" ] && kill -CONT \$FRONTEND
   echo \"player exit code: \$CODE\"
   echo '--- memory after 12 s ---'
