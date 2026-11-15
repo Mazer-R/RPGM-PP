@@ -1,0 +1,17 @@
+<!doctype html><meta charset="utf-8"><title>probe: parse game scripts only</title>
+<script>
+// Fetches every core, library and plugin script as text and compiles it
+// without running it, to see what the source and its parse cost in memory.
+fetch('/js/plugins.js').then(function (r) { return r.text(); }).then(function (t) {
+  var list = JSON.parse(t.slice(t.indexOf('['), t.lastIndexOf(']') + 1)).filter(function (p) { return p.status; })
+    .map(function (p) { return '/js/plugins/' + p.name + '.js'; });
+  ['libs/pixi','libs/pixi-tilemap','libs/pixi-picture','libs/lz-string','rpg_core','rpg_managers','rpg_objects','rpg_scenes','rpg_sprites','rpg_windows']
+    .forEach(function (n) { list.push('/js/' + n + '.js'); });
+  window.kept = [];
+  return Promise.all(list.map(function (u) {
+    return fetch(u).then(function (r) { return r.text(); }).then(function (src) {
+      try { window.kept.push(new Function(src)); } catch (e) { window.kept.push(src); }
+    });
+  }));
+}).then(function () { console.log('[H] probe-scripts done'); });
+</script>

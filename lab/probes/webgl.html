@@ -1,0 +1,8 @@
+<!doctype html><meta charset="utf-8"><title>probe: WebGL context only</title>
+<canvas id="c" width="816" height="624"></canvas>
+<script>
+// Creates one WebGL context at the game's resolution and clears it each frame.
+var gl = document.getElementById('c').getContext('webgl', { stencil: true });
+(function frame() { gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT); requestAnimationFrame(frame); })();
+console.log('[H] probe-webgl ' + (gl ? 'ok' : 'no context'));
+</script>

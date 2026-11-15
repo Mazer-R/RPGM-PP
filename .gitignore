@@ -1,0 +1,9 @@
+# This folder also holds material unrelated to the project. Ignore everything
+# at the top level and list what belongs to the repository explicitly.
+/*
+!/.gitignore
+!/README.md
+!/concepts_brief.md
+!/lab/
+
+.DS_Store

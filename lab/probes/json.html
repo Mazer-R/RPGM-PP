@@ -1,0 +1,10 @@
+<!doctype html><meta charset="utf-8"><title>probe: database JSON only</title>
+<script>
+// Loads and parses only the database files MV reads at boot, and keeps them.
+var names = ['Actors','Classes','Skills','Items','Weapons','Armors','Enemies','Troops','States','Animations','Tilesets','CommonEvents','System','MapInfos'];
+window.kept = {};
+Promise.all(names.map(function (n) {
+  return fetch('/data/' + n + '.json').then(function (r) { return r.text(); })
+    .then(function (t) { window.kept[n] = JSON.parse(t); });
+})).then(function () { console.log('[H] probe-json done'); });
+</script>
