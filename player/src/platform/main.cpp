@@ -47,7 +47,7 @@ int main(int argc, char** argv) {
   {
     mvp::Host host(log, clock);
     log.Write(mvp::LogLevel::kInfo, "host", std::string("V8 ") + v8::V8::GetVersion());
-    host.InstallWebGL(window.width(), window.height());
+    host.InstallBindings(window.width(), window.height());
     host.RunFile(script);
     exit_code = mvp::RunMainLoop(window, host, clock, log);
     log.Write(mvp::LogLevel::kInfo, "host", host.HeapSummary());

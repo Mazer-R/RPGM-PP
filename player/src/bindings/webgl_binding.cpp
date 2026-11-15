@@ -2,6 +2,8 @@
 
 #include <GLES2/gl2.h>
 
+#include "bindings/canvas_binding.h"
+
 #include <cstring>
 #include <string>
 #include <vector>
@@ -295,9 +297,17 @@ void InstallFunctions(v8::Isolate* isolate, v8::Local<v8::Object> gl) {
   FN(texParameterf, glTexParameterf(U(0), U(1), F(2)));
   FN(generateMipmap, glGenerateMipmap(U(0)));
   FN(texImage2D, {
-    // Only the form with explicit size and raw pixels is supported so far;
-    // images and canvases as sources come with the canvas binding.
-    if (args.Length() < 9) return;
+    // Short form: texImage2D(target, level, internalformat, format, type,
+    // source), where the source is a canvas or an image.
+    if (args.Length() < 9) {
+      std::vector<uint8_t> pixels;
+      int width = 0, height = 0;
+      if (args.Length() >= 6 && SurfacePixelsForUpload(ISO, args[5], g_state.premultiply,
+                                                        g_state.flip_y, &pixels, &width, &height)) {
+        glTexImage2D(U(0), I(1), I(2), width, height, 0, U(3), U(4), pixels.data());
+      }
+      return;
+    }
     GLenum format = U(6), type = U(7);
     int width = I(3), height = I(4);
     Bytes bytes = BytesOf(args[8]);
@@ -311,7 +321,16 @@ void InstallFunctions(v8::Isolate* isolate, v8::Local<v8::Object> gl) {
     }
   });
   FN(texSubImage2D, {
-    if (args.Length() < 9) return;
+    // Short form: texSubImage2D(target, level, x, y, format, type, source).
+    if (args.Length() < 9) {
+      std::vector<uint8_t> pixels;
+      int width = 0, height = 0;
+      if (args.Length() >= 7 && SurfacePixelsForUpload(ISO, args[6], g_state.premultiply,
+                                                        g_state.flip_y, &pixels, &width, &height)) {
+        glTexSubImage2D(U(0), I(1), I(2), I(3), width, height, U(4), U(5), pixels.data());
+      }
+      return;
+    }
     GLenum format = U(6), type = U(7);
     int width = I(4), height = I(5);
     Bytes bytes = BytesOf(args[8]);

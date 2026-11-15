@@ -4,6 +4,7 @@
 #include <sstream>
 #include <utility>
 
+#include "bindings/canvas_binding.h"
 #include "bindings/webgl_binding.h"
 #include "libplatform/libplatform.h"
 #include "platform/clock.h"
@@ -51,6 +52,7 @@ Host::~Host() {
   frame_callbacks_.clear();
   // Anything holding references into the engine lets go before it is disposed.
   ReleaseWebGLBinding();
+  ReleaseCanvasBinding();
   context_.Reset();
   if (isolate_) isolate_->Dispose();
   v8::V8::Dispose();
@@ -147,7 +149,7 @@ void Host::InstallGlobals(v8::Local<v8::Context> context) {
   set(global, "player", player);
 }
 
-void Host::InstallWebGL(int drawing_width, int drawing_height) {
+void Host::InstallBindings(int drawing_width, int drawing_height) {
   v8::Isolate::Scope isolate_scope(isolate_);
   v8::HandleScope handle_scope(isolate_);
   v8::Local<v8::Context> context = context_.Get(isolate_);
@@ -161,6 +163,7 @@ void Host::InstallWebGL(int drawing_width, int drawing_height) {
       ->Set(context, ToV8String(isolate_, "gl"),
             CreateWebGLContext(isolate_, context, drawing_width, drawing_height))
       .Check();
+  InstallCanvasBinding(isolate_, context, player.As<v8::Object>());
 }
 
 void Host::ReportException(v8::TryCatch* try_catch) {

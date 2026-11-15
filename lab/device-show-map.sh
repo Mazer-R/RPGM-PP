@@ -10,8 +10,10 @@
 cd /opt/rpgmv-lab || exit 1
 MAP="$1"; X="$2"; Y="$3"; SECONDS_ON_MAP="$4"; LIGHT="${5:-3}"
 
-FRONTEND=$(pgrep -f /opt/muos/script/mux/frontend.sh | head -n 1)
-MODULE=$(pgrep -f '^/opt/muos/extra/mux' | head -n 1)
+# Matched by process name, not by command line: a command-line match can
+# also find the shell that runs this script.
+FRONTEND=$(pgrep -x frontend.sh | head -n 1)
+MODULE=$(pgrep '^mux' | head -n 1)
 resume() {
   [ -n "$MODULE" ] && kill -CONT "$MODULE" 2>/dev/null
   [ -n "$FRONTEND" ] && kill -CONT "$FRONTEND" 2>/dev/null

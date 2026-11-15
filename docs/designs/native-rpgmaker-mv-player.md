@@ -195,6 +195,37 @@ adjustments where the game's own code is too expensive for this hardware.
     *   WebGL objects are freed only by the game's explicit delete calls;
         nothing is freed when a wrapper is garbage-collected.
 
+*   **The canvas and image binding draws on the console** (2026-11-15),
+    without the game yet. `player/src/bindings/canvas_binding.cpp` provides
+    Canvas 2D drawing on Cairo, text through FreeType from a font file, PNG
+    decoding, pixel read and write, and hands a canvas or an image to the
+    WebGL binding as a texture source. A hand-written script
+    (`player/tests/device/stage2_canvas.js`) draws a gradient, additive
+    bars, outlined and filled text and a region of a PNG, reads pixels
+    back, and shows the canvas through WebGL. Every check passes on the
+    console at a median of 16.67 ms per frame.
+
+    Notes for what follows:
+
+    *   **The binding is the low-level half only.** It takes every parameter
+        explicitly. The Canvas 2D object the game sees, with its state, CSS
+        colour strings and font shorthand, is to be written in JavaScript on
+        top of it. The plan put that parsing in C++ (files 33 and 34);
+        JavaScript is smaller and does no per-pixel work.
+    *   **Repainting and re-uploading a full 816x624 canvas took 78 ms** on
+        the console in this test, most of it the full-size gradient fill
+        already known to be slow (brief, section 26). Canvases that change
+        every frame must stay small or go to the GPU, as the lights patch
+        does.
+    *   **PNG decoding is synchronous** on the main thread for now; the plan
+        calls for worker threads (file 35).
+    *   Surfaces are freed only by explicit calls; nothing is freed when a
+        handle is garbage-collected.
+    *   **Found while testing, in the deploy script, not the player:** it
+        located the muOS menu by command-line text and could match its own
+        shell, pausing itself. It now matches by process name. The lab's two
+        scripts with the same lookup were corrected too.
+
 ## Critical User Journeys (CUJs)
 
 ### CUJ 1: First launch

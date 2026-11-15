@@ -39,9 +39,11 @@ class Host {
   // True while at least one frame callback is waiting. With none, and no
   // other source of work, no script code can ever run again.
   bool has_pending_frames() const { return !frame_callbacks_.empty(); }
-  // Makes the WebGL context for the current OpenGL ES context available to
-  // scripts as `player.gl`. Later the canvas element's getContext returns it.
-  void InstallWebGL(int drawing_width, int drawing_height);
+  // Makes the native bindings available to scripts: `player.gl`, the WebGL
+  // context for the current OpenGL ES context, and `player.canvas`, the
+  // Canvas 2D and image functions. The JavaScript browser layer builds the
+  // objects the game expects on top of these.
+  void InstallBindings(int drawing_width, int drawing_height);
   bool exit_requested() const { return exit_requested_; }
   int exit_code() const { return exit_code_; }
   bool had_script_error() const { return had_script_error_; }
