@@ -37,6 +37,13 @@ struct State {
   bool flip_y = false;
   bool premultiply = false;
   long calls = 0;
+  // The game's own drawing buffer, standing in for the screen (0 = none).
+  GLuint buffer_framebuffer = 0;
+  GLuint buffer_texture = 0;
+  GLuint buffer_stencil = 0;
+  int buffer_width = 0;
+  int buffer_height = 0;
+  GLuint present_program = 0;
   v8::Global<v8::Private> name_key;  // hidden property holding an object's GL name
 };
 State g_state;
@@ -162,6 +169,44 @@ std::vector<uint8_t> PreparePixels(const uint8_t* data, int width, int height) {
     }
   }
   return out;
+}
+
+// Creates or resizes the game's drawing buffer: a colour texture plus a
+// stencil buffer, which PIXI needs for masks.
+void SetDrawingBufferSize(int width, int height) {
+  if (width < 1 || height < 1) return;
+  GLint previous_texture = 0, previous_renderbuffer = 0;
+  glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous_texture);
+  glGetIntegerv(GL_RENDERBUFFER_BINDING, &previous_renderbuffer);
+  if (!g_state.buffer_framebuffer) {
+    glGenFramebuffers(1, &g_state.buffer_framebuffer);
+    glGenTextures(1, &g_state.buffer_texture);
+    glGenRenderbuffers(1, &g_state.buffer_stencil);
+  }
+  glBindTexture(GL_TEXTURE_2D, g_state.buffer_texture);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+  glBindRenderbuffer(GL_RENDERBUFFER, g_state.buffer_stencil);
+  glRenderbufferStorage(GL_RENDERBUFFER, GL_STENCIL_INDEX8, width, height);
+  glBindFramebuffer(GL_FRAMEBUFFER, g_state.buffer_framebuffer);
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, g_state.buffer_texture, 0);
+  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_RENDERBUFFER, g_state.buffer_stencil);
+  glClearColor(0, 0, 0, 1);
+  glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+  glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(previous_texture));
+  glBindRenderbuffer(GL_RENDERBUFFER, static_cast<GLuint>(previous_renderbuffer));
+  g_state.buffer_width = width;
+  g_state.buffer_height = height;
+}
+
+GLuint CompileInternal(GLenum type, const char* source) {
+  GLuint shader = glCreateShader(type);
+  glShaderSource(shader, 1, &source, nullptr);
+  glCompileShader(shader);
+  return shader;
 }
 
 void Bind(v8::Isolate* isolate, v8::Local<v8::Object> target, const char* name,
@@ -347,7 +392,12 @@ void InstallFunctions(v8::Isolate* isolate, v8::Local<v8::Object> gl) {
   // --- Framebuffers and renderbuffers --------------------------------------
   FN(createFramebuffer, { GLuint id = 0; glGenFramebuffers(1, &id); RET(Wrap(ISO, id)); });
   FN(deleteFramebuffer, { GLuint id = N(0); glDeleteFramebuffers(1, &id); });
-  FN(bindFramebuffer, glBindFramebuffer(U(0), N(1)));
+  FN(bindFramebuffer, {
+    GLuint name = N(1);
+    glBindFramebuffer(U(0), name ? name : g_state.buffer_framebuffer);
+  });
+  // Not part of WebGL: gives the game a drawing buffer of its own size.
+  FN(setDrawingBufferSize, SetDrawingBufferSize(I(0), I(1)));
   FN(framebufferTexture2D, glFramebufferTexture2D(U(0), U(1), U(2), N(3), I(4)));
   FN(checkFramebufferStatus, RET(static_cast<uint32_t>(glCheckFramebufferStatus(U(0)))));
   FN(createRenderbuffer, { GLuint id = 0; glGenRenderbuffers(1, &id); RET(Wrap(ISO, id)); });
@@ -490,6 +540,100 @@ v8::Local<v8::Object> CreateWebGLContext(v8::Isolate* isolate, v8::Local<v8::Con
   gl->Set(context, Str(isolate, "drawingBufferHeight"), v8::Integer::New(isolate, drawing_height)).Check();
   InstallFunctions(isolate, gl);
   return scope.Escape(gl);
+}
+
+bool HasDrawingBuffer() { return g_state.buffer_framebuffer != 0; }
+
+void PresentDrawingBuffer(int screen_width, int screen_height) {
+  if (!g_state.buffer_framebuffer) return;
+
+  // Remember every piece of OpenGL state touched below. PIXI keeps its own
+  // record of the state it set, so it must find things exactly as it left them.
+  GLint program = 0, active_texture = 0, texture0 = 0, array_buffer = 0, framebuffer = 0;
+  GLint viewport[4] = {0, 0, 0, 0};
+  GLfloat clear_colour[4] = {0, 0, 0, 0};
+  GLboolean colour_mask[4] = {GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE};
+  glGetIntegerv(GL_CURRENT_PROGRAM, &program);
+  glGetIntegerv(GL_ACTIVE_TEXTURE, &active_texture);
+  glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &array_buffer);
+  glGetIntegerv(GL_FRAMEBUFFER_BINDING, &framebuffer);
+  glGetIntegerv(GL_VIEWPORT, viewport);
+  glGetFloatv(GL_COLOR_CLEAR_VALUE, clear_colour);
+  glGetBooleanv(GL_COLOR_WRITEMASK, colour_mask);
+  const GLenum switches[] = {GL_BLEND, GL_SCISSOR_TEST, GL_STENCIL_TEST, GL_DEPTH_TEST, GL_CULL_FACE};
+  GLboolean was_enabled[5];
+  for (int i = 0; i < 5; i++) was_enabled[i] = glIsEnabled(switches[i]);
+  struct Attribute {
+    GLint enabled, size, type, normalized, stride, buffer;
+    void* pointer;
+  } attributes[2];
+  for (GLuint i = 0; i < 2; i++) {
+    glGetVertexAttribiv(i, GL_VERTEX_ATTRIB_ARRAY_ENABLED, &attributes[i].enabled);
+    glGetVertexAttribiv(i, GL_VERTEX_ATTRIB_ARRAY_SIZE, &attributes[i].size);
+    glGetVertexAttribiv(i, GL_VERTEX_ATTRIB_ARRAY_TYPE, &attributes[i].type);
+    glGetVertexAttribiv(i, GL_VERTEX_ATTRIB_ARRAY_NORMALIZED, &attributes[i].normalized);
+    glGetVertexAttribiv(i, GL_VERTEX_ATTRIB_ARRAY_STRIDE, &attributes[i].stride);
+    glGetVertexAttribiv(i, GL_VERTEX_ATTRIB_ARRAY_BUFFER_BINDING, &attributes[i].buffer);
+    glGetVertexAttribPointerv(i, GL_VERTEX_ATTRIB_ARRAY_POINTER, &attributes[i].pointer);
+  }
+  glActiveTexture(GL_TEXTURE0);
+  glGetIntegerv(GL_TEXTURE_BINDING_2D, &texture0);
+
+  if (!g_state.present_program) {
+    g_state.present_program = glCreateProgram();
+    glAttachShader(g_state.present_program, CompileInternal(GL_VERTEX_SHADER,
+        "attribute vec2 p; attribute vec2 t; varying vec2 v;"
+        "void main(){ v = t; gl_Position = vec4(p, 0.0, 1.0); }"));
+    glAttachShader(g_state.present_program, CompileInternal(GL_FRAGMENT_SHADER,
+        "precision highp float; varying vec2 v; uniform sampler2D s;"
+        "void main(){ gl_FragColor = vec4(texture2D(s, v).rgb, 1.0); }"));
+    glBindAttribLocation(g_state.present_program, 0, "p");
+    glBindAttribLocation(g_state.present_program, 1, "t");
+    glLinkProgram(g_state.present_program);
+  }
+
+  // Fit the game's picture inside the screen, keeping its proportions.
+  float scale_x = static_cast<float>(screen_width) / static_cast<float>(g_state.buffer_width);
+  float scale_y = static_cast<float>(screen_height) / static_cast<float>(g_state.buffer_height);
+  float scale = scale_x < scale_y ? scale_x : scale_y;
+  float x = static_cast<float>(g_state.buffer_width) * scale / static_cast<float>(screen_width);
+  float y = static_cast<float>(g_state.buffer_height) * scale / static_cast<float>(screen_height);
+  const GLfloat quad[16] = {-x, -y, 0, 0, x, -y, 1, 0, -x, y, 0, 1, x, y, 1, 1};
+
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  glViewport(0, 0, screen_width, screen_height);
+  for (GLenum name : switches) glDisable(name);
+  glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+  glClearColor(0, 0, 0, 1);
+  glClear(GL_COLOR_BUFFER_BIT);
+  glUseProgram(g_state.present_program);
+  glBindTexture(GL_TEXTURE_2D, g_state.buffer_texture);
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+  glEnableVertexAttribArray(0);
+  glEnableVertexAttribArray(1);
+  glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), quad);
+  glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), quad + 2);
+  glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+  // Put everything back.
+  for (GLuint i = 0; i < 2; i++) {
+    glBindBuffer(GL_ARRAY_BUFFER, static_cast<GLuint>(attributes[i].buffer));
+    glVertexAttribPointer(i, attributes[i].size, static_cast<GLenum>(attributes[i].type),
+                          static_cast<GLboolean>(attributes[i].normalized), attributes[i].stride,
+                          attributes[i].pointer);
+    if (attributes[i].enabled) glEnableVertexAttribArray(i); else glDisableVertexAttribArray(i);
+  }
+  glBindBuffer(GL_ARRAY_BUFFER, static_cast<GLuint>(array_buffer));
+  glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(texture0));
+  glActiveTexture(static_cast<GLenum>(active_texture));
+  glUseProgram(static_cast<GLuint>(program));
+  for (int i = 0; i < 5; i++) {
+    if (was_enabled[i]) glEnable(switches[i]); else glDisable(switches[i]);
+  }
+  glColorMask(colour_mask[0], colour_mask[1], colour_mask[2], colour_mask[3]);
+  glClearColor(clear_colour[0], clear_colour[1], clear_colour[2], clear_colour[3]);
+  glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
+  glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(framebuffer));
 }
 
 void ReleaseWebGLBinding() { g_state.name_key.Reset(); }

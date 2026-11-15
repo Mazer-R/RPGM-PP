@@ -33,9 +33,14 @@ int RunMainLoop(Window& window, Host& host, const Clock& clock, Log& log) {
       break;
     }
     // Cleared first, so whatever the scripts draw this frame is what shows.
-    const float* colour = host.clear_color();
-    window.Clear(colour[0], colour[1], colour[2]);
+    // Once the game has its own drawing buffer it does its own clearing, and
+    // a frame it chooses not to redraw must keep the previous picture.
+    if (!HasDrawingBuffer()) {
+      const float* colour = host.clear_color();
+      window.Clear(colour[0], colour[1], colour[2]);
+    }
     host.RunFrameCallbacks(clock.NowMs());
+    PresentDrawingBuffer(window.width(), window.height());
     window.Swap();
     frames++;
   }

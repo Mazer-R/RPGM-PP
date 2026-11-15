@@ -23,6 +23,19 @@ namespace mvp {
 v8::Local<v8::Object> CreateWebGLContext(v8::Isolate* isolate, v8::Local<v8::Context> context,
                                          int drawing_width, int drawing_height);
 
+// The game draws at its own size (816x624 for the reference game), which is
+// not the screen's. When a script calls gl.setDrawingBufferSize(w, h), the
+// binding gives the game an off-screen drawing buffer of that size in place
+// of the screen: binding "no framebuffer" then selects that buffer. This
+// call copies it to the real screen, scaled to fit with its proportions
+// kept, and leaves the OpenGL state exactly as the game had it. It does
+// nothing until a drawing buffer size has been set.
+void PresentDrawingBuffer(int screen_width, int screen_height);
+
+// True once the game has its own drawing buffer; the main loop then leaves
+// clearing to the game.
+bool HasDrawingBuffer();
+
 // Releases the references the binding holds into the JavaScript engine. Must
 // be called before the engine is shut down; they cannot outlive it.
 void ReleaseWebGLBinding();

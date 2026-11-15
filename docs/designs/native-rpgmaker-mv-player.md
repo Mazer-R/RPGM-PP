@@ -226,6 +226,46 @@ adjustments where the game's own code is too expensive for this hardware.
         shell, pausing itself. It now matches by process name. The lab's two
         scripts with the same lookup were corrected too.
 
+*   **Stage 2, the game reaches its title screen (2026-11-15).** The new
+    player boots Fear & Hunger on the console to its title screen, drawn
+    through the own WebGL and canvas bindings: background art, window frame
+    and menu text in the game's font. The JavaScript layers are in
+    `player/js/` (`boot.js`, `css.js`, `dom.js`, `canvas2d.js`,
+    `desktop.js`); `player/tools/run-game.sh` runs a game on the console and
+    `player/tests/device/stage2_title_watch.js` checks the result.
+    *   **Measured on the console:** title scene 8.0 s after start; 56.9
+        frames per second on the title scene; 265 MB resident memory 12 s
+        after start (goal: under 450 MB); JavaScript heap 98 MB; about 59
+        WebGL calls per frame. The picture was read back and checked by eye.
+    *   The game passes through its own map scene before the title
+        (`Scene_PretitleMap`), so a map with the lighting plugin was built
+        and drawn for six seconds without errors. This is not yet a check of
+        map drawing: no picture of it was captured.
+    *   **The game draws at its own size.** The WebGL binding gives the game
+        an off-screen drawing buffer (816x624, with stencil) in place of the
+        screen and copies it to the 640x480 screen each frame, scaled with
+        its proportions kept, restoring every piece of OpenGL state it
+        touches.
+    *   **Everything the player writes stays in the game's `save/` folder:**
+        save files, written through the desktop-mode `fs` module, and the
+        log (`save/mvplayer.log`). The native side refuses writes anywhere
+        else. Save files are written to a temporary file, flushed, and
+        renamed, keeping the previous version as `.bak`. Saving itself has
+        not been exercised yet: nothing on the title screen saves.
+    *   **A game script that fails is logged, not fatal.** One of the game's
+        plugins (`physical_attack_animation.js`) has a syntax error inside an
+        `eval`, which also fails in a browser; the game runs without it.
+    *   **Sound is off:** the page address carries the engine's `noaudio`
+        option until the audio service exists. Input is not connected, so
+        the title menu cannot be operated yet.
+    *   **Deviations:** modules the player does not provide (the game asks
+        for the Steam library) are answered with an object whose functions
+        return false, and each missing feature is logged once; this is the
+        lenient mode only, the strict mode is not built. Bold and italic in
+        font descriptions are ignored. File requests for binary data and
+        images from `data:` addresses are not provided. An engine error
+        ends the player with exit code 3 instead of showing an error screen.
+
 ## Critical User Journeys (CUJs)
 
 ### CUJ 1: First launch

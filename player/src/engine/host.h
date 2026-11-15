@@ -27,6 +27,11 @@ class Host {
   Host(const Host&) = delete;
   Host& operator=(const Host&) = delete;
 
+  // Tells the host where the game and the player's own files are. Scripts
+  // see them as player.gameDir and player.playerDir, and file writes are
+  // allowed only inside the game's save folder.
+  void SetDirectories(const std::string& game_dir, const std::string& player_dir);
+
   // Loads and runs one script file. Returns false if it could not be read
   // or threw; the reason is written to the log.
   bool RunFile(const std::string& path);
@@ -59,6 +64,15 @@ class Host {
   static void RequestFrameCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetClearColorCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ExitCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ReadTextFileCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void FileExistsCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void LoadScriptCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void WriteSaveFileCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RemoveSaveFileCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void MakeSaveDirCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  // True if `path` is inside the game's save folder and has no "..".
+  bool IsSavePath(const std::string& path) const;
 
   void InstallGlobals(v8::Local<v8::Context> context);
   void ReportException(v8::TryCatch* try_catch);
@@ -71,6 +85,9 @@ class Host {
   v8::Global<v8::Context> context_;
   std::vector<v8::Global<v8::Function>> frame_callbacks_;
   float clear_color_[3] = {0.0f, 0.0f, 0.0f};
+  std::string game_dir_;
+  std::string player_dir_;
+  int script_depth_ = 0;  // > 0 while a script is running, for nested loads
   bool exit_requested_ = false;
   bool had_script_error_ = false;
   int exit_code_ = 0;
