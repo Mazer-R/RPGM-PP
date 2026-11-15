@@ -17,6 +17,10 @@
 // real WebGL renderer and the processor time it spends preparing a frame can
 // be measured without a GPU.
 //
+// With LAB_PRESENT=<path to labgl.node> (and LAB_CANVAS=1) every frame PIXI
+// draws on the CPU is also sent to the handheld's screen through the native
+// module in lab/screen, so the game can be watched running on the device.
+//
 // Usage: node --expose-gc run.js <www-dir> <map-id> <x> <y> <seconds> [cull-margin]
 'use strict';
 const fs = require('fs');
@@ -41,6 +45,9 @@ const fakeGlCalls = {};
 // True only while the measurement window is open. Declared early because
 // wrappers installed at start-up consult it before the driver state exists.
 let measuring = false;
+const presenter = real && process.env.LAB_PRESENT ? require(process.env.LAB_PRESENT) : null;
+let presentedFrames = 0;
+let presentMs = 0;
 const errors = [];
 const noteError = (where, e) => {
   const text = where + ': ' + (e && e.message ? e.message : String(e));
@@ -599,6 +606,15 @@ function installMeasurement() {
     const before = performance.now();
     renderScene.apply(this, arguments);
     if (phase === 'measure') drawMs.push(performance.now() - before);
+    if (presenter) {
+      // Send the finished frame to the screen. The canvas library hands out
+      // its pixels as blue-green-red-alpha rows, which the module expects.
+      const sent = performance.now();
+      const canvas = Graphics._canvas;
+      presenter.present(canvas.toBuffer('raw'), canvas.width, canvas.height);
+      presentMs += performance.now() - sent;
+      presentedFrames++;
+    }
   };
   Object.keys(fakeGlCalls).forEach((k) => { delete fakeGlCalls[k]; });
   // Count WebGL work only from here on, so start-up uploads are excluded.
@@ -665,6 +681,7 @@ function finish() {
     fakeGlTop: Object.entries(fakeGlCalls).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([k, v]) => k + ':' + v),
     canvasMsPerStep: Object.fromEntries(Object.entries(canvasCalls).sort((a, b) => b[1].ms - a[1].ms).slice(0, 10)
       .map(([k, v]) => [k, { callsPerStep: Math.round(v.n / Math.max(1, sorted.length) * 10) / 10, msPerStep: Math.round(v.ms / Math.max(1, sorted.length) * 100) / 100 }])),
+    presentedFrames, presentMsPerFrame: presentedFrames ? Math.round(presentMs / presentedFrames * 100) / 100 : null,
     coercions, realCanvas: !!real, renderer: globalThis.Graphics && Graphics._renderer ? Graphics._renderer.constructor.name : null, shot,
     leftMapAtStep,
     profileMsPerStep: Object.fromEntries(Object.entries(profile).map(([k, v]) => [k, sorted.length ? Math.round(v / sorted.length * 100) / 100 : null])),
