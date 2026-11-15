@@ -5,6 +5,7 @@
 #include "bindings/canvas_binding.h"
 
 #include <cstring>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -44,6 +45,8 @@ struct State {
   int buffer_width = 0;
   int buffer_height = 0;
   GLuint present_program = 0;
+  // Pixel memory of each texture, by OpenGL name, to report the total.
+  std::map<GLuint, long long> texture_bytes;
   v8::Global<v8::Private> name_key;  // hidden property holding an object's GL name
 };
 State g_state;
@@ -209,6 +212,15 @@ GLuint CompileInternal(GLenum type, const char* source) {
   return shader;
 }
 
+// Records the size of the texture bound to GL_TEXTURE_2D after an upload
+// that (re)defines its base level.
+void NoteTextureSize(int level, int width, int height) {
+  if (level != 0) return;
+  GLint bound = 0;
+  glGetIntegerv(GL_TEXTURE_BINDING_2D, &bound);
+  if (bound) g_state.texture_bytes[static_cast<GLuint>(bound)] = static_cast<long long>(width) * height * 4;
+}
+
 void Bind(v8::Isolate* isolate, v8::Local<v8::Object> target, const char* name,
           v8::FunctionCallback callback) {
   v8::Local<v8::Context> ctx = isolate->GetCurrentContext();
@@ -335,7 +347,13 @@ void InstallFunctions(v8::Isolate* isolate, v8::Local<v8::Object> gl) {
 
   // --- Textures ------------------------------------------------------------
   FN(createTexture, { GLuint id = 0; glGenTextures(1, &id); RET(Wrap(ISO, id)); });
-  FN(deleteTexture, { GLuint id = N(0); glDeleteTextures(1, &id); });
+  FN(deleteTexture, { GLuint id = N(0); glDeleteTextures(1, &id); g_state.texture_bytes.erase(id); });
+  // Not part of WebGL: pixel memory held by textures, in bytes.
+  FN(textureBytes, {
+    long long total = 0;
+    for (const auto& entry : g_state.texture_bytes) total += entry.second;
+    RET(static_cast<double>(total));
+  });
   FN(bindTexture, glBindTexture(U(0), N(1)));
   FN(activeTexture, glActiveTexture(U(0)));
   FN(texParameteri, glTexParameteri(U(0), U(1), I(2)));
@@ -350,6 +368,7 @@ void InstallFunctions(v8::Isolate* isolate, v8::Local<v8::Object> gl) {
       if (args.Length() >= 6 && SurfacePixelsForUpload(ISO, args[5], g_state.premultiply,
                                                         g_state.flip_y, &pixels, &width, &height)) {
         glTexImage2D(U(0), I(1), I(2), width, height, 0, U(3), U(4), pixels.data());
+        NoteTextureSize(I(1), width, height);
       }
       return;
     }
@@ -364,6 +383,7 @@ void InstallFunctions(v8::Isolate* isolate, v8::Local<v8::Object> gl) {
     } else {
       glTexImage2D(U(0), I(1), I(2), width, height, I(5), format, type, bytes.data);
     }
+    NoteTextureSize(I(1), width, height);
   });
   FN(texSubImage2D, {
     // Short form: texSubImage2D(target, level, x, y, format, type, source).

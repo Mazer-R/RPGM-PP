@@ -1,5 +1,7 @@
 #include "platform/window.h"
 
+#include "platform/input.h"
+
 #include <GLES2/gl2.h>
 #include <SDL.h>
 
@@ -62,11 +64,12 @@ void Window::Clear(float r, float g, float b) {
 
 void Window::Swap() { SDL_GL_SwapWindow(window_); }
 
-bool Window::PumpEvents() {
+bool Window::PumpEvents(Input& input) {
   SDL_Event event;
   bool keep_running = true;
   while (SDL_PollEvent(&event)) {
     if (event.type == SDL_QUIT) keep_running = false;
+    else input.HandleEvent(event);
   }
   return keep_running;
 }

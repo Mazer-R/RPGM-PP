@@ -5,6 +5,7 @@
 
 #include <cstdio>
 #include <fstream>
+#include <chrono>
 #include <sstream>
 #include <utility>
 
@@ -53,6 +54,8 @@ Host::Host(Log& log, const Clock& clock) : log_(log), clock_(clock) {
 }
 
 Host::~Host() {
+  watchdog_stop_ = true;
+  if (watchdog_.joinable()) watchdog_.join();
   frame_callbacks_.clear();
   // Anything holding references into the engine lets go before it is disposed.
   ReleaseWebGLBinding();
@@ -345,6 +348,80 @@ void Host::RunFrameCallbacks(double now_ms) {
     }
     isolate_->PerformMicrotaskCheckpoint();
   }
+}
+
+void Host::Heartbeat() {
+  last_heartbeat_ms_ = clock_.NowMs();
+  stall_reported_ = false;
+}
+
+// Runs on the script thread, interrupting whatever script is running.
+void Host::LogStall(v8::Isolate* isolate, void* data) {
+  Host* host = static_cast<Host*>(data);
+  v8::HandleScope handle_scope(isolate);
+  std::string text = "a frame has not finished for several seconds; the script is at:";
+  v8::Local<v8::StackTrace> trace = v8::StackTrace::CurrentStackTrace(isolate, 24);
+  for (int i = 0; i < trace->GetFrameCount(); i++) {
+    v8::Local<v8::StackFrame> frame = trace->GetFrame(isolate, static_cast<uint32_t>(i));
+    text += "\n    at " + ToStdString(isolate, frame->GetFunctionName()) + " (" +
+            ToStdString(isolate, frame->GetScriptName()) + ":" + std::to_string(frame->GetLineNumber()) + ")";
+  }
+  host->log_.Write(LogLevel::kError, "watchdog", text);
+}
+
+void Host::StartWatchdog(const volatile std::sig_atomic_t* stop_flag) {
+  const double kStallMs = 5000;
+  Heartbeat();
+  watchdog_ = std::thread([this, stop_flag, kStallMs] {
+    bool terminated = false;
+    while (!watchdog_stop_) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(250));
+      double silent_ms = clock_.NowMs() - last_heartbeat_ms_;
+      if (silent_ms > kStallMs && !stall_reported_.exchange(true)) {
+        // Written here as well: if the stall is inside native code, the
+        // interrupt below is not served until that code returns.
+        std::fprintf(stderr, "watchdog: no frame finished for %.0f s\n", silent_ms / 1000.0);
+        isolate_->RequestInterrupt(&Host::LogStall, this);
+      }
+      // Asked to stop while a script is not returning: end that script.
+      if (*stop_flag && silent_ms > 1000 && !terminated) {
+        terminated = true;
+        isolate_->TerminateExecution();
+      }
+    }
+  });
+}
+
+void Host::SetFlag(const std::string& name, bool value) {
+  v8::Isolate::Scope isolate_scope(isolate_);
+  v8::HandleScope handle_scope(isolate_);
+  v8::Local<v8::Context> context = context_.Get(isolate_);
+  v8::Context::Scope context_scope(context);
+  v8::Local<v8::Value> player;
+  if (!context->Global()->Get(context, ToV8String(isolate_, "player")).ToLocal(&player) || !player->IsObject()) return;
+  player.As<v8::Object>()->Set(context, ToV8String(isolate_, name), v8::Boolean::New(isolate_, value)).Check();
+}
+
+void Host::DispatchKey(int key_code, bool down) {
+  v8::Isolate::Scope isolate_scope(isolate_);
+  v8::HandleScope handle_scope(isolate_);
+  v8::Local<v8::Context> context = context_.Get(isolate_);
+  v8::Context::Scope context_scope(context);
+  v8::TryCatch try_catch(isolate_);
+  v8::Local<v8::Value> player, handler;
+  if (!context->Global()->Get(context, ToV8String(isolate_, "player")).ToLocal(&player) ||
+      !player->IsObject() ||
+      !player.As<v8::Object>()->Get(context, ToV8String(isolate_, "onKey")).ToLocal(&handler) ||
+      !handler->IsFunction()) {
+    return;
+  }
+  v8::Local<v8::Value> arguments[2] = {v8::Integer::New(isolate_, key_code),
+                                       v8::Boolean::New(isolate_, down)};
+  v8::Local<v8::Value> result;
+  if (!handler.As<v8::Function>()->Call(context, player, 2, arguments).ToLocal(&result)) {
+    ReportException(&try_catch);
+  }
+  isolate_->PerformMicrotaskCheckpoint();
 }
 
 std::string Host::HeapSummary() const {

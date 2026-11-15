@@ -266,6 +266,94 @@ adjustments where the game's own code is too expensive for this hardware.
         images from `data:` addresses are not provided. An engine error
         ends the player with exit code 3 instead of showing an error screen.
 
+*   **Stage 3, controls (2026-11-15).** `player/src/platform/input.{h,cpp}`
+    reads the console's buttons through SDL2's game controller layer and a
+    keyboard, and reports both as browser key codes; the page layer turns
+    them into `keydown`/`keyup` events, which is the input the engine
+    already handles. Layout, following the engine's gamepad defaults: A
+    confirms, B cancels, X dashes, Y and Select open the menu, Start
+    confirms, L/R page, the d-pad and the left stick move. The menu button
+    held plus Start quits the player.
+    *   On the console SDL reports the controls as `muOS-Keys`, with a
+        layout found in `/usr/lib/gamecontrollerdb.txt` (read when
+        `SDL_GAMECONTROLLERCONFIG_FILE` is not set).
+    *   **Checked on the console by a script**
+        (`player/tests/device/stage3_input_watch.js`) that feeds key codes
+        through the entry point the native side uses: the title menu cursor
+        moved down and up, "new game" started, and the game went through
+        its map scene to character selection and the name entry screen
+        (`Scene_Title > Scene_Map > Scene_Name`), with pictures read back.
+    *   **Not yet checked:** real button presses (the script does not press
+        buttons), and whether the labels A/B/X/Y in the system's layout match
+        the buttons as printed on the console.
+
+*   **Patches in the player (2026-11-15).** The first hands-on session was
+    unplayably slow on maps: about 3 frames per second. Measured with
+    `player/tests/device/profile_watch.js`: the lighting plugin's full-screen
+    gradient fill cost about 35 ms per logic step, and the engine, trying to
+    catch up, ran up to 15 steps per frame (about 520 ms per frame). This is
+    the cost the brief predicted; the patches were simply not in the new
+    player yet.
+    *   `player/patches/` now holds the lab's patches as `gpu-lights.js` and
+        `event-culling.js` (with the lighting update every third step), and
+        `index.json`, which selects patches by the game's title, engine and
+        active plugins. `boot.js` installs them when the engine finishes
+        booting. `--no-patches` runs a game without them.
+    *   **Measured on the console with the patches:** the map before the
+        title 61 frames per second (was 6 to 11); the first maps of a new
+        game 42 to 61 frames per second (was 3), with about 4 to 6 ms of
+        logic and 5 to 7 ms of drawing per frame; 274 MB resident memory.
+    *   **Open:** on the first playable map the rate is about 43 frames per
+        second although the JavaScript side uses about 10 ms per frame. The
+        rest is outside what was measured (the copy to the screen, the
+        buffer swap, or the GPU finishing its work) and has not been
+        located. These are small maps; the largest maps have not been run
+        in the new player.
+    *   The patches' known visual differences from the plugin's own lights
+        (listed at the top of `gpu-lights.js`) still apply.
+
+*   **Memory no longer grows from map to map (2026-11-15).** The second
+    hands-on session froze when a new map loaded, and the console stopped
+    answering. A scripted tour of the maps reachable from the save
+    (`player/tests/device/map_tour_watch.js`) showed why: every map change
+    added 30 to 60 MB that was never released, reaching 839 MB resident
+    with 89 MB left on the console after about a minute. This was the
+    deviation recorded above ("surfaces are freed only by explicit calls").
+    Three changes:
+    *   **Images, canvases and gradients are freed when the game drops
+        them.** Each native object is tied to its JavaScript handle with a
+        weak reference, and the engine is told how much pixel memory exists
+        outside its heap so that it collects such handles in time.
+    *   **Freed pixel buffers go back to the system.** The C library's
+        threshold for giving large blocks their own mapping is fixed at
+        64 KB; with the default, freed blocks were kept and the process only
+        grew.
+    *   **Images are decoded only when needed.** Loading reads the size from
+        the PNG header; the pixels are decoded for a texture upload or a
+        canvas draw, and only the most recently used decoded copies are kept
+        (32 MB). Before, every image was held twice, decoded and as a
+        texture. This replaces the plan's worker-thread decoding for now:
+        decoding is still synchronous, at first use.
+    *   **Measured on the console,** ten map changes including the four
+        largest maps (80x81 and larger, 320 to 344 events): resident memory
+        stays between 395 and 426 MB (goal: under 450); textures 76 to
+        108 MB; canvases and images 56 to 118 MB.
+    *   **Largest maps:** about 13 ms per logic step and 5 to 7 ms of
+        drawing, which settles at 30 to 36 frames per second with two logic
+        steps per frame (goal: at least 30). The first seconds after a map
+        loads are slower, 3 to 20 frames per second, while the engine works
+        off the steps it fell behind during loading.
+    *   **Watchdog.** A thread notices when no frame has finished for five
+        seconds, writes the JavaScript stack at that moment to the log, and
+        ends the running script when the player is asked to stop during a
+        stall. It did not report the freeze above, which was the system out
+        of memory rather than a script loop.
+    *   **Also checked by script on the console:** a battle started from a
+        new game and from the save file runs through its turns at 35 to 42
+        frames per second (`player/tests/device/battle_watch.js`), and a
+        game saved by hand produced `file1.rpgsave` and `global.rpgsave` in
+        the game's `save/` folder, which the tour then loaded.
+
 ## Critical User Journeys (CUJs)
 
 ### CUJ 1: First launch

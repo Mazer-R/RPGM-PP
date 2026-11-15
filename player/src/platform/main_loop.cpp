@@ -6,6 +6,7 @@
 #include "bindings/webgl_binding.h"
 #include "engine/host.h"
 #include "platform/clock.h"
+#include "platform/input.h"
 #include "platform/log.h"
 #include "platform/window.h"
 
@@ -16,15 +17,24 @@ volatile std::sig_atomic_t g_terminate = 0;
 void OnTerminate(int) { g_terminate = 1; }
 }  // namespace
 
-int RunMainLoop(Window& window, Host& host, const Clock& clock, Log& log) {
+int RunMainLoop(Window& window, Input& input, Host& host, const Clock& clock, Log& log) {
   std::signal(SIGTERM, OnTerminate);
   std::signal(SIGINT, OnTerminate);
 
+  host.StartWatchdog(&g_terminate);
   long frames = 0;
   double started = clock.NowMs();
   bool idle = false;
   while (!host.exit_requested() && !g_terminate) {
-    if (!window.PumpEvents()) break;
+    host.Heartbeat();
+    if (!window.PumpEvents(input)) break;
+    if (input.quit_requested()) {
+      log.Write(LogLevel::kInfo, "loop", "quit combination pressed (menu button + Start)");
+      break;
+    }
+    // Key changes reach the game before this frame's work, as a browser
+    // delivers key events between frames.
+    for (const KeyChange& change : input.TakeChanges()) host.DispatchKey(change.key_code, change.down);
     // Frame callbacks are the only source of work so far. When none is
     // waiting, nothing can run again, so the loop ends instead of presenting
     // empty frames for ever (for example after a script failed while loading).

@@ -332,15 +332,55 @@
   };
 
   // --- Images ---------------------------------------------------------------
+  // Loading an image reads only its size. Its pixels are decoded the first
+  // time something needs them: an upload to a texture, or drawing it on a
+  // canvas. Most images are uploaded once and then live in the texture, so
+  // the decoded copy is dropped again: only the most recently used ones are
+  // kept, up to DECODED_BUDGET bytes, and an image needed again later is
+  // decoded again.
+  var DECODED_BUDGET = 32 * 1024 * 1024;
+  var decoded = [];        // images holding decoded pixels, oldest first
+  var decodedBytes = 0;
+  function dropDecoded(image) {
+    if (!image._surface) return;
+    c2d.destroy(image._surface);
+    image._surface = null;
+    decodedBytes -= image.width * image.height * 4;
+    var i = decoded.indexOf(image);
+    if (i >= 0) decoded.splice(i, 1);
+  }
+  function decode(image) {
+    var handle = c2d.loadImage(image._file);
+    if (!handle) {
+      if (!image._decodeFailed) console.warn('image: cannot decode ' + image._file);
+      image._decodeFailed = true;
+      return null;
+    }
+    image._surface = handle;
+    decodedBytes += image.width * image.height * 4;
+    decoded.push(image);
+    // The newest one always stays, whatever its size.
+    while (decodedBytes > DECODED_BUDGET && decoded.length > 1) dropDecoded(decoded[0]);
+    return handle;
+  }
+
   function HTMLImageElement() {
     Element.call(this, 'img');
     this.complete = false;
     this.width = this.height = this.naturalWidth = this.naturalHeight = 0;
-    this.__native = null;
+    this._surface = null;
+    this._file = '';
     this._src = '';
   }
   HTMLImageElement.prototype = Object.create(Element.prototype);
   HTMLImageElement.prototype.constructor = HTMLImageElement;
+  // The decoded pixels, as the native canvas and WebGL functions take them.
+  Object.defineProperty(HTMLImageElement.prototype, '__native', {
+    get: function () {
+      if (!this.complete || this._decodeFailed) return null;
+      return this._surface || decode(this);
+    },
+  });
   Object.defineProperty(HTMLImageElement.prototype, 'src', {
     get: function () { return this._src; },
     set: function (url) {
@@ -351,15 +391,16 @@
       var image = this;
       later(function () {
         if (image._src !== url) return; // replaced before it loaded
-        var handle = /^(data|blob):/.test(url) ? null : c2d.loadImage(gamePath(url));
-        if (!handle) {
+        var file = gamePath(url);
+        var size = /^(data|blob):/.test(url) ? null : c2d.imageSize(file);
+        if (!size) {
           if (/^(data|blob):/.test(url)) browser.missing('images from data: or blob: addresses');
           console.warn('image: cannot load ' + url.slice(0, 120));
           return emit(image, 'error');
         }
-        if (image.__native) c2d.destroy(image.__native);
-        var size = c2d.size(handle);
-        image.__native = handle;
+        dropDecoded(image);
+        image._file = file;
+        image._decodeFailed = false;
         image.width = image.naturalWidth = size[0];
         image.height = image.naturalHeight = size[1];
         image.complete = true;
@@ -494,6 +535,26 @@
     outerWidth: { get: function () { return globalThis.innerWidth; }, configurable: true },
     outerHeight: { get: function () { return globalThis.innerHeight; }, configurable: true },
   });
+
+  // --- Keys -----------------------------------------------------------------
+  // The native player reports the console's buttons and a keyboard as key
+  // codes. They become the keyboard events a page receives.
+  var KEY_NAMES = { 8: 'Backspace', 9: 'Tab', 13: 'Enter', 16: 'Shift', 17: 'Control', 18: 'Alt', 27: 'Escape',
+    32: ' ', 33: 'PageUp', 34: 'PageDown', 37: 'ArrowLeft', 38: 'ArrowUp', 39: 'ArrowRight', 40: 'ArrowDown', 45: 'Insert' };
+  var keysDown = {};
+  player.onKey = function (keyCode, down) {
+    var name = KEY_NAMES[keyCode] || String.fromCharCode(keyCode).toLowerCase();
+    var event = new Event(down ? 'keydown' : 'keyup', {
+      keyCode: keyCode, which: keyCode, key: name, repeat: false, target: document.body,
+      shiftKey: !!keysDown[16], ctrlKey: !!keysDown[17], altKey: !!keysDown[18], metaKey: false,
+    });
+    if (down) keysDown[keyCode] = true; else delete keysDown[keyCode];
+    // Listeners are on the document or on the window; a real event reaches both.
+    try {
+      document.dispatchEvent(event);
+      windowEvents.dispatchEvent(event);
+    } catch (error) { console.error('key event: ' + describe(error)); }
+  };
 
   // Fires the page's load event, which starts the engine.
   browser.fireLoad = function () {

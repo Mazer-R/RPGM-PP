@@ -40,6 +40,7 @@ add_executable(mvplayer
   src/bindings/webgl_binding.cpp
   src/platform/main.cpp
   src/platform/clock.cpp
+  src/platform/input.cpp
   src/platform/log.cpp
   src/platform/window.cpp
   src/platform/main_loop.cpp

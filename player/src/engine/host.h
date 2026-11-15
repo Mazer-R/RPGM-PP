@@ -9,8 +9,11 @@
 // browser layer.
 #pragma once
 
+#include <atomic>
+#include <csignal>
 #include <memory>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "v8.h"
@@ -39,7 +42,20 @@ class Host {
   // Calls every callback registered with requestAnimationFrame since the
   // last call, passing `now_ms`. Callbacks registered while running are kept
   // for the next frame, as in a browser.
+  // Starts a watchdog thread for scripts that stop returning. The main loop
+  // calls Heartbeat() once per frame. When no heartbeat arrives for several
+  // seconds, the JavaScript stack at that moment is written to the log (once
+  // per stall). When `*stop_flag` becomes non-zero during a stall, the
+  // running script is terminated so the player can exit.
+  void StartWatchdog(const volatile std::sig_atomic_t* stop_flag);
+  void Heartbeat();
+
+  // Sets player.<name> to true or false, for options scripts consult.
+  void SetFlag(const std::string& name, bool value);
   void RunFrameCallbacks(double now_ms);
+  // Tells the scripts that a key went down or up, by calling player.onKey
+  // (keyCode, down) if a script has set it. `key_code` is a browser key code.
+  void DispatchKey(int key_code, bool down);
 
   // True while at least one frame callback is waiting. With none, and no
   // other source of work, no script code can ever run again.
@@ -89,6 +105,11 @@ class Host {
   std::string player_dir_;
   int script_depth_ = 0;  // > 0 while a script is running, for nested loads
   bool exit_requested_ = false;
+  std::thread watchdog_;
+  std::atomic<bool> watchdog_stop_{false};
+  std::atomic<double> last_heartbeat_ms_{0};
+  std::atomic<bool> stall_reported_{false};
+  static void LogStall(v8::Isolate* isolate, void* data);
   bool had_script_error_ = false;
   int exit_code_ = 0;
 };

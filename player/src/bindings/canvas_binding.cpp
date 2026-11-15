@@ -6,8 +6,10 @@
 #include FT_FREETYPE_H
 
 #include <cmath>
+#include <cstdio>
 #include <cstring>
 #include <map>
+#include <set>
 #include <string>
 
 namespace mvp {
@@ -28,8 +30,17 @@ struct State {
   FT_Library freetype = nullptr;
   std::map<std::string, cairo_font_face_t*> fonts;  // family name -> font file face
   long long bytes = 0;
+  v8::Isolate* isolate = nullptr;
 };
 State g_state;
+
+// Pixel memory lives outside the JavaScript heap, so the engine cannot see
+// it. It is told how much there is; otherwise it would see only small handle
+// objects and not bother collecting them while the pixels behind them pile up.
+void AccountBytes(long long delta) {
+  g_state.bytes += delta;
+  if (g_state.isolate) g_state.isolate->AdjustAmountOfExternalAllocatedMemory(delta);
+}
 
 using Args = v8::FunctionCallbackInfo<v8::Value>;
 
@@ -68,12 +79,55 @@ Surface* SurfaceOf(v8::Isolate* isolate, v8::Local<v8::Value> value) {
   return Hidden<Surface>(isolate, inner, g_state.surface_key);
 }
 
-v8::Local<v8::Object> WrapPointer(v8::Isolate* isolate, void* pointer,
-                                  const v8::Global<v8::Private>& key) {
+void FreeSurface(Surface* s);
+
+// Ties a native object to the JavaScript handle that stands for it: when the
+// handle is garbage-collected, the native object is freed. The game never
+// frees images or canvases itself, as a page does not have to.
+struct Owned {
+  v8::Global<v8::Object> handle;
+  Surface* surface = nullptr;
+  cairo_pattern_t* gradient = nullptr;
+};
+std::set<Owned*> g_owned;
+
+void FreeOwned(Owned* owned) {
+  if (owned->surface) {
+    FreeSurface(owned->surface);
+    delete owned->surface;
+  }
+  if (owned->gradient) cairo_pattern_destroy(owned->gradient);
+  g_owned.erase(owned);
+  delete owned;
+}
+
+// The engine's rule for weak handles: the first call may only drop the
+// handle; the real work happens in a second call.
+void OnHandleCollectedSecondPass(const v8::WeakCallbackInfo<Owned>& info) { FreeOwned(info.GetParameter()); }
+void OnHandleCollected(const v8::WeakCallbackInfo<Owned>& info) {
+  info.GetParameter()->handle.Reset();
+  info.SetSecondPassCallback(OnHandleCollectedSecondPass);
+}
+
+v8::Local<v8::Object> WrapOwned(v8::Isolate* isolate, Owned* owned, void* pointer,
+                                const v8::Global<v8::Private>& key) {
   v8::Local<v8::Object> object = v8::Object::New(isolate);
   object->SetPrivate(isolate->GetCurrentContext(), key.Get(isolate), v8::External::New(isolate, pointer))
       .Check();
+  owned->handle.Reset(isolate, object);
+  owned->handle.SetWeak(owned, OnHandleCollected, v8::WeakCallbackType::kParameter);
+  g_owned.insert(owned);
   return object;
+}
+v8::Local<v8::Object> WrapSurface(v8::Isolate* isolate, Surface* surface) {
+  Owned* owned = new Owned();
+  owned->surface = surface;
+  return WrapOwned(isolate, owned, surface, g_state.surface_key);
+}
+v8::Local<v8::Object> WrapGradient(v8::Isolate* isolate, cairo_pattern_t* gradient) {
+  Owned* owned = new Owned();
+  owned->gradient = gradient;
+  return WrapOwned(isolate, owned, gradient, g_state.gradient_key);
 }
 
 Surface* NewCanvas(int width, int height) {
@@ -84,13 +138,13 @@ Surface* NewCanvas(int width, int height) {
   s->cr = cairo_create(s->surface);
   s->width = width;
   s->height = height;
-  g_state.bytes += static_cast<long long>(width) * height * 4;
+  AccountBytes(static_cast<long long>(width) * height * 4);
   return s;
 }
 
 void FreeSurface(Surface* s) {
   if (!s || !s->surface) return;
-  g_state.bytes -= static_cast<long long>(s->width) * s->height * 4;
+  AccountBytes(-static_cast<long long>(s->width) * s->height * 4);
   if (s->cr) cairo_destroy(s->cr);
   cairo_surface_destroy(s->surface);
   s->surface = nullptr;
@@ -159,7 +213,7 @@ void Bind(v8::Isolate* isolate, v8::Local<v8::Object> target, const char* name,
 
 void InstallFunctions(v8::Isolate* isolate, v8::Local<v8::Object> canvas) {
   // --- Surfaces --------------------------------------------------------------
-  FN(create, RET(WrapPointer(ISO, NewCanvas(I(0), I(1)), g_state.surface_key)));
+  FN(create, RET(WrapSurface(ISO, NewCanvas(I(0), I(1)))));
   FN(resize, {
     // Changing a canvas's size clears it, as in a browser.
     Surface* s = SurfaceOf(ISO, args[0]);
@@ -177,6 +231,28 @@ void InstallFunctions(v8::Isolate* isolate, v8::Local<v8::Object> canvas) {
     size->Set(CTX, 1, v8::Integer::New(ISO, s ? s->height : 0)).Check();
     RET(size);
   });
+  // Reads only the size of a PNG file, from its header. Returns [width,
+  // height], or null if the file is missing or is not a PNG.
+  FN(imageSize, {
+    std::string path = ToStd(ISO, args[0]);
+    unsigned char header[24];
+    FILE* file = std::fopen(path.c_str(), "rb");
+    size_t got = file ? std::fread(header, 1, sizeof header, file) : 0;
+    if (file) std::fclose(file);
+    static const unsigned char kSignature[8] = {0x89, 'P', 'N', 'G', 0x0d, 0x0a, 0x1a, 0x0a};
+    if (got != sizeof header || std::memcmp(header, kSignature, 8) != 0 ||
+        std::memcmp(header + 12, "IHDR", 4) != 0) {
+      RET(v8::Null(ISO));
+      return;
+    }
+    auto be32 = [&](int at) {
+      return (header[at] << 24) | (header[at + 1] << 16) | (header[at + 2] << 8) | header[at + 3];
+    };
+    v8::Local<v8::Array> size = v8::Array::New(ISO, 2);
+    size->Set(CTX, 0, v8::Integer::New(ISO, be32(16))).Check();
+    size->Set(CTX, 1, v8::Integer::New(ISO, be32(20))).Check();
+    RET(size);
+  });
   // Decodes a PNG file. Returns a surface handle, or null if it cannot be read.
   FN(loadImage, {
     std::string path = ToStd(ISO, args[0]);
@@ -190,8 +266,8 @@ void InstallFunctions(v8::Isolate* isolate, v8::Local<v8::Object> canvas) {
     s->surface = image;
     s->width = cairo_image_surface_get_width(image);
     s->height = cairo_image_surface_get_height(image);
-    g_state.bytes += static_cast<long long>(s->width) * s->height * 4;
-    RET(WrapPointer(ISO, s, g_state.surface_key));
+    AccountBytes(static_cast<long long>(s->width) * s->height * 4);
+    RET(WrapSurface(ISO, s));
   });
 
   // --- State -----------------------------------------------------------------
@@ -363,10 +439,9 @@ void InstallFunctions(v8::Isolate* isolate, v8::Local<v8::Object> canvas) {
 
   // --- Gradients ---------------------------------------------------------------
   FN(createLinearGradient,
-     RET(WrapPointer(ISO, cairo_pattern_create_linear(D(0), D(1), D(2), D(3)), g_state.gradient_key)));
+     RET(WrapGradient(ISO, cairo_pattern_create_linear(D(0), D(1), D(2), D(3)))));
   FN(createRadialGradient,
-     RET(WrapPointer(ISO, cairo_pattern_create_radial(D(0), D(1), D(2), D(3), D(4), D(5)),
-                     g_state.gradient_key)));
+     RET(WrapGradient(ISO, cairo_pattern_create_radial(D(0), D(1), D(2), D(3), D(4), D(5)))));
   // addColorStop(gradient, offset, r, g, b, a)
   FN(addColorStop, {
     if (cairo_pattern_t* gradient = Hidden<cairo_pattern_t>(ISO, args[0], g_state.gradient_key)) {
@@ -443,6 +518,7 @@ void InstallCanvasBinding(v8::Isolate* isolate, v8::Local<v8::Context> context,
                           v8::Local<v8::Object> player) {
   v8::HandleScope scope(isolate);
   if (g_state.surface_key.IsEmpty()) {
+    g_state.isolate = isolate;
     g_state.surface_key.Reset(isolate, v8::Private::New(isolate, Str(isolate, "surface")));
     g_state.gradient_key.Reset(isolate, v8::Private::New(isolate, Str(isolate, "gradient")));
   }
@@ -452,6 +528,13 @@ void InstallCanvasBinding(v8::Isolate* isolate, v8::Local<v8::Context> context,
 }
 
 void ReleaseCanvasBinding() {
+  // Free what is still alive; the engine is about to go away.
+  while (!g_owned.empty()) {
+    Owned* owned = *g_owned.begin();
+    owned->handle.Reset();
+    FreeOwned(owned);
+  }
+  g_state.isolate = nullptr;
   g_state.surface_key.Reset();
   g_state.gradient_key.Reset();
 }

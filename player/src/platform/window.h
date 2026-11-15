@@ -9,6 +9,8 @@ struct SDL_Window;
 
 namespace mvp {
 
+class Input;
+
 class Window {
  public:
   Window() = default;
@@ -25,8 +27,9 @@ class Window {
   void Clear(float r, float g, float b);
   // Presents the frame. Waits for the display refresh when the frame is early.
   void Swap();
-  // Drains pending window events. Returns false once the system asks to quit.
-  bool PumpEvents();
+  // Drains pending events, passing each one to `input`. Returns false once
+  // the system asks to quit.
+  bool PumpEvents(Input& input);
 
   int width() const { return width_; }
   int height() const { return height_; }

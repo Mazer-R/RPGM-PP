@@ -7,12 +7,14 @@
 //       everything the player writes stays in the game's save folder.
 //   mvplayer <script.js> [--log <file>]
 //       Runs one script, for tests.
+// --no-patches runs the game without the per-game patches in patches/.
 // --run adds a script that is run after the first one; tests use it to
 // watch a running game.
 //
 // <player-dir> defaults to the folder that holds this executable.
 // Exit codes: 0 clean exit, 1 the screen could not be opened or bad
 // arguments, 2 a script error, otherwise the code passed to player.exit().
+#include <malloc.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -23,6 +25,7 @@
 
 #include "engine/host.h"
 #include "platform/clock.h"
+#include "platform/input.h"
 #include "platform/log.h"
 #include "platform/main_loop.h"
 #include "platform/window.h"
@@ -47,12 +50,19 @@ std::string WithoutTrailingSlash(std::string path) {
 }  // namespace
 
 int main(int argc, char** argv) {
+  // Pixel buffers are large and short-lived. By default the C library starts
+  // keeping freed large blocks for reuse instead of returning them to the
+  // system, and the process only ever grows. A fixed threshold makes every
+  // block of 64 KB or more its own mapping, returned as soon as it is freed.
+  mallopt(M_MMAP_THRESHOLD, 64 * 1024);
   std::string script, game_dir, player_dir, log_path;
   std::vector<std::string> extra_scripts;
+  bool no_patches = false;
   for (int i = 1; i < argc; i++) {
     std::string arg = argv[i];
     if (arg == "--log" && i + 1 < argc) log_path = argv[++i];
     else if (arg == "--run" && i + 1 < argc) extra_scripts.push_back(argv[++i]);
+    else if (arg == "--no-patches") no_patches = true;
     else if (arg == "--game" && i + 1 < argc) game_dir = WithoutTrailingSlash(argv[++i]);
     else if (arg == "--player" && i + 1 < argc) player_dir = WithoutTrailingSlash(argv[++i]);
     else if (script.empty()) script = arg;
@@ -86,17 +96,21 @@ int main(int argc, char** argv) {
   }
   log.Write(mvp::LogLevel::kInfo, "window", window.DriverDescription());
 
+  mvp::Input input(log);
+  input.Open();
+
   int exit_code;
   {
     mvp::Host host(log, clock);
     log.Write(mvp::LogLevel::kInfo, "host", std::string("V8 ") + v8::V8::GetVersion());
     host.InstallBindings(window.width(), window.height());
     host.SetDirectories(game_dir, player_dir);
+    host.SetFlag("noPatches", no_patches);
     bool started = host.RunFile(script);
     for (const std::string& extra : extra_scripts) {
       if (started) started = host.RunFile(extra);
     }
-    exit_code = mvp::RunMainLoop(window, host, clock, log);
+    exit_code = mvp::RunMainLoop(window, input, host, clock, log);
     log.Write(mvp::LogLevel::kInfo, "host", host.HeapSummary());
   }
   log.Write(mvp::LogLevel::kInfo, "main", "exit code " + std::to_string(exit_code));

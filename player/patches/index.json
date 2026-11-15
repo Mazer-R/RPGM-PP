@@ -1,0 +1,10 @@
+[
+  {
+    "game": "Fear & Hunger",
+    "match": { "title": "Fear & Hunger", "engine": "MV", "plugins": ["TerraxLighting"] },
+    "patches": [
+      { "file": "gpu-lights.js", "name": "gpuLights" },
+      { "file": "event-culling.js", "name": "eventCulling", "options": { "margin": 4, "lazyRefresh": true, "lightEvery": 3 } }
+    ]
+  }
+]
