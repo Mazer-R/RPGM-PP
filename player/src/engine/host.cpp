@@ -4,6 +4,7 @@
 #include <sstream>
 #include <utility>
 
+#include "bindings/webgl_binding.h"
 #include "libplatform/libplatform.h"
 #include "platform/clock.h"
 #include "platform/log.h"
@@ -48,6 +49,8 @@ Host::Host(Log& log, const Clock& clock) : log_(log), clock_(clock) {
 
 Host::~Host() {
   frame_callbacks_.clear();
+  // Anything holding references into the engine lets go before it is disposed.
+  ReleaseWebGLBinding();
   context_.Reset();
   if (isolate_) isolate_->Dispose();
   v8::V8::Dispose();
@@ -142,6 +145,22 @@ void Host::InstallGlobals(v8::Local<v8::Context> context) {
   set(player, "exit", make_function(ExitCallback, "exit"));
   set(player, "v8Version", ToV8String(isolate_, v8::V8::GetVersion()));
   set(global, "player", player);
+}
+
+void Host::InstallWebGL(int drawing_width, int drawing_height) {
+  v8::Isolate::Scope isolate_scope(isolate_);
+  v8::HandleScope handle_scope(isolate_);
+  v8::Local<v8::Context> context = context_.Get(isolate_);
+  v8::Context::Scope context_scope(context);
+  v8::Local<v8::Value> player;
+  if (!context->Global()->Get(context, ToV8String(isolate_, "player")).ToLocal(&player) ||
+      !player->IsObject()) {
+    return;
+  }
+  player.As<v8::Object>()
+      ->Set(context, ToV8String(isolate_, "gl"),
+            CreateWebGLContext(isolate_, context, drawing_width, drawing_height))
+      .Check();
 }
 
 void Host::ReportException(v8::TryCatch* try_catch) {

@@ -170,6 +170,31 @@ adjustments where the game's own code is too expensive for this hardware.
         kept presenting empty frames until it was killed. The main loop now
         ends when no script work can ever run again.
 
+*   **The WebGL binding draws on the console** (2026-11-15), without the
+    game yet. `player/src/bindings/webgl_binding.cpp` exposes the WebGL
+    constants, generated from the OpenGL ES 2 header, and about ninety
+    functions wired to OpenGL ES 2. A hand-written script
+    (`player/tests/device/stage2_webgl.js`) uses it the way PIXI does:
+    shaders that declare medium precision, an array uniform looked up by
+    its bare name, a texture uploaded with the premultiply flag, blended
+    quads from an index buffer, a scene drawn into an 816x624 off-screen
+    texture and then to the screen, and pixel read-back. Every check passes
+    on the console, at a median of 16.67 ms per frame with 47 WebGL calls
+    per frame and no WebGL error.
+
+    Notes for what follows:
+
+    *   Images and canvases as texture sources are not supported yet; that
+        form of `texImage2D` arrives with the canvas binding.
+    *   The driver reports 10 bits for medium precision and 23 for high, as
+        measured before; the binding rewrites every precision qualifier to
+        high.
+    *   Found while testing: the binding held a reference into the engine
+        that outlived it, which crashed the player at exit. It is now
+        released before the engine shuts down.
+    *   WebGL objects are freed only by the game's explicit delete calls;
+        nothing is freed when a wrapper is garbage-collected.
+
 ## Critical User Journeys (CUJs)
 
 ### CUJ 1: First launch
