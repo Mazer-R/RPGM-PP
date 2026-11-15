@@ -853,6 +853,272 @@ on map 110 and 25 ms on map 184, leaving 15 and 8 ms for the draw.
 * Real play. Every case starts from a new game with the player standing
   still at the centre of the map.
 
+### 24. The GPU on the device (2026-11-15)
+
+`lab/device-gles-test.py` opens the device's screen through SDL2 and its
+Mali video driver, the way the system's emulators do, and draws synthetic
+workloads with OpenGL ES 2. It is written in Python with `ctypes` against
+the device's own libraries, so nothing had to be compiled. The muOS menu is
+paused while it runs and resumed afterwards (`lab/device-gles-run.sh`); it
+came back both times. No game content is involved. Raw output:
+`lab/out/device-gles.txt`.
+
+**What the driver reports**
+
+| Item | Value |
+| --- | --- |
+| GPU and driver | Mali-G31, OpenGL ES 3.2, driver r20p0 |
+| SDL video driver | `mali` (the only one built into the device's SDL2) |
+| Largest texture | 8192 pixels |
+| Stencil buffer | 8 bits |
+| Off-screen framebuffer with a texture | complete |
+| Fragment shader precision | `mediump` 10 bits, `highp` 23 bits |
+
+* OpenGL ES works outside the system's emulators, from a plain program
+  started over SSH.
+* **`mediump` has only 10 bits of precision** in fragment shaders. PIXI's
+  shaders declare `mediump`, which is too coarse to address pixels in a
+  2048-wide texture and is a known cause of seams between tiles. `highp` is
+  available, so the runtime should rewrite shaders to use it. This confirms
+  the reviewers' warning in section 3.
+
+**Timings (whole frame, including the buffer swap)**
+
+The swap always waits for the 60 Hz refresh, whatever swap interval is
+asked for, so a frame costs 16.7 ms or a multiple of it.
+
+| Workload per frame | Frame time |
+| --- | --- |
+| Empty frame | 16.7 ms |
+| Up to 32 full-screen blended layers straight to the screen | 16.7 ms |
+| 64 such layers | 33.4 ms |
+| Up to 16 layers into an 816x624 off-screen texture, then scaled to the screen | 16.7 ms |
+| 32 layers that way | 33.0 ms |
+| Re-uploading an 816x624 texture every frame, plus 4 layers | 16.7 ms |
+
+Where the driver let the draw time be read separately from the wait: 4.0 ms
+for 4 layers through the off-screen texture, 5.9 ms for 8 and 10.7 ms for
+16, so roughly 0.6 ms per full-screen layer at the game's resolution. In
+most cases `glFinish` also waited for the refresh, so those are the only
+separate figures.
+
+**What this means**
+
+* The GPU is not the bottleneck. A map scene is a handful of full-screen
+  layers (two tile layers, fog, the lighting mask, the tone filter's
+  off-screen pass) plus small sprites, well inside what fits in one refresh.
+  Re-uploading the lighting mask every frame also fits.
+* GPU time runs alongside the processor, so it does not add to the logic
+  step in full. What does add is the processor time PIXI spends preparing
+  each frame and the driver spends on about 150 calls. That is **not
+  measured on the device** yet and is the remaining unknown for frame rate.
+* Because every swap waits for the refresh, a frame that misses 16.7 ms
+  costs 33.3 ms. With logic at 9 to 13 ms on large maps, the game will
+  settle at 30 drawn frames per second there unless logic plus preparation
+  fits in 16.7 ms.
+
+### 25. PIXI's frame preparation on the device (2026-11-15)
+
+To time the processor side of drawing without a GPU, the stubbed runner was
+given a WebGL context that accepts every call and draws nothing
+(`lab/minimal/fake-webgl.js`). PIXI then runs its real WebGL renderer: it
+walks the scene, builds its batches and sets its uniforms, and only the
+driver's work is missing. The context answers PIXI's questions about each
+shader program by reading the declarations in the shader source. Measured on
+the RG35XX SP with the JIT on, 700 logic steps per case. The console was
+reached over USB with `adb` for this run. Raw output:
+`lab/out/device-draw-prep.txt`.
+
+Median (95th percentile), per logic step and per drawn frame:
+
+| Map | Overlay | Logic step | Frame preparation | WebGL calls per frame |
+| --- | --- | --- | --- | --- |
+| 10 (4 events) | none | 2.8 ms (3.8) | 2.7 ms (3.4) | 224 |
+| 110 (572 events) | none | 18.2 ms (23.2) | 10.6 ms (11.7) | 244 |
+| 110 | v3, light every 3rd step | 9.2 ms (15.2) | 3.3 ms (4.9) | 199 |
+| 184 (517 events) | none | 20.7 ms (27.9) | 7.9 ms (9.6) | 269 |
+| 184 | v3, light every 3rd step | 12.1 ms (19.8) | 2.9 ms (4.2) | 167 |
+
+* **Culling helps drawing as much as logic.** Detaching far sprites cuts
+  frame preparation from 10.6 to 3.3 ms on map 110 and from 7.9 to 2.9 ms
+  on map 184.
+* **One logic step plus one frame preparation, with the third overlay:**
+  12.5 ms on map 110 and 15.0 ms on map 184 at the median, inside the
+  16.7 ms refresh. At the 95th percentile they are 20 and 24 ms, which
+  misses the refresh.
+* **At 30 drawn frames per second** (two logic steps and one draw per 33.3
+  ms): 21.7 ms on map 110 and 27.1 ms on map 184 at the median, leaving 6 to
+  12 ms of headroom.
+* Without an overlay neither map fits either target: 28.8 and 28.6 ms for a
+  single step and draw.
+
+**What these figures leave out**
+
+* The driver's own processor time for about 200 calls per frame.
+* Real Canvas 2D work, which this runner treats as free: drawing text and
+  gauges, and the lighting plugin painting its mask. On the development
+  machine that work roughly tripled the logic step (sections 17 and 18).
+* Texture uploads, audio, and input.
+* Real play. All cases start from a new game with the player standing still.
+
+**Reading**
+
+Full game speed at 30 drawn frames per second on large maps looks reachable
+on this device with a JIT engine and the third overlay, but the margin of 6
+to 12 ms has to absorb everything in the list above. Sixty frames per second
+is within reach only on small maps. This is the best case, not a prediction.
+
+### 26. Real Canvas 2D work on the device (2026-11-15)
+
+Section 25 treated Canvas 2D calls as free. Here the runner on the device
+uses a real Canvas 2D library (the `canvas` package, whose ARM64 build
+bundles its own Cairo and needs nothing from the system) together with the
+do-nothing WebGL context. Text, gauges and the lighting plugin's mask are
+really painted on the processor; nothing is composited. The game's images
+were copied to the device for this. JIT on. Raw output:
+`lab/out/device-real-canvas.txt`.
+
+**Logic step with real canvas work, median (95th percentile)**
+
+| Map | No overlay | v3, light every step | v3, light every 3rd step |
+| --- | --- | --- | --- |
+| 10 (4 events) | 52.0 ms (53.7) | not run | not run |
+| 110 | 70.7 ms (77.4) | 62.0 ms (77.3) | 9.3 ms (63.7) |
+| 184 | 58.2 ms (72.0) | 50.3 ms (65.0) | 14.3 ms (55.0) |
+
+Process memory was 217 to 273 MB, in line with section 18.
+
+* **The logic step is 50 to 70 ms, even on the 4-event map.** That is three
+  to four frames of time for one step: slow motion everywhere, not only on
+  large maps. This matches the author's report that walking was unplayable.
+* **One call causes it.** Timing each kind of canvas call on the device
+  shows that a single full-screen rectangle filled with a radial gradient,
+  issued once per step by the lighting plugin, takes about 40 ms. A second
+  full-screen fill in additive mode takes 8.5 ms. Everything else, including
+  all text drawing, is under 1 ms per step.
+* **Throttling the mask does not fix it.** With the mask repainted every
+  third step, two steps take 9 to 14 ms and the third takes 55 to 64 ms, so
+  the game stutters and still averages about 27 ms per step.
+
+**Why the fill is slow, measured with a synthetic test**
+(`lab/canvas-fill-bench.js`, on the device)
+
+| Canvas size | Gradient fill, additive | Gradient fill, normal | Solid fill, additive | Solid fill, normal |
+| --- | --- | --- | --- | --- |
+| 866x630 (the plugin's mask) | 58.1 ms | 50.4 ms | 8.3 ms | 0.7 ms |
+| 433x315 | 14.6 ms | 12.7 ms | 2.0 ms | 0.2 ms |
+| 217x158 | 3.7 ms | 3.2 ms | 0.5 ms | 0.1 ms |
+
+* The cost is computing the gradient for each pixel, not the blend mode: a
+  normal-mode gradient fill is almost as slow as an additive one.
+* It scales with the number of pixels. At a quarter of the width and height
+  the same fill takes 3.7 ms.
+
+**What this means**
+
+* On this device the lighting mask cannot be painted by a processor-side
+  Canvas 2D at full size. Three ways out, none built yet: paint the mask at
+  a quarter of the size and let the GPU stretch it (about 4 ms per repaint
+  by the synthetic test); draw the light once into an image and stamp it
+  each step instead of recomputing the gradient; or draw the lights on the
+  GPU, where a radial gradient is a few shader instructions.
+* A browser on this device would hit the same wall unless its canvas were
+  GPU-backed.
+* Sections 22 to 25 remain valid for everything except the lighting mask:
+  logic and frame preparation fit a 30 frames-per-second target once the
+  mask is dealt with.
+
+### 27. Lights drawn through WebGL instead of the canvas (2026-11-15)
+
+`lab/overlays/gpu-lights.js` keeps the lighting plugin's own decisions
+(which lights exist, where, in what colour) and replaces only its painting.
+The plugin paints its mask with four helpers it adds to Bitmap. While the
+plugin updates its mask, the overlay makes those helpers record what they
+were asked to draw. Each light then becomes a sprite that stamps one shared,
+pre-made radial-gradient texture with additive blending over a rectangle in
+the ambient colour; the group is rendered into an off-screen texture that
+the plugin's own mask sprite displays. The overlay is original code and the
+game's files are not edited.
+
+Measured on the RG35XX SP with real Canvas 2D work, the do-nothing WebGL
+context and the JIT on, 600 logic steps per case. Raw output:
+`lab/out/device-gpu-lights.txt`, `lab/out/device-gpu-lights-every.txt`.
+
+Logic step, median (95th percentile):
+
+| Map | Mask on the canvas | Lights through WebGL | + culling v3 | + lights every 2nd step | + lights every 3rd step |
+| --- | --- | --- | --- | --- | --- |
+| 10 (4 events) | 52.2 ms (53.6) | 4.1 ms (5.4) | 4.2 ms (5.4) | not run | not run |
+| 110 | 70.3 ms (83.1) | 21.8 ms (29.3) | 14.1 ms (19.2) | 11.8 ms (17.0) | 9.8 ms (15.7) |
+| 184 | 58.2 ms (70.6) | 24.0 ms (33.0) | 16.0 ms (23.4) | 14.7 ms (21.8) | 14.1 ms (21.8) |
+
+Frame preparation with culling is 2.7 to 4.4 ms (95th percentile 3.7 to
+6.4). Canvas work per step falls from 36-50 ms to under 0.1 ms. Process
+memory is 221 to 275 MB.
+
+* **The small map goes from slow motion to comfortable**: one step and one
+  draw take about 6.8 ms, well inside a 60 frames-per-second refresh.
+* **Large maps reach the 30 frames-per-second target, one of them barely.**
+  Two logic steps and one draw, with lights updated every third step: about
+  23 ms on map 110 and about 32 ms on map 184, against 33.3 ms.
+* These figures include real text and gauge drawing. They still exclude the
+  driver's processor time for the WebGL calls, texture uploads and audio.
+
+**Not verified: the picture**
+
+The overlay has only been run against the do-nothing WebGL context, so
+nothing has been seen on a screen. It is known to differ from the plugin's
+own painting in three ways: every light fades from its colour at the centre
+to nothing at its radius (the plugin's inner radius and second colour are
+ignored), directional lights are drawn as full circles, and the flashlight
+cone is drawn as a round light. In these test runs the plugin issued only
+plain radial lights, one or three per step, and no unsupported colours.
+Checking the picture needs a real WebGL implementation: the software one in
+the container (section 19), or the real runtime on the device.
+
+### 28. The picture with lights drawn through WebGL (2026-11-15)
+
+The container with the software WebGL implementation (section 19) was used
+to see what section 27 could not: the picture. Frames were saved for two
+maps with the lighting plugin's own painting and with the GPU-lights
+overlay, and compared with the processor-drawn reference. Frames are in
+`lab/out/shots/`.
+
+**The earlier black frames are explained.** Maps drew black through WebGL
+in section 19 and the cause was left open. It is the shader-based tilemap
+library the engine uses under WebGL (`pixi-tilemap`): through this software
+WebGL its tiles do not appear, and no WebGL error is reported. Map 110 only
+seemed to draw because it has a fog layer; what was visible was the fog.
+With a diagnostic switch that makes the engine build its classic tilemap
+instead (layers painted on canvases and uploaded as textures), both maps
+draw through WebGL.
+
+Share of the frame that is not black:
+
+| Map | Processor-drawn reference | WebGL, plugin's painting | WebGL, GPU-lights overlay |
+| --- | --- | --- | --- |
+| 110 | 39.4% | 50.3% | 49.6% |
+| 184 | 17.1% | 17.1% | 16.6% |
+
+(Map 110 differs from its reference because the reference run was shorter
+and the fog had drifted less; the two WebGL columns are the like-for-like
+comparison.)
+
+* **The overlay reproduces the plugin's lighting in these scenes.** On map
+  184, which has three lights, the frame from the overlay and the frame from
+  the plugin's own painting were compared by eye and no difference was
+  found: same lit area, same falloff, same colours.
+* This covers plain round lights only. Directional lights and the flashlight
+  cone, which the overlay draws differently by design, did not occur in
+  these scenes and remain unchecked.
+
+**Still open**
+
+* Why the shader tilemap does not draw through the software WebGL, and
+  whether it draws on the device's real driver. If it does not, the classic
+  tilemap is the fallback, and its cost on the device (it paints tile layers
+  on the processor when the view scrolls) has not been measured.
+
 ## Goals vs. Non-Goals
 
 * **In-Scope Goals (proposed, pending the measurements below):**
@@ -937,7 +1203,18 @@ on map 110 and 25 ms on map 184, leaving 15 and 8 ms for the draw.
   frames per second on large maps. With the third overlay (section 23) the
   logic step is 8.9 ms on map 110 and 12.6 ms on map 184, which fits that
   target only if drawing takes under roughly 8 to 15 ms per drawn frame.
-  Drawing on the device is the next thing to measure.
+  The GPU itself has room to spare (section 24). With PIXI's frame
+  preparation included (section 25), two logic steps and one draw take 22
+  to 27 ms on large maps, inside the 33 ms a 30 frames-per-second target
+  allows.
+* The lighting plugin was the blocker (section 26): painting its mask with
+  a processor-side Canvas 2D costs about 49 ms per repaint on the device.
+  Handing the lights to WebGL (section 27) removes that cost: with the
+  culling overlay, the logic step with real canvas work is 10 to 14 ms on
+  large maps and 4 ms on the small one. Two steps and one draw then take
+  about 23 and 32 ms on the two large test maps, against 33.3 ms. Seen through a
+  software WebGL (section 28), the overlay's picture matches the plugin's
+  own for plain round lights.
 
 **Next steps, in order**
 

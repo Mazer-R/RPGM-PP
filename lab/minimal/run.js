@@ -12,6 +12,11 @@
 // With LAB_GL=1 as well, canvases can also hand out a WebGL context (the `gl`
 // package), so PIXI uses its WebGL renderer instead of drawing on the CPU.
 //
+// With LAB_FAKEGL=1 (and no real canvas) the stand-in canvases hand out a
+// WebGL context that accepts every call and draws nothing, so PIXI runs its
+// real WebGL renderer and the processor time it spends preparing a frame can
+// be measured without a GPU.
+//
 // Usage: node --expose-gc run.js <www-dir> <map-id> <x> <y> <seconds> [cull-margin]
 'use strict';
 const fs = require('fs');
@@ -31,6 +36,11 @@ let screenTone = null;
 let arrayUniformLookups = 0;
 const glDebug = {};
 const pendingFramebufferChecks = [];
+const fakeGL = process.env.LAB_FAKEGL ? require('./fake-webgl.js') : null;
+const fakeGlCalls = {};
+// True only while the measurement window is open. Declared early because
+// wrappers installed at start-up consult it before the driver state exists.
+let measuring = false;
 const errors = [];
 const noteError = (where, e) => {
   const text = where + ': ' + (e && e.message ? e.message : String(e));
@@ -109,8 +119,11 @@ class Element extends Target {
   get firstChild() { return this.children[0] || null; }
   getBoundingClientRect() { return { left: 0, top: 0, width: this.width, height: this.height }; }
   getContext(kind) {
-    if (kind !== '2d') return null; // no WebGL: the engine falls back to canvas drawing
-    return this._context || (this._context = makeContext(this));
+    if (kind === '2d') return this._context || (this._context = makeContext(this));
+    if (fakeGL && (kind === 'webgl' || kind === 'experimental-webgl')) {
+      return this._gl || (this._gl = fakeGL.createFakeWebGL(this, fakeGlCalls));
+    }
+    return null; // no WebGL: the engine falls back to canvas drawing
   }
   canPlayType() { return ''; }
   focus() {}
@@ -177,6 +190,9 @@ if (real) {
     getContext(kind, options) {
       if (kind === '2d') return nativeGetContext.apply(this, arguments);
       if (createGL && (kind === 'webgl' || kind === 'experimental-webgl')) return webglContextFor(this, options || {});
+      if (fakeGL && (kind === 'webgl' || kind === 'experimental-webgl')) {
+        return this._labFakeGl || (this._labFakeGl = fakeGL.createFakeWebGL(this, fakeGlCalls));
+      }
       return null;
     },
   });
@@ -232,6 +248,23 @@ if (real) {
     // Optional diagnostics: record WebGL errors after each draw call and
     // whether each off-screen framebuffer is usable when it is bound.
     if (process.env.LAB_GL_DEBUG) {
+      // Tally WebGL errors raised by texture uploads, with a short summary of
+      // the arguments, to find uploads the library rejects.
+      ['texImage2D', 'texSubImage2D', 'uniform1iv', 'uniform2fv', 'uniform1fv', 'bufferData', 'bufferSubData', 'drawArrays'].forEach((name) => {
+        const nativeCall = gl[name];
+        gl[name] = function () {
+          const result = nativeCall.apply(gl, arguments);
+          const error = gl.getError();
+          if (error) {
+            const brief = Array.prototype.map.call(arguments, (a) => (a === null ? 'null' : typeof a === 'object'
+              ? (a.constructor ? a.constructor.name : 'object') + (a.width ? '(' + a.width + 'x' + a.height + ')' : a.length !== undefined ? '[' + a.length + ']' : '')
+              : typeof a)).join(',');
+            const key = name + ' error 0x' + error.toString(16) + ' (' + brief + ')';
+            glDebug[key] = (glDebug[key] || 0) + 1;
+          }
+          return result;
+        };
+      });
       const draw = gl.drawElements, bind = gl.bindFramebuffer;
       const seen = new Set();
       gl.drawElements = function () {
@@ -341,6 +374,37 @@ if (real) {
     };
   });
 }
+// LAB_CANVAS_PROFILE=1 times every Canvas 2D call by method name while the
+// measurement runs, and splits fillRect by how it is used, since one large
+// gradient fill costs far more than many small solid ones.
+const canvasCalls = {};
+if (real && process.env.LAB_CANVAS_PROFILE) {
+  const contextProto = real.CanvasRenderingContext2D.prototype;
+  Object.getOwnPropertyNames(contextProto).forEach((name) => {
+    const descriptor = Object.getOwnPropertyDescriptor(contextProto, name);
+    if (!descriptor || typeof descriptor.value !== 'function' || name === 'constructor') return;
+    const native = descriptor.value;
+    contextProto[name] = function () {
+      if (!measuring) return native.apply(this, arguments);
+      let label = name;
+      if (name === 'fillRect') {
+        const big = Math.abs(arguments[2] * arguments[3]) >= 200000;
+        const gradient = typeof this.fillStyle !== 'string';
+        label = 'fillRect ' + (big ? 'large' : 'small') + (gradient ? ' gradient' : ' solid') + ' [' + this.globalCompositeOperation + ']';
+      } else if (name === 'drawImage') {
+        const w = arguments.length >= 9 ? arguments[7] : (arguments.length >= 5 ? arguments[3] : (arguments[0] && arguments[0].width) || 0);
+        const h = arguments.length >= 9 ? arguments[8] : (arguments.length >= 5 ? arguments[4] : (arguments[0] && arguments[0].height) || 0);
+        label = 'drawImage ' + (Math.abs(w * h) >= 200000 ? 'large' : 'small') + ' [' + this.globalCompositeOperation + ']';
+      }
+      const before = performance.now();
+      try { return native.apply(this, arguments); }
+      finally {
+        const entry = canvasCalls[label] || (canvasCalls[label] = { n: 0, ms: 0 });
+        entry.n++; entry.ms += performance.now() - before;
+      }
+    };
+  });
+}
 const ImageClass = real ? real.Image : Image;
 const CanvasClass = real ? real.Canvas : HTMLCanvasElement;
 
@@ -430,6 +494,7 @@ documentTarget.getElementById = (id) => {
 const scriptElements = [];
 documentTarget.getElementsByTagName = (tag) => (String(tag).toLowerCase() === 'script' ? scriptElements : []);
 globalThis.document = documentTarget;
+if (fakeGL) globalThis.WebGLRenderingContext = function WebGLRenderingContext() {};
 
 let frameCallback = null;
 globalThis.requestAnimationFrame = (fn) => { frameCallback = fn; return 1; };
@@ -489,8 +554,30 @@ function installProfile() {
   profileWrap(Window_Base.prototype, 'update', 'windows');
 }
 
+// Diagnostic switch: make the engine build its classic tilemap (layers
+// painted on canvases and uploaded as textures) even under WebGL, instead of
+// the shader-based tilemap library, to tell which of the two fails to draw.
+function forcePlainTilemap() {
+  const createTilemap = Spriteset_Map.prototype.createTilemap;
+  Spriteset_Map.prototype.createTilemap = function () {
+    const isWebGL = Graphics.isWebGL;
+    Graphics.isWebGL = function () { return false; };
+    try { createTilemap.apply(this, arguments); }
+    finally { Graphics.isWebGL = isWebGL; }
+  };
+}
+
 function installMeasurement() {
   if (process.env.LAB_NO_TONE_FILTER) disableToneFilter();
+  if (process.env.LAB_PLAIN_TILEMAP) forcePlainTilemap();
+  // LAB_GPU_LIGHTS=1 replaces the lighting plugin's canvas painting with
+  // sprites drawn through WebGL. It must be in place before the map scene
+  // builds its sprite set.
+  if (process.env.LAB_GPU_LIGHTS) {
+    const file = path.join(__dirname, '..', 'overlays', 'gpu-lights.js');
+    vm.runInThisContext(fs.readFileSync(file, 'utf8'), { filename: 'gpu-lights.js' });
+    window.__installGpuLights();
+  }
   if (cullMargin) {
     loadOverlay();
     window.__installEventCulling(Number(cullMargin));
@@ -513,6 +600,7 @@ function installMeasurement() {
     renderScene.apply(this, arguments);
     if (phase === 'measure') drawMs.push(performance.now() - before);
   };
+  Object.keys(fakeGlCalls).forEach((k) => { delete fakeGlCalls[k]; });
   // Count WebGL work only from here on, so start-up uploads are excluded.
   glMs = 0;
   Object.keys(glCalls).forEach((k) => { delete glCalls[k]; });
@@ -573,10 +661,15 @@ function finish() {
     glMsPerFrame: drawSorted.length ? Math.round(glMs / drawSorted.length * 100) / 100 : null,
     glCallsPerFrame: drawSorted.length ? Math.round(Object.values(glCalls).reduce((a, b) => a + b, 0) / drawSorted.length) : null,
     glTop: Object.entries(glCalls).sort((a, b) => b[1] - a[1]).map(([k, v]) => k + ':' + v),
+    fakeGlCallsPerFrame: drawSorted.length ? Math.round(Object.values(fakeGlCalls).reduce((a, b) => a + b, 0) / drawSorted.length) : null,
+    fakeGlTop: Object.entries(fakeGlCalls).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([k, v]) => k + ':' + v),
+    canvasMsPerStep: Object.fromEntries(Object.entries(canvasCalls).sort((a, b) => b[1].ms - a[1].ms).slice(0, 10)
+      .map(([k, v]) => [k, { callsPerStep: Math.round(v.n / Math.max(1, sorted.length) * 10) / 10, msPerStep: Math.round(v.ms / Math.max(1, sorted.length) * 100) / 100 }])),
     coercions, realCanvas: !!real, renderer: globalThis.Graphics && Graphics._renderer ? Graphics._renderer.constructor.name : null, shot,
     leftMapAtStep,
     profileMsPerStep: Object.fromEntries(Object.entries(profile).map(([k, v]) => [k, sorted.length ? Math.round(v / sorted.length * 100) / 100 : null])),
     cullStats: globalThis.__eventCullingStats || null,
+    gpuLights: globalThis.__gpuLightsStats || null,
     bootSeconds: bootSeconds, node: process.version, jitless: process.execArgv.indexOf('--jitless') >= 0,
     heapUsedMb: mb(mem.heapUsed), rssMb: mb(mem.rss), externalMb: mb(mem.external),
     imagesRequested, imagePixelsMb: mb(imagePixels * 4), frames,
@@ -617,7 +710,7 @@ function tick() {
         const mask = spriteset && (spriteset._lightmask || spriteset.children.find((c) => c.constructor.name === 'Lightmask'));
         if (mask) { mask.visible = false; lightmaskHidden = true; }
       }
-      phase = 'measure'; phaseAt = Date.now();
+      phase = 'measure'; phaseAt = Date.now(); measuring = true;
     } else if (phase === 'measure' && (stepLimit ? logicMs.length >= stepLimit : held > Number(seconds))) {
       return finish();
     }
