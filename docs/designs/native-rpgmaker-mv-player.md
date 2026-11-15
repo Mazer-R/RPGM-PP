@@ -141,6 +141,35 @@ adjustments where the game's own code is too expensive for this hardware.
     and 21.5 s in Node with the JIT off, so the JIT is working. The library
     is 70 MB and the test program 29 MB. V8's headers compile as C++17.
 
+*   **Stage 1 runs on the console** (2026-11-15). The player opens the
+    screen through SDL2 and OpenGL ES 2 (Mali-G31, 640x480), starts the V8
+    built above, runs a script, and writes a log. A test script
+    (`player/tests/device/stage1.js`) presented 230 frames at a median of
+    16.67 ms with none over 20 ms; the window is up 15 ms after start and V8
+    26 ms after start. A script that throws
+    (`player/tests/device/stage1_error.js`) is reported in the log with its
+    file, line and call stack, and the player exits with code 2. The binary
+    is 31 MB.
+
+    What differs from the implementation plan below, and why:
+
+    *   **No sysroot and no downloaded headers** (files 6 to 8 of the plan).
+        The player is built in a Debian container whose development
+        packages provide headers and link-time libraries for SDL2 and
+        OpenGL ES 2. The console has its own copies under the same library
+        names, so the binary loads the console's copies there. Debian's
+        SDL2 is 2.26.5 and the console's is 2.28.5; building against the
+        older headers is compatible.
+    *   **No toolchain file** (file 2). The container is itself 64-bit ARM
+        Linux, so the build is native and needs no cross-compilation.
+    *   **Not yet written from stage 1**: settings, the memory ledger, the
+        timer queues and the system binding. The host supplies `console`,
+        `performance.now`, `requestAnimationFrame` and a small `player`
+        object directly until the bindings exist.
+    *   **Found while testing**: after a script failed at load, the player
+        kept presenting empty frames until it was killed. The main loop now
+        ends when no script work can ever run again.
+
 ## Critical User Journeys (CUJs)
 
 ### CUJ 1: First launch
