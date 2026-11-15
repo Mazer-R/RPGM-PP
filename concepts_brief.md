@@ -5,37 +5,63 @@
 
 ## Overview
 
-RPG Maker MV and MZ games ship inside NW.js, which is a full Chromium browser
-plus Node. That browser uses hundreds of MB of RAM across several processes
-and has no build that fits a 1 GB ARM handheld such as the Anbernic RG35XX
-family running muOS.
+RPG Maker MV games ship inside NW.js, which is a Chromium browser plus Node.
+On a 1 GB ARM handheld that player either does not run or cannot hold the
+game in memory, and where a browser does run, the game is too slow to play.
 
-The concept is a native Linux program that runs these games without Chromium
-and without a JVM. It embeds a small JavaScript engine (QuickJS is the first
-candidate), runs the game's own JavaScript (the RPG Maker core scripts, the
-bundled PIXI.js, and third-party plugins) and provides only the browser
-features those scripts call: WebGL drawn through OpenGL ES 2.0, Canvas 2D,
-Web Audio, and a small set of window/document objects. Windowing, input and
-audio output go through SDL2.
+The concept is a native Linux program that runs an MV game's own JavaScript
+(the engine's core scripts, the bundled PIXI.js and the game's plugins)
+without a browser. It embeds a JavaScript engine with a JIT compiler, and
+supplies only the browser features those scripts call: WebGL through OpenGL
+ES 2, Canvas 2D, audio, and a small set of window and document objects.
+Windowing, input and audio output go through SDL2. Game files are never
+edited; where the game needs help to run well on the device, the runtime
+applies small patches in memory.
 
-The reference target is the commercial MV game Fear & Hunger, playable without
-crashes on a 1 GB RG35XX-series device under muOS. Priorities are stability,
-then RAM use, then speed. The project is personal and has one developer whose
-strongest language is Java.
+The reference target is the commercial MV game Fear & Hunger (version
+1.4.1, MV core 1.6.0, PIXI 4.5.4) on an Anbernic RG35XX SP: four Cortex-A53
+cores, a Mali-G31 GPU, 973 MB of RAM, running muOS 2502.0 on a 4.9 kernel.
+The project is personal and has one developer whose strongest language is
+Java.
 
-Status of the facts below: there is no code yet, and the reviewers could not
-open URLs or inspect the game or the device. Every statement about external
-projects, the hardware, muOS, the RPG Maker engines and Fear & Hunger comes
-from memory and is **unverified** until checked. Numbers are estimates.
+**What the measurements say, in short**
+
+* A browser needs 750 to 1,050 MB to run this game. The same game runs
+  without a browser in 220 to 275 MB on the device, with real decoded images
+  and real canvas work. The device has about 800 MB available and no swap.
+* The device has no DRM/KMS display interface, only the maker's Mali driver
+  on the framebuffer, so an embedded web engine cannot display there as
+  shipped. SDL2 and OpenGL ES 2 are present and work from a plain program.
+* A JIT is required. Node's V8 runs on the device; without the JIT the
+  logic step on large maps takes 40 to 77 ms.
+* The game was unplayable on such hardware mainly because of one call: the
+  lighting plugin fills the screen with a radial gradient on every step,
+  which takes about 40 ms on the device's processor.
+* With three in-memory patches (skip far-away map events, draw the lights
+  through WebGL, update the lights every third step), two logic steps and
+  one frame preparation take about 23 and 32 ms on the two large test maps,
+  against the 33.3 ms that 30 drawn frames per second allows. Small maps
+  have room for 60.
+* Not built or measured yet: the real WebGL layer on the device's driver,
+  audio, input, saving, video, and whether the game still plays correctly
+  with the patches over a real session.
+
+**How to read this document.** Sections 1 to 9 are the reviewers' findings
+on the original idea, written before anything was measured; many of their
+"unverified" statements are settled later. Sections 10 to 28 are the
+measurements, in the order they were made. Later sections correct earlier
+ones where noted. The sections after the analysis state the current
+position.
 
 ## Analysis
 
-Six independent reviewers examined the concept. They agreed that emulating
-browser APIs under unmodified game scripts is a defensible place to cut, and
-that setting aside the JVM and the "replace PIXI with a native renderer"
-option was reasonable. They also agreed the concept cannot be started as
-written. It depends on one unmeasured assumption, leaves several blocking
-decisions open, and has no measurable definition of success.
+Six independent reviewers examined the original concept, which proposed a
+small interpreter-only JavaScript engine (QuickJS). They agreed that
+emulating browser APIs under unmodified game scripts is a defensible place
+to cut, and that setting aside the JVM and the "replace PIXI with a native
+renderer" option was reasonable. They also agreed the concept could not be
+started as written: it depended on one unmeasured assumption, left several
+blocking decisions open, and had no measurable definition of success.
 
 ### 1. Feasibility is unproven and must be measured first
 
@@ -917,6 +943,17 @@ separate figures.
   settle at 30 drawn frames per second there unless logic plus preparation
   fits in 16.7 ms.
 
+**Correction (added while drafting the design, 2026-11-15).** The last
+point above is wrong for the game's case. A later test presented frames
+from a native program with processor work between them
+(`lab/out/node-screen-test.txt`): with 22 ms of work per frame, a frame took
+23.5 ms, not 33.3 ms. When a frame is late because of the processor, the
+swap returns at once and the frame costs only its overrun. The 33.3 ms
+figures in the table above come from cases where the GPU itself was the
+cause of the delay. On large maps the game therefore slows gradually with
+the time each frame really takes, and does not drop straight to 30 frames
+per second.
+
 ### 25. PIXI's frame preparation on the device (2026-11-15)
 
 To time the processor side of drawing without a GPU, the stubbed runner was
@@ -1121,166 +1158,138 @@ comparison.)
 
 ## Goals vs. Non-Goals
 
-* **In-Scope Goals (proposed, pending the measurements below):**
-    * Run Fear & Hunger (RPG Maker MV, the exact core version it ships) on one
-      named 1 GB RG35XX model under one named muOS version.
-    * Never edit game files on disk.
+* **In-Scope Goals:**
+    * Run Fear & Hunger 1.4.1 on the Anbernic RG35XX SP under muOS, from the
+      player's own copy of the game's `www` folder, with no browser.
+    * Full game speed everywhere: at least 30 drawn frames per second on the
+      largest maps and 60 where the map allows it.
+    * Peak process memory under 450 MB on the device, leaving headroom below
+      the roughly 800 MB available.
+    * Never edit game files on disk. Adaptations are applied in memory from
+      a per-game set of patches kept outside the game folder.
     * Present the runtime to the game as NW.js, with save files that load on
-      the PC copy and the reverse.
-    * Meet numeric floors for stability, frame rate and peak memory, to be set
-      after measurement.
-    * Desktop Linux build as the development and test host.
-    * Error screen, log file and crash report on the device.
+      the PC copy and the reverse, written so that a power cut cannot destroy
+      an existing save.
+    * Draw through SDL2 and OpenGL ES 2 using the device's own libraries.
+    * An error screen, a log file and a crash report on the device, since it
+      has no debugger.
+    * A desktop Linux build as the development and test host.
 * **Out-of-Scope Non-Goals:**
-    * RPG Maker MZ in the first version (later phase with its own API
-      recording and a WebAssembly decision).
-    * MV 1.2 and earlier.
-    * A compatibility promise for arbitrary Linux machines or GPU drivers.
-    * General plugin compatibility beyond the reference game.
-    * HTML/CSS parsing or layout, network access, WebGL2, web workers,
-      WebAssembly, IndexedDB, developer tools, non-Linux hosts.
-    * Video playback, unless the API recording shows the game needs it.
-    * Unpacking packed executables or bypassing copy protection.
+    * RPG Maker MZ, and MV versions before 1.5.
+    * Other games, as a promise. They may work; only the reference game is
+      tested.
+    * Other devices and GPU drivers, as a promise.
+    * An interpreter-only JavaScript engine.
+    * An embedded web engine.
+    * A processor-side renderer as the main drawing path.
+    * HTML or CSS layout, network access, WebGL 2, web workers, WebAssembly,
+      IndexedDB, developer tools, non-Linux hosts.
+    * Unpacking packed executables or bypassing copy protection. The runtime
+      ships no game data, engine scripts or plugins.
 
 ## Alternatives Weighed
 
-* **JVM with Rhino or GraalJS.** Set aside because of JVM heap size and JIT
-  warm-up on a 1 GB Cortex-A53; Rhino also interprets and may lack the
-  JavaScript features the scripts need. Stated as an assertion so far; it
-  becomes a tested claim once a minimal JVM running the MV core is measured
-  on the device.
-* **Replace PIXI and the core rendering scripts with a native renderer, run
-  only game logic ("high cut").** Set aside because plugins call PIXI
-  directly. To be confirmed by counting how many of the game's plugins
-  reference PIXI.
-* **Keep PIXI but replace measured hot paths with native code ("mid cut").**
-  Not rejected. Held as the fallback if interpreter speed is close to but
-  over the limit.
-* **Embedded web engine (WPE WebKit with `cog`, or a stripped single-process
-  Chromium).** Not yet tested. If it runs the game acceptably on the device,
-  the case for a custom runtime is gone unless the project is done for the
-  sake of building it.
-* **Stock NW.js with tuned flags, plus zram or swap.** Not yet tested;
-  near-zero cost to try.
-* **A larger JavaScript engine (JavaScriptCore, V8 with or without JIT,
-  Hermes).** Held as the fallback if QuickJS is too slow. Most of NW.js's RAM
-  is the browser, so a bare JIT engine may still meet the memory goal.
+* **JVM with Rhino or GraalJS (the original idea).** Rejected. Rhino
+  interprets, and section 22 shows an interpreter is 3.5 to 4 times too slow
+  on this device even with V8's. GraalJS needs a JVM heap of hundreds of MB
+  on a device with 800 MB available. Neither was measured directly; the
+  rejection rests on the interpreter result and on the memory budget.
+* **Interpreter-only engine (QuickJS).** Rejected by measurement. With the
+  JIT off, the logic step on large maps takes 40 to 77 ms on the device
+  against a 16.7 ms budget (section 22). QuickJS itself was not run.
+* **Embedded web engine (WPE WebKit).** Rejected. It ran the game in a
+  container but needed 750 MB on a map and over 1 GB in a battle (section
+  12), and the device has no DRM/KMS interface for it to display through
+  (section 20). Its canvas would also hit the lighting plugin's cost unless
+  it were GPU-backed (section 26).
+* **Stock NW.js with tuned flags, zram or swap.** Not tried. Set aside with
+  the web-engine route: the memory need is the same class of problem.
+* **Replace PIXI and the engine's rendering scripts with a native renderer
+  ("high cut").** Not pursued. Only 2 of 48 enabled plugins name PIXI
+  directly (section 11), which weakens the original objection, but PIXI's
+  own frame preparation costs only about 3 ms per frame on the device with
+  culling (section 25), so there is little to gain.
+* **Draw on the processor instead of the GPU.** Rejected for the main path.
+  It draws correct frames (section 18) but is estimated at 12 to 20 frames
+  per second, and the lighting plugin's gradient alone takes 40 ms.
+* **Load only a window of tiles around the player (the author's idea).**
+  Not pursued in that form: the engine already draws only the tiles on
+  screen and map tile data is under 1 MB (section 13). The useful version
+  is to skip far-away events and their sprites, which became the culling
+  patch (sections 15 and 23).
+* **Paint the lighting mask smaller, or cache the light as an image.** Held
+  as fallbacks to drawing the lights through WebGL. A quarter-size mask
+  takes about 4 ms by a synthetic test (section 26); neither was built.
 
 ## Key Decisions & Staging for Next Steps
 
-**Position after the lab measurements (sections 11 to 16)**
+**Decided**
 
-* The starting premise holds for memory, in a different form than first
-  stated. The game needs about 35 MB of JavaScript objects and 150 to 250 MB
-  of decoded media. A browser uses 750 to 1,050 MB to run it. The gap is
-  browser overhead, and it is larger than the empty browser's 100 MB.
-* A minimal runtime without a browser was built and measured (sections 17
-  and 18). The unmodified game boots, runs maps and draws correct frames in
-  230 to 290 MB of process memory inside a 1 GB limit, against 750 MB or
-  more in a browser. Audio and the GPU path are not built.
-* Drawing on the CPU is estimated at 12 to 20 frames per second on the
-  device. The GPU path is required. A first attempt (section 19) runs but
-  draws two of four test maps black, and it is the largest remaining
-  unknown.
-* The engine choice decides the frame rate on large maps. With a JIT the
-  logic step has room to spare even at eight times slower. Without a JIT it
-  is over budget on large maps unless event culling and further cuts are
-  added. On a 64-bit ARM Linux device a JIT engine (V8 or JavaScriptCore) is
-  available, so the custom runtime should embed one of those, with QuickJS
-  only as a fallback.
-* The web-engine route runs the game today but does not fit in 1 GB
-  unchanged. It might be made to fit by tuning the browser's caches and by
-  shrinking media, which was not tried.
-* Skipping far-away events helps per-frame logic by 30 to 43% without a JIT
-  and is worth keeping in either route.
-* On the device (sections 21 and 22), Node with its JIT runs and process
-  memory is 121 to 163 MB with media stubbed out. The logic step takes
-  2.7 ms on the start map but 17 to 20 ms on large maps, over the 16.7 ms
-  budget before any drawing; event culling brings it to about 11.5 ms.
-  Without a JIT it is 40 to 77 ms. Drawing and audio are not measured there
-  yet.
-* The realistic target on this device is full game speed at about 30 drawn
-  frames per second on large maps. With the third overlay (section 23) the
-  logic step is 8.9 ms on map 110 and 12.6 ms on map 184, which fits that
-  target only if drawing takes under roughly 8 to 15 ms per drawn frame.
-  The GPU itself has room to spare (section 24). With PIXI's frame
-  preparation included (section 25), two logic steps and one draw take 22
-  to 27 ms on large maps, inside the 33 ms a 30 frames-per-second target
-  allows.
-* The lighting plugin was the blocker (section 26): painting its mask with
-  a processor-side Canvas 2D costs about 49 ms per repaint on the device.
-  Handing the lights to WebGL (section 27) removes that cost: with the
-  culling overlay, the logic step with real canvas work is 10 to 14 ms on
-  large maps and 4 ms on the small one. Two steps and one draw then take
-  about 23 and 32 ms on the two large test maps, against 33.3 ms. Seen through a
-  software WebGL (section 28), the overlay's picture matches the plugin's
-  own for plain round lights.
+* The route is a custom native runtime. No browser, no web engine, no JVM.
+* The JavaScript engine has a JIT: V8 or JavaScriptCore. V8 is known to run
+  on the device because Node does.
+* The platform layer is SDL2 with OpenGL ES 2, linked against the device's
+  own libraries.
+* Scope is RPG Maker MV only, with Fear & Hunger on the RG35XX SP as the one
+  tested target.
+* Game files are never edited; adaptations are in-memory patches kept per
+  game.
+* Three patches are part of the plan because the frame-rate goal depends on
+  them: event culling, lights drawn through WebGL, and a lower lighting
+  update rate.
+* The frame-rate target is 30 drawn frames per second on large maps.
+* Shaders are rewritten to high precision, because the device's medium
+  precision is only 10 bits (section 24).
+* The runtime presents itself to the game as the desktop player (NW.js),
+  not as a browser (decided 2026-11-15). The game then saves to files in
+  `www/save/`, interchangeable with the PC copy, and follows the code path
+  its author tested. The runtime supplies its own small versions of the
+  Node functions the game and 11 of its plugins call (section 11): reading,
+  writing, checking, creating and deleting files, limited to the game
+  folder, plus path handling and window stubs. The lab runs so far
+  presented a browser, so this mode is not yet exercised.
 
-**Next steps, in order**
+**Open, to be settled in design**
 
-1. Done (section 20): device facts read from the RG35XX SP.
-2. Done (section 16): the heap snapshot shows the unattributed memory is
-   browser overhead, not game objects.
-3. Settled (section 20): the device has no DRM/KMS, so WPE cannot display
-   there as shipped. The web-engine route is set aside. The custom runtime
-   targets SDL2 and OpenGL ES 2 with a JIT JavaScript engine.
-4. Done (section 17): a minimal runtime runs the game's logic without a
-   browser in 140 to 180 MB.
-5. Done on the CPU (section 18): the minimal runtime draws correct frames.
-6. Started (section 19): the WebGL path runs without a browser but two of
-   four test maps draw black. Find the cause, then time the path on the
-   device. Speed cannot be judged on the author's computer.
-7. Add streamed audio, input and file saves to the minimal runtime.
-8. Test whether event culling keeps the game's behaviour intact.
+* V8 or JavaScriptCore, and how it is embedded (a custom binary, or Node
+  itself with native add-ons as a first step).
+* Which WebGL-over-OpenGL-ES implementation to reuse. Section 19 shows that
+  writing or adopting one is not a pass-through: five separate faults were
+  met with a library that already claims WebGL support.
+* The Canvas 2D library. Cairo, through the `canvas` package, works on the
+  device and costs under 1 ms per step once the lighting mask is taken away
+  from it (sections 26 and 27).
+* C++ or Rust for the native code. The reviewers split on this.
+* Audio. Fully decoded audio costs 40 to 120 MB (section 13), so it should
+  be streamed; nothing is built.
+* Behaviour when a browser feature the game calls is missing: fail loudly,
+  or log and continue.
 
-**Decided during ideation**
+**Open, only answerable by building the first version**
 
-* Target is MV first; the reference game is Fear & Hunger.
-* Reference platform is a 1 GB RG35XX-series device on muOS.
-* No JVM and no Chromium in the runtime.
-* Priority order is stability, RAM, speed, applied only above hard floors for
-  all three.
+* Whether the engine's shader tilemap draws on the device's driver. It does
+  not draw through the lab's software WebGL (section 28). The fallback is
+  the classic tilemap, whose cost on the device is unmeasured.
+* The driver's processor time for about 200 to 800 WebGL calls per frame.
+* Whether the game plays correctly with the three patches over a real
+  session: enemies that chase from off-screen, events that act while
+  unseen, and lights updated 20 times per second. So far only speed and
+  "the scene is still the map" have been checked, always from a new game
+  with the player standing still.
+* Directional lights and the flashlight cone in the lights patch.
+* Battles, menus and the intro video on the device.
 
-* MV only. MZ is out of the first version (decided 2026-11-15).
-* Measure before designing. The embedded web engine route (WPE WebKit) is
-  tried first; the custom runtime is built only if that route fails on the
-  device or misses the memory budget (decided 2026-11-15).
+**Proposed order of work**
 
-**Recommended by reviewers, awaiting the author's decision**
+1. A native shell for the device: SDL2 window, OpenGL ES 2 context, the
+   JavaScript engine, and enough of WebGL to show the title screen.
+2. The map scene with the shader tilemap or its fallback, measured on the
+   device.
+3. The three patches, then a real play session to check behaviour.
+4. Input from the device's controls, save files, then audio.
+5. Error screen, logs and crash reports.
 
-* Present as NW.js and make PC save compatibility a goal.
-* Allow in-memory patching through a per-game overlay.
-* Treat desktop Linux as the primary development host.
+**Reviewer disagreements still open**
 
-**Open, to be settled by measurement before any runtime code**
-
-Order agreed on 2026-11-15: steps 1 and 2, then step 6 (the web-engine
-attempt), then the rest only if step 6 fails.
-
-Pass/fail rule for step 6, to be given numbers once step 2 reports free RAM:
-the game reaches the first map and a battle on the device, with GPU
-rendering, without being killed for memory, and with logic at full speed.
-
-1. Read the game folder: core and PIXI versions, plugin list, whether assets
-   are encrypted, resolution, packaging.
-2. Read the device: the facts listed in section 9, and in particular whether
-   `/dev/dri/card0` and GBM exist.
-3. On desktop, run the game in NW.js with the JIT disabled and CPU throttled,
-   and record script time per frame on a lit map.
-4. On desktop, record every browser API the game touches along a fixed route.
-   This list is the scope document.
-5. Measure NW.js memory on desktop for the same scene, split into browser,
-   JavaScript heap, GPU and audio.
-6. Search for existing projects and time-box a WPE/cog attempt on the device.
-7. Run the real MV scripts and plugins under QuickJS on the device with
-   drawing and audio stubbed out, against a time limit written down before
-   measuring (reviewers proposed 12 ms per logic step; one proposed 33 ms).
-8. Then fix, in this order: JavaScript engine, Canvas 2D library, language
-   (C++ or Rust), and numeric success criteria.
-
-**Reviewer disagreements carried forward**
-
-* Language default: Rust versus C++17 with sanitizers.
-* Kill threshold for the speed test: 12 ms versus 33 ms per logic step.
-* Behaviour on a missing API in the player build: always fail loudly versus
-  log quietly.
+* Language: Rust versus C++17 with sanitizers.
+* Behaviour on a missing browser feature in the player build.
