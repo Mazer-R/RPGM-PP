@@ -1,0 +1,40 @@
+diff --git a/src/base/small-vector.h b/src/base/small-vector.h
+index edaab3a7a6b..e02059b9e48 100644
+--- a/src/base/small-vector.h
++++ b/src/base/small-vector.h
+@@ -22,7 +22,17 @@ template <typename T, size_t kSize, typename Allocator = std::allocator<T>>
+ class SmallVector {
+   // Currently only support trivially copyable and trivially destructible data
+   // types, as it uses memcpy to copy elements and never calls destructors.
++#if defined(__GLIBCXX__)
++  // libstdc++ gives std::pair a user-provided assignment operator, so a
++  // pair of trivially copyable members is not itself "trivially
++  // copyable" there, although copying its bytes is still valid. Check
++  // what this container relies on instead.
++  static_assert(std::is_trivially_copy_constructible<T>::value &&
++                    std::is_trivially_destructible<T>::value,
++                "T should be trivially copy-constructible and destructible");
++#else
+   ASSERT_TRIVIALLY_COPYABLE(T);
++#endif
+   static_assert(std::is_trivially_destructible<T>::value);
+ 
+  public:
+@@ -193,7 +203,17 @@ class SmallVector {
+ 
+   void resize_no_init(size_t new_size) {
+     // Resizing without initialization is safe if T is trivially copyable.
++#if defined(__GLIBCXX__)
++    // libstdc++ gives std::pair a user-provided assignment operator, so a
++    // pair of trivially copyable members is not itself "trivially
++    // copyable" there, although copying its bytes is still valid. Check
++    // what this container relies on instead.
++    static_assert(std::is_trivially_copy_constructible<T>::value &&
++                      std::is_trivially_destructible<T>::value,
++                  "T should be trivially copy-constructible and destructible");
++#else
+     ASSERT_TRIVIALLY_COPYABLE(T);
++#endif
+     if (new_size > capacity()) Grow(new_size);
+     end_ = begin_ + new_size;
+   }

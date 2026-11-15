@@ -123,14 +123,23 @@ adjustments where the game's own code is too expensive for this hardware.
     None has been run there.
 *   **What does audio cost?** Nothing audio-related has been built or
     measured on the console.
-*   **Does the V8 build work from an ARM Linux container, and which
-    version?** The owner decided to build V8 from source with the system's
-    C++ standard library. V8's build tools assume an x86 machine; building
-    from ARM Linux is less travelled and has not been tried. The version
-    should be close to the one inside Node 22, which all measurements used.
 *   **Does SDL2_mixer cover what the game asks of its sound?** It cannot
     change pitch and limits loop points. Whether the game depends on either
     is not known.
+
+### Resolved since this design was written
+
+*   **The V8 build works from an ARM Linux container** (2026-11-15). V8
+    12.4.254.21, the version inside Node 22, builds as one static library
+    with g++ 12.2 and the system's C++ standard library, using the recipe in
+    `player/tools/v8/`. It needed one source patch, kept in
+    `player/tools/v8/patches/`: V8 asserts that a small container's element
+    type is trivially copyable, and the system library's `std::pair` is not,
+    although copying its bytes is valid. A test program linked against the
+    library (`player/tools/v8/smoke_test.cc`) runs on the console: a numeric
+    loop takes 6.2 s there, against 5.7 s in Node's own build of the same V8
+    and 21.5 s in Node with the JIT off, so the JIT is working. The library
+    is 70 MB and the test program 29 MB. V8's headers compile as C++17.
 
 ## Critical User Journeys (CUJs)
 

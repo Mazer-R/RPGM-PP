@@ -6,5 +6,13 @@
 !/concepts_brief.md
 !/lab/
 !/docs/
+!/player/
 
 .DS_Store
+
+# Player: derived, large, or copied from the console.
+player/build*/
+player/sysroot/
+player/third_party/v8/
+player/third_party/headers/*/
+player/tools/v8/logs/

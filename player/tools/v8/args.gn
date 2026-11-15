@@ -1,0 +1,38 @@
+# V8 build options for the player. This file is the single source of truth:
+# code that includes V8's headers must be compiled with matching settings,
+# so anything here that changes V8's object layout is repeated in the
+# player's build configuration.
+
+target_cpu = "arm64"
+target_os = "linux"
+is_debug = false
+symbol_level = 0
+
+# One static library holding V8, its platform helpers and its base library.
+is_component_build = false
+v8_monolithic = true
+v8_use_external_startup_data = false
+
+# Use the system compiler and the system C++ standard library, not the
+# compiler and libc++ that V8's tooling would otherwise download.
+is_clang = false
+use_custom_libcxx = false
+use_sysroot = false
+use_lld = false
+use_gold = false
+treat_warnings_as_errors = false
+
+# The shared Chromium build configuration looks for desktop libraries that
+# V8 itself does not use. Turn those lookups off instead of installing them.
+use_glib = false
+
+# Same object layout as the V8 inside Node, which is what every measurement
+# on the console was made with: full 64-bit pointers and no sandbox.
+v8_enable_pointer_compression = false
+v8_enable_sandbox = false
+
+# Not needed by the player; leaving them out makes the library smaller.
+v8_enable_i18n_support = false
+v8_enable_webassembly = false
+v8_enable_test_features = false
+v8_enable_gdbjit = false
