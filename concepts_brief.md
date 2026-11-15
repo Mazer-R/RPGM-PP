@@ -636,7 +636,12 @@ WebGL path works without a browser and what it needs. Files:
    behaviour added in the runner, map 110 draws.
 5. *Still open.* Maps 184 and 93 remain black through WebGL although they
    draw correctly on the CPU path. No WebGL errors are reported and the
-   off-screen framebuffers are complete. The cause was not found; it may be
+   off-screen framebuffers are complete. Ruled out so far, each by a run
+   with that element removed: the lighting plugin's darkness layer (map 184
+   stays black with it hidden, while the CPU frame without it is 59% lit),
+   and the screen tone (neutral on all three maps, and clearing it changes
+   nothing). Neither map uses a parallax background; map 110, which works,
+   is the only one with a fog layer. The cause was not found; it may be
    another gap in this library or a real problem in the WebGL path.
 
 **What this means**
@@ -649,6 +654,204 @@ WebGL path works without a browser and what it needs. Files:
   pass-through" is confirmed by experience here.
 * Reusing an existing, tested WebGL-over-OpenGL-ES implementation is
   preferable to writing one.
+
+### 20. Device facts (2026-11-15)
+
+Read from the author's Anbernic RG35XX SP over SSH with
+`lab/device-facts.sh`, which only reads. Raw output is in
+`lab/out/device-facts.txt`. These replace the "unverified" device statements
+in sections 8 and 9.
+
+| Fact | Value |
+| --- | --- |
+| System | muOS 2502.0 "Pixie" (its `os-release` still says 2410 "Banana") |
+| Kernel | Linux 4.9.170, 64-bit ARM, the chip maker's kernel |
+| CPU | 4 cores, Cortex-A53 (CPU part 0xd03) |
+| Memory | 973 MB total, about 818 MB available with the system idle, no swap |
+| Display | `/dev/fb0` (640x480, double-buffered) and `/dev/mali0`; **no `/dev/dri`** |
+| Graphics libraries | `libMali`, EGL, OpenGL ES 2 |
+| SDL | SDL2 2.28.5, with SDL2_mixer, SDL2_image and SDL2_ttf |
+| Audio | ALSA and PulseAudio libraries; PipeWire is running |
+| C library | glibc 2.38 (Buildroot), 64-bit userland with a 32-bit loader also present |
+| Storage | system on ext4 (3.1 GB free); SD data partition is exFAT through FUSE (45 GB free) |
+| Tools | Python 3 present; no Node, no gdb, no strace |
+
+**What this settles**
+
+* **The web-engine route is out as shipped.** There is no DRM/KMS device,
+  only the maker's Mali driver on the plain framebuffer. WPE WebKit's
+  direct-to-display mode needs DRM/KMS. Using WPE would mean writing a new
+  display backend for this driver, which removes the route's "no code to
+  write" advantage. Together with its memory use (section 12), this route is
+  set aside.
+* **The custom runtime's platform choice fits the device.** SDL2 and OpenGL
+  ES 2 are present and are what the system's own emulators use. The runtime
+  should link the device's own SDL2, which carries the working video driver
+  for this Mali setup.
+* **The memory budget is about 800 MB with no swap.** The runner measured
+  230 to 460 MB on the development machine (sections 18 and 19), so there is
+  headroom, pending a measurement on the device.
+* **Game files will sit on exFAT.** It ignores letter case, which hides the
+  wrong-case asset problem on this device, and it does not make file renames
+  crash-safe, so save files need the backup-and-validate scheme from
+  section 8.
+* **Debugging tools are absent**, so the runtime has to produce its own
+  crash reports and logs, as section 7 proposed.
+
+**Still unknown**
+
+* Whether a current Node build starts on a 4.9 kernel (Node states a minimum
+  of 4.18). glibc 2.38 is new enough.
+* Real speed of the CPU and of the Mali GPU. Nothing has been timed on the
+  device yet.
+
+### 21. First measurement on the device (2026-11-15)
+
+The minimal runner (section 17: the game's own scripts in bare Node, with
+drawing and audio stubbed out) was copied to the RG35XX SP and run there
+over SSH by `lab/device-run.sh`. The bundle holds a Node 22 build for 64-bit
+ARM, the runner, and the game's scripts and data only. It uses no display
+and no GPU. Raw output: `lab/out/device-run.txt`.
+
+**Quick run: start map (4 events), 20 seconds of measurement each**
+
+| | On the device | On the development machine | Ratio |
+| --- | --- | --- | --- |
+| Logic step, JIT on | 2.74 ms median, 3.95 ms at the 95th percentile, 16.0 ms worst | 0.34 ms | 8.1x slower |
+| Logic step, JIT off | 5.75 ms median, 7.05 ms at the 95th percentile, 9.5 ms worst | 0.60 ms | 9.6x slower |
+| Boot to first scene | 2.3-2.4 s | about 0.1 s | |
+| Process memory | 142 MB (JIT on), 121 MB (JIT off) | 141 MB | same |
+| JavaScript heap | 66-68 MB | 66-67 MB | same |
+
+* **Node 22 starts on this 4.9 kernel**, despite its stated minimum of 4.18.
+  A JIT JavaScript engine (V8) therefore runs on the device as it is.
+* **The "about eight times slower" assumption used in sections 14 to 18 was
+  close**: 8.1 times with a JIT, 9.6 times without.
+* **Memory matches the development machine.** With the system idle the
+  device reported about 814 MB available before and after.
+* On this small map the logic step fits the 16.7 ms budget with room to
+  spare in both modes. The worst single step with the JIT on (16 ms) is at
+  the budget, most likely a compilation or garbage-collection pause.
+
+**Not yet measured on the device**
+
+* The large maps (110 and 184), with and without event culling. This is the
+  same script without the quick flag.
+* Anything involving drawing, the GPU or audio.
+
+### 22. Large maps on the device (2026-11-15)
+
+Full run of `lab/device-run.sh` on the RG35XX SP: the same stubbed runner as
+section 21, 20 seconds of measurement per case, ten cases. No drawing, GPU
+or audio. Raw output: `lab/out/device-run-full.txt`.
+
+Logic step on the device, median (95th percentile):
+
+| Map | Events | JIT on | JIT on + culling | JIT off | JIT off + culling |
+| --- | --- | --- | --- | --- | --- |
+| 10 (start) | 4 | 2.7 ms (3.8) | not run | 5.9 ms (7.1) | not run |
+| 110 | 572 | **17.5 ms** (22.8) | 11.5 ms (15.9) | 64.2 ms (67.8) | 39.5 ms (41.9) |
+| 184 | 517 | **20.4 ms** (28.5) | 13.3 ms (21.3), see note | 77.3 ms (101.4) | 53.0 ms (76.8) |
+
+Process memory was 121 to 163 MB in every case, and the device reported
+about 813 MB available afterwards.
+
+* **Large maps are over budget on the device even with a JIT.** One logic
+  step takes 17 to 20 ms against a budget of 16.7 ms, before any drawing.
+  The game would run in slow motion on these maps.
+* **The earlier estimate was too optimistic for large maps.** The device is
+  about 8 times slower than the development machine on the small map but
+  about 22 times slower on map 110 (17.5 ms against 0.8 ms). The likely
+  reason is that updating hundreds of scattered objects suits a small
+  processor cache badly; this was not investigated. Sections 14, 17 and 18
+  projected 6 to 8 ms for this case.
+* **Event culling brings the median under budget with a JIT**: 11.5 ms on
+  map 110, a 34% saving. That leaves about 5 ms per frame for drawing, and
+  the 95th percentile is already at the budget. It is not enough alone.
+* **Without a JIT the device is 3.5 to 4 times slower again**, at 40 to
+  77 ms per step. An interpreter-only engine is ruled out for this game on
+  this device.
+* **Note on map 184 with culling.** That run ended on the game-over scene,
+  while the run without culling stayed on the map. The culled run advanced
+  more game steps in the same time (1,188 against 870), so the player, left
+  standing still, may simply have been killed sooner. It may also be a
+  change of behaviour caused by culling. This was not investigated, and it
+  makes that case's timing unreliable because game-over steps are cheap.
+
+**What this means for the plan**
+
+* A JIT engine is required, and is available: Node's V8 runs on the device.
+* Per-frame logic on large maps must come down by roughly half before
+  drawing is added. Candidates, none measured yet: remove far sprites from
+  the scene instead of visiting them, cull more aggressively, and render
+  every second frame so that two logic steps and one draw fit in 33 ms.
+* A realistic target for this device is the game at full speed with about
+  30 drawn frames per second on large maps, not 60.
+
+### 23. Reducing the logic step on the device (2026-11-15)
+
+All figures in this section were measured on the RG35XX SP with the JIT on,
+over 700 logic steps per case, with drawing and audio stubbed out. Raw
+output: `lab/out/device-matrix.txt`, `lab/out/device-matrix-v3.txt`,
+`lab/out/prof/`.
+
+**The game-over on map 184 is not caused by culling.** Run for a fixed 1,500
+steps on the development machine, the game leaves the map at step 865 or 866
+with no overlay, with the first overlay and with the second. The player, left
+standing where the test places it, dies at the same moment in all three.
+
+**Where the time goes (CPU profile on the device, culling on)**
+
+| Share of logic time | Map 110 | Map 184 |
+| --- | --- | --- |
+| Lighting plugin rebuilding its darkness mask | 22% | 11% |
+| Re-evaluating event page conditions | 9% | 7% |
+| Engine object code in total (`rpg_objects.js`) | 36% | 47% |
+| Lighting plugin in total | 24% | 13% |
+
+* The lighting plugin rebuilds its mask on every logic step, and that one
+  function is the largest single cost on both maps.
+* The engine re-evaluates the page conditions of every event on the map on
+  every step: about 750 re-evaluations per step on map 110. Something in the
+  game changes a switch or variable each step, which marks the whole map for
+  refresh.
+* On map 184 most of the remaining time is event command lists running.
+
+**Three overlay versions, median logic step (95th percentile)**
+
+| Overlay | Map 110 | Map 184 |
+| --- | --- | --- |
+| None | 18.0 ms (22.8) | 21.1 ms (29.0) |
+| v1: skip far events and their sprites | 11.9 ms (16.4) | 15.0 ms (21.9) |
+| v2: keep lists of near events, detach far sprites | 11.3 ms (15.9) | 14.4 ms (21.2) |
+| v3: v2 + lazy page refresh | 11.6 ms (16.4) | 14.1 ms (21.2) |
+| v3 + lighting mask every 2nd step | 10.5 ms (16.6) | 12.7 ms (19.9) |
+| v3 + lighting mask every 3rd step | **8.9 ms** (15.2) | **12.6 ms** (20.0) |
+
+* Map 110 goes from 18.0 to 8.9 ms, about half. Map 184 goes from 21.1 to
+  12.6 ms.
+* The second version barely improves on the first: visiting far sprites was
+  not the remaining cost.
+* Lazy page refresh defers three quarters of the re-evaluations but saves
+  under 1 ms, so those checks are cheap individually.
+* Throttling the lighting mask is the most effective single change after
+  culling. It makes light flicker and movement update 20 times per second
+  instead of 60; how that looks was not checked.
+
+**What this leaves for drawing**
+
+With the best overlay, the median leaves about 8 ms per frame on map 110 and
+4 ms on map 184, and the 95th percentile is at or over the budget on both.
+Drawing has not been measured on the device. Drawing every second frame
+would give two logic steps and one draw 33 ms to share: about 18 ms of logic
+on map 110 and 25 ms on map 184, leaving 15 and 8 ms for the draw.
+
+**Not verified**
+
+* That the game still plays correctly with any of these overlays. Only speed
+  and "the scene is still the map" were checked.
+* Real play. Every case starts from a new game with the player standing
+  still at the centre of the map.
 
 ## Goals vs. Non-Goals
 
@@ -724,16 +927,26 @@ WebGL path works without a browser and what it needs. Files:
   shrinking media, which was not tried.
 * Skipping far-away events helps per-frame logic by 30 to 43% without a JIT
   and is worth keeping in either route.
-* Nothing has been measured on the device. Drawing speed on the Mali GPU,
-  whether WPE can display there at all, and real CPU speed are all unknown.
+* On the device (sections 21 and 22), Node with its JIT runs and process
+  memory is 121 to 163 MB with media stubbed out. The logic step takes
+  2.7 ms on the start map but 17 to 20 ms on large maps, over the 16.7 ms
+  budget before any drawing; event culling brings it to about 11.5 ms.
+  Without a JIT it is 40 to 77 ms. Drawing and audio are not measured there
+  yet.
+* The realistic target on this device is full game speed at about 30 drawn
+  frames per second on large maps. With the third overlay (section 23) the
+  logic step is 8.9 ms on map 110 and 12.6 ms on map 184, which fits that
+  target only if drawing takes under roughly 8 to 15 ms per drawn frame.
+  Drawing on the device is the next thing to measure.
 
 **Next steps, in order**
 
-1. Install muOS on the RG35XX SP and read the device facts (section 9).
+1. Done (section 20): device facts read from the RG35XX SP.
 2. Done (section 16): the heap snapshot shows the unattributed memory is
    browser overhead, not game objects.
-3. Try WPE on the device. If it cannot display or cannot be tuned under the
-   memory budget, build the custom shell around a JIT engine, not QuickJS.
+3. Settled (section 20): the device has no DRM/KMS, so WPE cannot display
+   there as shipped. The web-engine route is set aside. The custom runtime
+   targets SDL2 and OpenGL ES 2 with a JIT JavaScript engine.
 4. Done (section 17): a minimal runtime runs the game's logic without a
    browser in 140 to 180 MB.
 5. Done on the CPU (section 18): the minimal runtime draws correct frames.

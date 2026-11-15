@@ -26,6 +26,8 @@ const glCalls = {};
 let glMs = 0;
 let glContexts = 0;
 let shaderRenames = 0;
+let lightmaskHidden = false;
+let screenTone = null;
 let arrayUniformLookups = 0;
 const glDebug = {};
 const pendingFramebufferChecks = [];
@@ -120,6 +122,9 @@ class HTMLCanvasElement extends Element { constructor() { super('canvas'); } }
 class HTMLVideoElement extends Element { constructor() { super('video'); } }
 
 // --- Images: only the size is read, never the pixels -----------------------
+// LAB_IMAGE_SIZES=<file> points at a JSON map of image path to [width,
+// height], so the stubbed runner can run where the image files are absent.
+const imageSizes = process.env.LAB_IMAGE_SIZES ? JSON.parse(fs.readFileSync(process.env.LAB_IMAGE_SIZES, 'utf8')) : null;
 let imagesRequested = 0, imagePixels = 0;
 class Image extends Element {
   constructor() { super('img'); this.complete = false; this._src = ''; }
@@ -130,12 +135,18 @@ class Image extends Element {
     imagesRequested++;
     setImmediate(() => {
       try {
-        const fd = fs.openSync(resolveUrl(url), 'r');
-        const header = Buffer.alloc(24);
-        fs.readSync(fd, header, 0, 24, 0);
-        fs.closeSync(fd);
-        this.width = this.naturalWidth = header.readUInt32BE(16);
-        this.height = this.naturalHeight = header.readUInt32BE(20);
+        const known = imageSizes && imageSizes[decodeURIComponent(String(url).split('?')[0])];
+        if (known) {
+          this.width = this.naturalWidth = known[0];
+          this.height = this.naturalHeight = known[1];
+        } else {
+          const fd = fs.openSync(resolveUrl(url), 'r');
+          const header = Buffer.alloc(24);
+          fs.readSync(fd, header, 0, 24, 0);
+          fs.closeSync(fd);
+          this.width = this.naturalWidth = header.readUInt32BE(16);
+          this.height = this.naturalHeight = header.readUInt32BE(20);
+        }
         imagePixels += this.width * this.height;
         this.complete = true;
         this._emit('load');
@@ -431,10 +442,14 @@ for (const match of html.matchAll(/<script[^>]+src="([^"]+)"/g)) {
   if (!skipped.some((name) => match[1].endsWith(name))) loadScript(match[1]);
 }
 
+let bootSeconds = null;
+let leftMapAtStep = null;
 const logicMs = [];
 const drawMs = [];
 let phase = 'boot', phaseAt = Date.now(), frames = 0;
 const startedAt = Date.now();
+// LAB_STEPS=<n> measures a fixed number of logic steps instead of a time span.
+const stepLimit = Number(process.env.LAB_STEPS) || 0;
 
 function sceneName() {
   const s = globalThis.SceneManager && SceneManager._scene;
@@ -448,17 +463,49 @@ function disableToneFilter() {
   Spriteset_Base.prototype.updateWebGLToneChanger = function () {};
 }
 
+// LAB_PROFILE=1 splits the logic step into its main parts by timing a few
+// engine functions. The parts nest: events and sprites are inside the map
+// scene's update.
+const profile = {};
+function profileWrap(owner, name, label) {
+  if (!owner || typeof owner[name] !== 'function') return;
+  const original = owner[name];
+  profile[label] = 0;
+  owner[name] = function () {
+    const before = performance.now();
+    try { return original.apply(this, arguments); }
+    finally { if (phase === 'measure') profile[label] += performance.now() - before; }
+  };
+}
+function installProfile() {
+  profileWrap(Game_Map.prototype, 'updateEvents', 'events');
+  profileWrap(Game_Map.prototype, 'update', 'mapTotal');
+  profileWrap(Game_Player.prototype, 'update', 'player');
+  profileWrap(Spriteset_Map.prototype, 'update', 'spriteset');
+  profileWrap(Game_Screen.prototype, 'update', 'screen');
+  profileWrap(Game_Timer.prototype, 'update', 'timer');
+  profileWrap(Scene_Map.prototype, 'updateChildren', 'sceneChildren');
+  profileWrap(Scene_Map.prototype, 'updateMain', 'sceneMain');
+  profileWrap(Window_Base.prototype, 'update', 'windows');
+}
+
 function installMeasurement() {
   if (process.env.LAB_NO_TONE_FILTER) disableToneFilter();
   if (cullMargin) {
     loadOverlay();
     window.__installEventCulling(Number(cullMargin));
   }
+  if (process.env.LAB_PROFILE) installProfile();
   const updateScene = SceneManager.updateScene;
   SceneManager.updateScene = function () {
     const before = performance.now();
     updateScene.apply(this, arguments);
-    if (phase === 'measure') logicMs.push(performance.now() - before);
+    if (phase === 'measure') {
+      logicMs.push(performance.now() - before);
+      // Remember when the game first left the map scene (for example to the
+      // game-over scene), counted in logic steps.
+      if (leftMapAtStep === null && sceneName() !== 'Scene_Map') leftMapAtStep = logicMs.length;
+    }
   };
   const renderScene = SceneManager.renderScene;
   SceneManager.renderScene = function () {
@@ -472,8 +519,12 @@ function installMeasurement() {
 }
 
 function loadOverlay() {
-  const file = path.join(__dirname, '..', 'overlays', 'event-culling.js');
-  vm.runInThisContext(fs.readFileSync(file, 'utf8'), { filename: 'event-culling.js' });
+  // LAB_CULL_OVERLAY picks the overlay file; the default is the first version.
+  // LAB_CULL_OPTS is a JSON object of options handed to the overlay.
+  globalThis.__eventCullingOptions = JSON.parse(process.env.LAB_CULL_OPTS || '{}');
+  const name = process.env.LAB_CULL_OVERLAY || 'event-culling.js';
+  const file = path.join(__dirname, '..', 'overlays', name);
+  vm.runInThisContext(fs.readFileSync(file, 'utf8'), { filename: name });
 }
 
 function finish() {
@@ -518,11 +569,15 @@ function finish() {
     scene: sceneName(), mapId: Number(mapId), events, cullMargin: cullMargin || null,
     logicSteps: sorted.length, logicMedianMs: pick(0.5), logicP95Ms: pick(0.95), logicMaxMs: pick(1),
     drawFrames: drawSorted.length, drawMedianMs: pickFrom(drawSorted, 0.5), drawP95Ms: pickFrom(drawSorted, 0.95),
-    glDebug, shotLitFraction, glContexts, shaderRenames, arrayUniformLookups, glFunctionsUsed: Object.keys(glCalls).length,
+    glDebug, shotLitFraction, glContexts, shaderRenames, arrayUniformLookups, lightmaskHidden, screenTone, glFunctionsUsed: Object.keys(glCalls).length,
     glMsPerFrame: drawSorted.length ? Math.round(glMs / drawSorted.length * 100) / 100 : null,
     glCallsPerFrame: drawSorted.length ? Math.round(Object.values(glCalls).reduce((a, b) => a + b, 0) / drawSorted.length) : null,
     glTop: Object.entries(glCalls).sort((a, b) => b[1] - a[1]).map(([k, v]) => k + ':' + v),
     coercions, realCanvas: !!real, renderer: globalThis.Graphics && Graphics._renderer ? Graphics._renderer.constructor.name : null, shot,
+    leftMapAtStep,
+    profileMsPerStep: Object.fromEntries(Object.entries(profile).map(([k, v]) => [k, sorted.length ? Math.round(v / sorted.length * 100) / 100 : null])),
+    cullStats: globalThis.__eventCullingStats || null,
+    bootSeconds: bootSeconds, node: process.version, jitless: process.execArgv.indexOf('--jitless') >= 0,
     heapUsedMb: mb(mem.heapUsed), rssMb: mb(mem.rss), externalMb: mb(mem.external),
     imagesRequested, imagePixelsMb: mb(imagePixels * 4), frames,
     errorPrinter: (documentTarget.body.children.find((c) => c.id === 'ErrorPrinter') || {}).innerHTML || null,
@@ -543,6 +598,7 @@ function tick() {
   try {
     if (phase === 'boot' && sceneName() && sceneName() !== 'Scene_Boot') {
       phase = 'first-scene'; phaseAt = Date.now();
+      bootSeconds = Math.round((Date.now() - startedAt) / 100) / 10;
     } else if (phase === 'first-scene' && held > 3) {
       installMeasurement();
       DataManager.setupNewGame();
@@ -550,12 +606,24 @@ function tick() {
       SceneManager.goto(Scene_Map);
       phase = 'settle'; phaseAt = Date.now();
     } else if (phase === 'settle' && held > 4) {
+      // Diagnostic: record the screen tone the map set, and optionally clear it.
+      try {
+        screenTone = $gameScreen.tone().slice();
+        if (process.env.LAB_RESET_TONE) { $gameScreen._tone = [0, 0, 0, 0]; $gameScreen._toneTarget = [0, 0, 0, 0]; }
+      } catch (e) { noteError('tone', e); }
+      // Diagnostic switch: hide the lighting plugin's darkness layer.
+      if (process.env.LAB_HIDE_LIGHTMASK) {
+        const spriteset = SceneManager._scene._spriteset;
+        const mask = spriteset && (spriteset._lightmask || spriteset.children.find((c) => c.constructor.name === 'Lightmask'));
+        if (mask) { mask.visible = false; lightmaskHidden = true; }
+      }
       phase = 'measure'; phaseAt = Date.now();
-    } else if (phase === 'measure' && held > Number(seconds)) {
+    } else if (phase === 'measure' && (stepLimit ? logicMs.length >= stepLimit : held > Number(seconds))) {
       return finish();
     }
   } catch (e) { noteError('driver', e); return finish(); }
-  if (Date.now() - startedAt > 40000 + Number(seconds) * 1000) return finish();
+  // Slow machines need longer to boot; LAB_TIMEOUT (seconds) raises the limit.
+  if (Date.now() - startedAt > (Number(process.env.LAB_TIMEOUT) || 40) * 1000 + Number(seconds) * 1000) return finish();
   setTimeout(tick, 16);
 }
 
