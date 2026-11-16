@@ -784,6 +784,18 @@ adjustments where the game's own code is too expensive for this hardware.
         names the slowest step, command and event of a slow frame), and
         one or two stops of 110-130 ms per run outside scripts and
         memory.
+*   **A desktop Linux package for 64-bit ARM (2026-11-16).**
+    *   **What**: `packaging/linux-x86_64/` became `packaging/linux/`;
+        `build-package.sh` takes the architecture as `uname -m` names it
+        (`x86_64` or `aarch64`) and makes `mvplayer-linux-<arch>.tar.gz`
+        with the same start script, notes and bundled libraries. The ARM
+        package holds the program that goes to the handhelds.
+    *   **Checked**: both packages pass the script's checks (they need
+        glibc 2.35). The ARM package, extracted in a clean Debian 12
+        arm64 container with a virtual X display, finds all its
+        libraries and plays Fear & Hunger's intro video to the end
+        through the system's ffmpeg.
+    *   **Not checked**: a real ARM desktop, with a real GPU driver.
 
 ## Critical User Journeys (CUJs)
 

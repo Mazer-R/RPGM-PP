@@ -1,24 +1,38 @@
 #!/bin/sh
-# Builds the Linux x86-64 package of the player: a folder with the player,
+# Builds a desktop Linux package of the player: a folder with the player,
 # its JavaScript layer, the per-game patches, the shared libraries a desktop
 # may not have in a compatible version, a start script and a README, and the
 # same folder as a .tar.gz. Then checks the result.
 #
-# Meant to run inside the image built from tools/build/Dockerfile.x64 (it
-# needs the amd64 libraries and the x86-64 binutils), with the `player/`
-# folder mounted at /work/player, after tools/build/build-x64.sh.
+# Usage: packaging/linux/build-package.sh [x86_64|aarch64]   (default x86_64)
 #
-# Result, under build-x64/:
-#   package/mvplayer-linux-x86_64/     the folder
-#   mvplayer-linux-x86_64.tar.gz       the same, as an archive
+# The architecture is named as `uname -m` names it on the machine the
+# package is for. Meant to run with the `player/` folder mounted at
+# /work/player, inside the image the player was built in, which has the
+# libraries to bundle:
+#   x86_64   image from tools/build/Dockerfile.x64, after tools/build/build-x64.sh
+#   aarch64  image from tools/build/Dockerfile, after tools/build/build.sh
+#            (the same program that goes to the handhelds)
+#
+# Result, under build-x64/ or build-device/:
+#   package/mvplayer-linux-<arch>/     the folder
+#   mvplayer-linux-<arch>.tar.gz       the same, as an archive
 set -eu
 cd /work/player
-NAME=mvplayer-linux-x86_64
-OUT=build-x64
+ARCH="${1:-x86_64}"
+case "$ARCH" in
+  x86_64)
+    OUT=build-x64; TRIPLE=x86_64-linux-gnu; MACHINE="X86-64"; LABEL="x86-64"
+    # The image's own binutils are for ARM.
+    READELF=x86_64-linux-gnu-readelf; OBJDUMP=x86_64-linux-gnu-objdump; EMULATOR=qemu-x86_64-static ;;
+  aarch64)
+    OUT=build-device; TRIPLE=aarch64-linux-gnu; MACHINE="AArch64"; LABEL="64-bit ARM"
+    READELF=readelf; OBJDUMP=objdump; EMULATOR="" ;;
+  *) echo "unknown architecture: $ARCH (x86_64 or aarch64)" >&2; exit 1 ;;
+esac
+NAME=mvplayer-linux-$ARCH
 DIR="$OUT/package/$NAME"
-READELF=x86_64-linux-gnu-readelf
-OBJDUMP=x86_64-linux-gnu-objdump
-LIBDIRS="/usr/lib/x86_64-linux-gnu /lib/x86_64-linux-gnu"
+LIBDIRS="/usr/lib/$TRIPLE /lib/$TRIPLE"
 MAX_GLIBC=2.36   # Debian bookworm's; the binary must not need a newer one
 
 [ -x "$OUT/mvplayer" ] || { echo "$OUT/mvplayer is missing: build the player first" >&2; exit 1; }
@@ -52,7 +66,8 @@ mkdir -p "$DIR/js" "$DIR/patches" "$DIR/lib"
 cp "$OUT/mvplayer" "$DIR/mvplayer"
 cp js/*.js "$DIR/js/"
 cp patches/* "$DIR/patches/"
-cp packaging/linux-x86_64/mvplayer.sh packaging/linux-x86_64/README.txt "$DIR/"
+cp packaging/linux/mvplayer.sh "$DIR/"
+sed "s/@ARCH@/$LABEL/g" packaging/linux/README.txt > "$DIR/README.txt"
 chmod 755 "$DIR/mvplayer" "$DIR/mvplayer.sh"
 
 # Bundle every library the player needs, directly or through another bundled
@@ -85,8 +100,8 @@ tar -tzvf "$OUT/$NAME.tar.gz"
 
 echo "== checks =="
 FAILED=0
-file "$DIR/mvplayer"
-file "$DIR/mvplayer" | grep -q "ELF 64-bit LSB.*x86-64" || { echo "FAIL: not an x86-64 ELF"; FAILED=1; }
+$READELF -h "$DIR/mvplayer" | grep -E "Class:|Machine:"
+$READELF -h "$DIR/mvplayer" | grep -q "Machine:.*$MACHINE" || { echo "FAIL: not a program for $LABEL"; FAILED=1; }
 
 echo "needed by mvplayer: $(needed "$DIR/mvplayer" | tr '\n' ' ')"
 echo "bundled: $(ls "$DIR/lib" | tr '\n' ' ')"
@@ -105,19 +120,20 @@ echo "highest GLIBC version required: $GLIBC (limit $MAX_GLIBC)"
 [ "$(printf '%s\n' "$GLIBC" "$MAX_GLIBC" | sort -V | tail -n 1)" = "$MAX_GLIBC" ] || { echo "FAIL: needs a newer glibc than $MAX_GLIBC"; FAILED=1; }
 echo "highest GLIBCXX version required: $(highest GLIBCXX)"
 
-# Start the packaged binary once under processor emulation, with only the
-# bundled libraries on the search path besides the system's. Without
-# arguments it must print its usage text and exit with 1.
-if command -v qemu-x86_64-static >/dev/null; then
+# Start the packaged binary once (under processor emulation when it is not
+# for this machine), with only the bundled libraries on the search path
+# besides the system's. Without arguments it must print its usage text and
+# exit with 1.
+if [ -z "$EMULATOR" ] || command -v "$EMULATOR" >/dev/null; then
   set +e
-  USAGE=$(cd "$DIR" && LD_LIBRARY_PATH="$PWD/lib" qemu-x86_64-static ./mvplayer 2>&1)
+  USAGE=$(cd "$DIR" && LD_LIBRARY_PATH="$PWD/lib" $EMULATOR ./mvplayer 2>&1)
   CODE=$?
   set -e
-  echo "emulated run without arguments: exit code $CODE"
+  echo "run without arguments: exit code $CODE"
   echo "$USAGE"
-  { [ "$CODE" = 1 ] && echo "$USAGE" | grep -q "usage: mvplayer --game"; } || { echo "FAIL: unexpected result from the emulated run"; FAILED=1; }
+  { [ "$CODE" = 1 ] && echo "$USAGE" | grep -q "usage: mvplayer --game"; } || { echo "FAIL: unexpected result from the run"; FAILED=1; }
 else
-  echo "qemu-x86_64-static not available: emulated run skipped"
+  echo "$EMULATOR not available: run skipped"
 fi
 
 [ "$FAILED" = 0 ] || { echo "== checks FAILED =="; exit 1; }

@@ -73,6 +73,107 @@ measurements are in `concepts_brief.md`.
 - Video on Android (there is no `ffmpeg` program to start).
 - Sound effects that rely on pitch or exact loop points are approximated.
 
+## Installing and using
+
+The player is distributed ready to run; nothing has to be compiled. Android
+gets an APK (app stores later). The Linux packages are published by the
+project itself. There is no public download page yet: until there is one,
+the packages are built as described under "Building".
+
+You need your own copy of a game. The player uses only the game's `www`
+folder (the one with `index.html`), which the Windows and Linux downloads of
+an MV game contain.
+
+### Which package
+
+A program built for one family of processors does not run on another, so
+there is one package per family. On Linux, this command says which one a
+machine has:
+
+```sh
+uname -m
+```
+
+| `uname -m` says | Machine | Package |
+| --- | --- | --- |
+| `x86_64` | PC or laptop with an Intel or AMD processor | `mvplayer-linux-x86_64.tar.gz` |
+| `aarch64` | Handheld running muOS (Anbernic RG35XX family and alike) | `mvplayer-muos.tar.gz` |
+| `aarch64` | Desktop Linux on 64-bit ARM: Raspberry Pi 4 or 5, ARM laptops and boards | `mvplayer-linux-aarch64.tar.gz` |
+| `armv7l`, `armv6l`, `i686` | 32-bit systems | not supported |
+| (Android) | Phone or tablet, 64-bit ARM, Android 8.0 or later | `mvplayer.apk` |
+
+Two things decide whether a Linux package runs: the processor family above,
+and the age of the system's C library (`ldd --version` shows it). The two
+desktop packages need glibc 2.35 or newer (Ubuntu 22.04, Debian 12, Fedora
+36); the muOS package needs 2.34. The two `aarch64` packages hold the same
+program: the muOS one is laid out for that system's SD card and uses the
+console's own libraries, the desktop one brings its libraries and a start
+script. A 32-bit system on a 64-bit processor
+(some Raspberry Pi installations) counts as 32-bit: `uname -m` may say
+`aarch64` while the programs are `armhf`; `dpkg --print-architecture` must
+say `arm64`.
+
+On Android only 64-bit ARM devices (`arm64-v8a`) are supported, which is
+nearly every phone sold since 2017. 32-bit-only phones and x86 devices
+(some emulators and Chromebooks) are not.
+
+### Android
+
+1. Copy `mvplayer.apk` to the device and open it. Android asks to allow
+   installing from this source the first time.
+2. Start the app. It opens the system's "all files access" screen: allow it
+   and open the app again. Without it the app cannot read the games folder.
+3. Copy each game into the `RPGMV` folder at the top of the device's shared
+   storage, one folder per game, each holding the game's `www` folder:
+   `RPGMV/<Game>/www`. A file manager or a USB cable will do.
+4. Choose the game from the list.
+
+Without a controller, the screen shows a direction pad and three buttons.
+The MENU button in the top right corner opens the settings; "TOUCH
+CONTROLS" there moves, resizes, adds and removes buttons (a game that needs
+the T key gets a T button). Back is cancel; held for a second it returns to
+the list. Videos do not play on Android yet.
+
+### Handhelds with muOS
+
+1. Extract `mvplayer-muos.tar.gz` at the root of the SD card that holds the
+   `MUOS` and `ROMS` folders, keeping the folder structure. It adds
+   `MUOS/emulator/mvplayer`, `MUOS/application/RPG Maker MV` and
+   `ROMS/RPGMV`.
+2. Copy each game to `ROMS/RPGMV/<Game>/www` on the card. A game also runs
+   from `/opt/mvplayer/games/<Game>/www` on internal storage, which loads
+   faster.
+3. On the console: Apps, then "RPG Maker MV". Choose the game with A.
+
+| Buttons | What they do |
+| --- | --- |
+| Menu, then Start | Leave the game, back to the list |
+| Menu held + X | The player's settings: frame counter, which key each button presses |
+| Menu held + Select | Show or hide the frames per second |
+
+Videos use the `ffmpeg` that muOS already has.
+
+### Desktop Linux (x86-64 and 64-bit ARM)
+
+The steps are the same for both; only the archive differs. The 64-bit ARM
+package has been run without a screen in a container, not yet on a real
+ARM desktop.
+
+1. Extract `mvplayer-linux-x86_64.tar.gz` or `mvplayer-linux-aarch64.tar.gz`
+   anywhere and keep its files together.
+2. Run `./mvplayer.sh`. The first time, and from the list's "Add a game"
+   line, a file dialog opens: choose the game's `.exe` or the `index.html`
+   in its `www` folder. Games added are remembered.
+3. Optional: `./mvplayer.sh --install-launcher` adds the player to the
+   desktop's application menu, and `./mvplayer.sh --check-libs` lists any
+   system library that is missing.
+
+Keys: arrows to move, Z or Enter to confirm, X or Esc to cancel, F1 for the
+player's settings, F2 for the frames per second. A controller works too.
+To see a game's videos, install `ffmpeg` with the system's package manager.
+The package brings its own SDL2, Cairo and FreeType; details are in the
+`README.txt` inside it.
+
 ## Patches
 
 `player/patches/index.json` lists them and when each applies. All are
@@ -115,8 +216,8 @@ Builds run in containers; the images are described by the Dockerfiles in
 
 | Target | V8 | Player | Package |
 | --- | --- | --- | --- |
-| ARM64 Linux (console) | `tools/v8/build.sh` | `tools/build/build.sh` | `packaging/muos/build-package.sh` |
-| Linux x86-64 | `tools/v8/build-x64.sh` | `tools/build/build-x64.sh` | `packaging/linux-x86_64/build-package.sh` |
+| ARM64 Linux | `tools/v8/build.sh` | `tools/build/build.sh` | `packaging/muos/build-package.sh` (muOS), `packaging/linux/build-package.sh aarch64` (desktop) |
+| Linux x86-64 | `tools/v8/build-x64.sh` | `tools/build/build-x64.sh` | `packaging/linux/build-package.sh x86_64` |
 | Android (arm64-v8a) | `tools/v8/build-android.sh` | `tools/build/build-android-deps.sh`, then `tools/build/build-android.sh` | `packaging/android/build-apk.sh` |
 
 For example, the console build, from the repository's root:
@@ -125,9 +226,8 @@ For example, the console build, from the repository's root:
 docker run --rm -v "$PWD/player":/work/player mvp-player-build sh /work/player/tools/build/build.sh
 ```
 
-The ARM64 binary needs a 64-bit system with glibc 2.34 or newer, SDL2,
-Cairo, FreeType and OpenGL ES 2. Each package has its own notes:
-`player/packaging/android/README.md`, `player/packaging/linux-x86_64/README.txt`.
+Each package has its own notes: `player/packaging/android/README.md`,
+`player/packaging/linux/README.txt`.
 
 ## Running
 
@@ -140,12 +240,7 @@ mvplayer --game <path> --run <script>  # with a watch script, for tests
 `--fps` starts with the frame counter on; `--no-patches` runs without the
 patches. The log of a run is the game's `www/save/mvplayer.log`.
 
-Where games go:
-
-- **muOS**: `ROMS/RPGMV/<Game>/www` on the card, or
-  `/opt/mvplayer/games/<Game>/www` on internal storage.
-- **Android**: `RPGMV/<Game>/www` in shared storage.
-- **Linux x86-64**: anywhere; add the game from the list.
+Where games go on each platform is under "Installing and using".
 
 ## Tests
 
@@ -254,6 +349,110 @@ viabilidad anteriores están en `concepts_brief.md`.
 - Los efectos de sonido que dependen del tono o de puntos de bucle exactos
   se aproximan.
 
+## Instalar y usar
+
+El reproductor se distribuye listo para ejecutar; no hay que compilar nada.
+Para Android hay un APK (más adelante, en las tiendas). Los paquetes de
+Linux los publica el propio proyecto. Todavía no hay página pública de
+descargas: hasta que la haya, los paquetes se generan como se explica en
+"Compilar".
+
+Hace falta tu propia copia del juego. El reproductor solo usa la carpeta
+`www` del juego (la que tiene `index.html`), que viene en las descargas
+para Windows y para Linux de un juego de MV.
+
+### Qué paquete
+
+Un programa compilado para una familia de procesadores no funciona en otra,
+así que hay un paquete por familia. En Linux, este comando dice cuál tiene
+una máquina:
+
+```sh
+uname -m
+```
+
+| `uname -m` dice | Máquina | Paquete |
+| --- | --- | --- |
+| `x86_64` | PC o portátil con procesador Intel o AMD | `mvplayer-linux-x86_64.tar.gz` |
+| `aarch64` | Consola con muOS (familia Anbernic RG35XX y parecidas) | `mvplayer-muos.tar.gz` |
+| `aarch64` | Linux de escritorio en ARM de 64 bits: Raspberry Pi 4 o 5, portátiles y placas ARM | `mvplayer-linux-aarch64.tar.gz` |
+| `armv7l`, `armv6l`, `i686` | Sistemas de 32 bits | no soportado |
+| (Android) | Móvil o tableta, ARM de 64 bits, Android 8.0 o posterior | `mvplayer.apk` |
+
+Dos cosas deciden si un paquete de Linux funciona: la familia de procesador
+de la tabla y la antigüedad de la biblioteca de C del sistema (la muestra
+`ldd --version`). Los dos paquetes de escritorio necesitan glibc 2.35 o
+posterior (Ubuntu 22.04, Debian 12, Fedora 36); el de muOS, 2.34. Los dos
+paquetes `aarch64` llevan el mismo programa: el de muOS va dispuesto para
+la tarjeta SD de ese sistema y usa las bibliotecas de la consola; el de
+escritorio trae sus bibliotecas y un script de arranque.
+Un sistema de 32 bits sobre un procesador de 64 (algunas instalaciones de
+Raspberry Pi) cuenta como 32 bits: `uname -m` puede decir `aarch64` y los
+programas ser `armhf`; `dpkg --print-architecture` tiene que decir `arm64`.
+
+En Android solo valen los dispositivos ARM de 64 bits (`arm64-v8a`), que
+son casi todos los móviles vendidos desde 2017. Los móviles solo de 32 bits
+y los dispositivos x86 (algunos emuladores y Chromebooks) no.
+
+### Android
+
+1. Copia `mvplayer.apk` al dispositivo y ábrelo. La primera vez, Android
+   pide permiso para instalar desde ese origen.
+2. Abre la app. Muestra la pantalla del sistema de "acceso a todos los
+   archivos": permítelo y vuelve a abrir la app. Sin eso no puede leer la
+   carpeta de juegos.
+3. Copia cada juego a la carpeta `RPGMV`, en la raíz del almacenamiento
+   compartido, una carpeta por juego con su `www` dentro:
+   `RPGMV/<Juego>/www`. Sirve un gestor de archivos o un cable USB.
+4. Elige el juego en la lista.
+
+Sin mando, la pantalla muestra una cruceta y tres botones. El botón MENU,
+arriba a la derecha, abre los ajustes; "TOUCH CONTROLS" permite mover,
+cambiar de tamaño, añadir y quitar botones (un juego que necesita la tecla
+T recibe un botón T). Atrás es cancelar; mantenido un segundo vuelve a la
+lista. En Android todavía no se reproducen vídeos.
+
+### Consolas con muOS
+
+1. Extrae `mvplayer-muos.tar.gz` en la raíz de la tarjeta SD que contiene
+   las carpetas `MUOS` y `ROMS`, conservando la estructura de carpetas.
+   Añade `MUOS/emulator/mvplayer`, `MUOS/application/RPG Maker MV` y
+   `ROMS/RPGMV`.
+2. Copia cada juego a `ROMS/RPGMV/<Juego>/www` en la tarjeta. Un juego
+   también funciona desde `/opt/mvplayer/games/<Juego>/www`, en el
+   almacenamiento interno, donde carga más rápido.
+3. En la consola: Apps y después "RPG Maker MV". Elige el juego con A.
+
+| Botones | Qué hacen |
+| --- | --- |
+| Menú y después Start | Salir del juego, de vuelta a la lista |
+| Menú mantenido + X | Ajustes del reproductor: contador de fotogramas, qué tecla pulsa cada botón |
+| Menú mantenido + Select | Mostrar u ocultar los fotogramas por segundo |
+
+Los vídeos usan el `ffmpeg` que muOS ya trae.
+
+### Linux de escritorio (x86-64 y ARM de 64 bits)
+
+Los pasos son los mismos para los dos; solo cambia el archivo. El paquete
+ARM de 64 bits se ha ejecutado sin pantalla en un contenedor, todavía no en
+un escritorio ARM real.
+
+1. Extrae `mvplayer-linux-x86_64.tar.gz` o `mvplayer-linux-aarch64.tar.gz`
+   donde quieras y mantén sus archivos juntos.
+2. Ejecuta `./mvplayer.sh`. La primera vez, y desde la línea "Add a game"
+   de la lista, se abre un diálogo de archivos: elige el `.exe` del juego o
+   el `index.html` de su carpeta `www`. Los juegos añadidos se recuerdan.
+3. Opcional: `./mvplayer.sh --install-launcher` añade el reproductor al
+   menú de aplicaciones del escritorio, y `./mvplayer.sh --check-libs`
+   enumera las bibliotecas del sistema que falten.
+
+Teclas: flechas para moverse, Z o Intro para confirmar, X o Esc para
+cancelar, F1 para los ajustes del reproductor, F2 para los fotogramas por
+segundo. También funciona un mando. Para ver los vídeos de un juego,
+instala `ffmpeg` con el gestor de paquetes del sistema. El paquete trae sus
+propias SDL2, Cairo y FreeType; los detalles están en el `README.txt` que
+lleva dentro (en inglés).
+
 ## Parches
 
 `player/patches/index.json` los enumera y dice cuándo se aplica cada uno.
@@ -296,8 +495,8 @@ una vez por plataforma (horas) y no se guarda en git.
 
 | Plataforma | V8 | Reproductor | Paquete |
 | --- | --- | --- | --- |
-| Linux ARM64 (consola) | `tools/v8/build.sh` | `tools/build/build.sh` | `packaging/muos/build-package.sh` |
-| Linux x86-64 | `tools/v8/build-x64.sh` | `tools/build/build-x64.sh` | `packaging/linux-x86_64/build-package.sh` |
+| Linux ARM64 | `tools/v8/build.sh` | `tools/build/build.sh` | `packaging/muos/build-package.sh` (muOS), `packaging/linux/build-package.sh aarch64` (escritorio) |
+| Linux x86-64 | `tools/v8/build-x64.sh` | `tools/build/build-x64.sh` | `packaging/linux/build-package.sh x86_64` |
 | Android (arm64-v8a) | `tools/v8/build-android.sh` | `tools/build/build-android-deps.sh` y después `tools/build/build-android.sh` | `packaging/android/build-apk.sh` |
 
 Por ejemplo, la compilación para la consola, desde la raíz del repositorio:
@@ -306,10 +505,8 @@ Por ejemplo, la compilación para la consola, desde la raíz del repositorio:
 docker run --rm -v "$PWD/player":/work/player mvp-player-build sh /work/player/tools/build/build.sh
 ```
 
-El binario ARM64 necesita un sistema de 64 bits con glibc 2.34 o posterior,
-SDL2, Cairo, FreeType y OpenGL ES 2. Cada paquete tiene sus propias notas
-(en inglés): `player/packaging/android/README.md`,
-`player/packaging/linux-x86_64/README.txt`.
+Cada paquete tiene sus propias notas (en inglés):
+`player/packaging/android/README.md`, `player/packaging/linux/README.txt`.
 
 ## Ejecutar
 
@@ -323,12 +520,7 @@ mvplayer --game <ruta> --run <script>  # con un script de observación, para pru
 los parches. El registro de cada ejecución es el `www/save/mvplayer.log`
 del juego.
 
-Dónde van los juegos:
-
-- **muOS**: `ROMS/RPGMV/<Juego>/www` en la tarjeta, o
-  `/opt/mvplayer/games/<Juego>/www` en el almacenamiento interno.
-- **Android**: `RPGMV/<Juego>/www` en el almacenamiento compartido.
-- **Linux x86-64**: en cualquier sitio; el juego se añade desde la lista.
+Dónde van los juegos en cada plataforma está en "Instalar y usar".
 
 ## Pruebas
 

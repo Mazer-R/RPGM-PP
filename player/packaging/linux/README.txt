@@ -1,5 +1,5 @@
-mvplayer for Linux x86-64 (internal test build)
-===============================================
+mvplayer for Linux, @ARCH@ (internal test build)
+================================================
 
 A player for RPG Maker MV games. This build is for testing only.
 
@@ -41,14 +41,14 @@ js/ and patches/ next to its executable.
 Contents
 --------
     mvplayer.sh   start script
-    mvplayer      the player (x86-64, needs glibc 2.36 or newer)
+    mvplayer      the player (@ARCH@, needs glibc 2.35 or newer)
     js/           the player's JavaScript layer
     patches/      per-game patches
     lib/          SDL2, Cairo, FreeType and the libraries they need
 
 What the system must provide
 ----------------------------
-The C and C++ runtime (glibc 2.36 or newer, libstdc++ from GCC 12 or newer),
+The C and C++ runtime (glibc 2.35 or newer, libstdc++ from GCC 12 or newer),
 an OpenGL ES 2 driver (libGLESv2.so.2, libEGL.so.1 - Mesa or the vendor's
 driver through libglvnd), and the usual desktop libraries: X11 and its
 extension libraries (including libXss and libXrender), xcb, Wayland,
