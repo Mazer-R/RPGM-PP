@@ -42,17 +42,20 @@ player.patches.commonEventThrottle = function (options) {
     return turns[id];
   }
 
-  var step = 0;
-  var updateScene = SceneManager.updateScene;
-  SceneManager.updateScene = function () {
-    step++;
-    return updateScene.apply(this, arguments);
-  };
+  // Each throttled event counts the steps it is offered itself. Counting the
+  // steps the engine asks for instead would go wrong when another patch
+  // (framePacing) drops some of them: the steps that really run would then
+  // skip some turns for good, and the events with those turns would never run.
+  var offered = {};
   var update = Game_CommonEvent.prototype.update;
   Game_CommonEvent.prototype.update = function () {
     var turn = turnOf(this);
-    if (turn && step % every !== turn - 1) { stats.skipped++; return; }
-    if (turn) stats.run++;
+    if (turn) {
+      var id = this._commonEventId;
+      var count = offered[id] = (offered[id] || 0) + 1;
+      if ((count - 1) % every !== turn - 1) { stats.skipped++; return; }
+      stats.run++;
+    }
     return update.apply(this, arguments);
   };
 };
