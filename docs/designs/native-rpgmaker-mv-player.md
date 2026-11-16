@@ -854,6 +854,17 @@ adjustments where the game's own code is too expensive for this hardware.
         mouse (no way to send pointer events in the screenless run);
         games with encrypted pictures show no icon or background. On a
         phone it was reported as working, by hand.
+*   **The frame-rate setting left the game list (2026-11-16).**
+    *   **Why**: the player's settings menu, opened inside a game, already
+        switches the frame counter; the list's own line was a second
+        place for the same thing.
+    *   **Now**: the list has only games and "Add a game". It no longer
+        prints `MVPLAYER_FPS`, and the muOS, Android and desktop Linux
+        launchers no longer keep a `show-fps` file or pass `--fps`. The
+        counter is off when a game starts and is switched in the menu
+        (or with F2, or the menu button plus Select), for that run.
+        `--fps` and `MVPLAYER_FPS=1` still start a game with it on, for
+        tests.
 
 ## Critical User Journeys (CUJs)
 

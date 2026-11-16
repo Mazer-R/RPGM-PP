@@ -12,7 +12,7 @@
 //   <shared storage>/RPGMV/mvplayer     the player's own things, where the
 //       user can reach them (<external files> until access is allowed):
 //         logs/      a copy of the log of every run
-//         show-fps   the frame-rate setting (0 or 1)
+//         games.txt  the games played or added, the last one first
 //         args.txt   for tests: if present, one run with these arguments,
 //                    one per line, instead of the list
 //   <internal files>/player             js/ and patches/, unpacked from the
@@ -178,28 +178,20 @@ int main(int, char**) {
   for (;;) {
     // The list prints its answers; they are read back from a file.
     if (!std::freopen(answers.c_str(), "w", stdout)) return 1;
-    bool show_fps = ReadText(base + "/show-fps").rfind("1", 0) == 0;
     // The list remembers the games played and added, and can look through
     // the shared storage for a game to add.
     std::vector<std::string> pick = {"--pick", shared_games, games, "--player", player_dir,
                                      "--log", logs + "/picker.log", "--games-file", base + "/games.txt",
                                      "--can-add", "--browse", shared_games.substr(0, shared_games.rfind('/'))};
-    if (show_fps) pick.push_back("--fps");
     int code = Run(pick);
     std::fflush(stdout);
     std::string game;
     for (const std::string& line : Lines(ReadText(answers))) {
-      if (line.rfind("MVPLAYER_FPS=", 0) == 0) {
-        show_fps = line.substr(13) == "1";
-        std::ofstream(base + "/show-fps", std::ios::trunc) << (show_fps ? "1" : "0") << "\n";
-      } else if (line.rfind("MVPLAYER_GAME=", 0) == 0) {
-        game = line.substr(14);
-      }
+      if (line.rfind("MVPLAYER_GAME=", 0) == 0) game = line.substr(14);
     }
     if (code != 0 || game.empty()) return 0;
 
     std::vector<std::string> play = {"--game", game, "--player", player_dir};
-    if (show_fps) play.push_back("--fps");
     code = Run(play);
     KeepLog(game, logs, code);
     Note("game ended with exit code " + std::to_string(code));

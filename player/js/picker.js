@@ -18,11 +18,6 @@
 // with the game chosen. What each screen shows is decided in
 // picker-model.js.
 //
-// The list's last line is a setting: whether games show the frames per
-// second. It starts as the player was started (--fps) and, however the list
-// is left, its state is printed as "MVPLAYER_FPS=1" or "MVPLAYER_FPS=0", so
-// the program that started the player can pass it on and remember it.
-//
 // The list is drawn on a native canvas and shown through WebGL; none of the
 // browser stand-in layers are loaded for it.
 (function () {
@@ -59,16 +54,11 @@
   recent.forEach(function (www) {
     if (player.fileExists(www + '/index.html')) found.push({ title: titleOf(www, folderName(www)), www: www });
   });
-  var showFps = !!player.showFps;
-  var fpsLine = { setting: true };
-  function nameFpsLine() { fpsLine.title = 'Show frames per second: ' + (showFps ? 'yes' : 'no'); }
-  nameFpsLine();
-  // The lines of the list: the games, then adding one, then the setting.
+  // The lines of the list: the games, then adding one.
   var games = [];
   function listGames() {
     games = model.order(found, recent);
     if (player.canAddGame) games.push({ title: '+ Add a game...', add: true });
-    games.push(fpsLine);
   }
   listGames();
   // Puts a game on top of the remembered ones, here and in the file.
@@ -117,9 +107,7 @@
     backToList(www);
   }
   function lines() { return browsing ? browsing.rows : games; }
-  // Leaves the list, always saying how the setting stands.
   function leave(code, answer) {
-    player.print('MVPLAYER_FPS=' + (showFps ? 1 : 0));
     if (answer) player.print(answer);
     player.exit(code);
   }
@@ -266,12 +254,6 @@
       text(letter, x + (size - widthOf(letter, 22)) / 2, y + size / 2 + 8, 22, INK);
     }
   }
-  function switchSign(x, y, on) {
-    box(x, y, 44, 24, 12, on ? ACCENT : PANEL_EDGE);
-    c2d.beginPath(canvas);
-    c2d.arc(canvas, on ? x + 32 : x + 12, y + 12, 9, 0, PI * 2, false);
-    c2d.fill(canvas, INK, 1);
-  }
   // A button's letter in a small box, then what the button does. Returns
   // where the next one can start.
   function hint(x, y, button, what) {
@@ -305,15 +287,10 @@
   }
   function paintListLine(entry, x, y, h, chosen) {
     if (entry.www) return paintGameLine(entry, x, y, h, chosen);
-    if (entry.add) {
-      box(x + 10, y + (h - 44) / 2, 44, 44, 9, chosen ? [1, 1, 1, 0.22] : PANEL_EDGE);
-      plus(x + 32, y + h / 2, INK);
-      text('Add a game', x + 68, y + 26, 21, INK);
-      text(fitted('Look through your folders for it', 13, COLUMN - 86), x + 68, y + 45, 13, chosen ? [1, 1, 1, 0.78] : MUTED);
-      return;
-    }
-    text('Show frames per second', x + 20, y + h / 2 + 7, 19, INK);
-    switchSign(x + COLUMN - 60, y + (h - 24) / 2, showFps);
+    box(x + 10, y + (h - 44) / 2, 44, 44, 9, chosen ? [1, 1, 1, 0.22] : PANEL_EDGE);
+    plus(x + 32, y + h / 2, INK);
+    text('Add a game', x + 68, y + 26, 21, INK);
+    text(fitted('Look through your folders for it', 13, COLUMN - 86), x + 68, y + 45, 13, chosen ? [1, 1, 1, 0.78] : MUTED);
   }
   function paintBrowseLine(entry, x, y, h, chosen) {
     var colour = chosen ? INK : MUTED, top = y + (h - 24) / 2;
@@ -442,11 +419,8 @@
     if (browsing) return chooseInBrowser();
     var entry = games[selected];
     note = '';
-    if (entry.setting) {
-      showFps = !showFps;
-      nameFpsLine();
-      changed = true;
-    } else if (entry.add) {
+    if (!entry) return;
+    if (entry.add) {
       startBrowsing();
     } else {
       console.info('picker: chose ' + entry.www);

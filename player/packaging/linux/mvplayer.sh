@@ -34,10 +34,6 @@ if [ "${MVPLAYER_SYSTEM_LIBS:-0}" != 1 ]; then
 fi
 PLAYER="$HERE/mvplayer"
 LIBRARY="${XDG_CONFIG_HOME:-$HOME/.config}/mvplayer/games.txt"
-# Whether games show the frames per second, as the list last left it.
-SETTINGS="${XDG_CONFIG_HOME:-$HOME/.config}/mvplayer/show-fps"
-FPS=""
-[ "$(cat "$SETTINGS" 2>/dev/null)" = 1 ] && FPS="--fps"
 
 # Keeps a copy of the log of the game that has just run in the logs folder,
 # named after the game and the time, with the way the player ended as its
@@ -90,14 +86,10 @@ esac
 # and the ones added through its "add a game" line.
 mkdir -p "$(dirname "$LIBRARY")"
 while :; do
-  ANSWER=$("$PLAYER" --pick --games-file "$LIBRARY" --can-add --browse "$HOME" --browse / $FPS)
-  case "$ANSWER" in
-    *MVPLAYER_FPS=1*) FPS="--fps"; mkdir -p "$(dirname "$SETTINGS")"; echo 1 > "$SETTINGS" ;;
-    *MVPLAYER_FPS=0*) FPS=""; mkdir -p "$(dirname "$SETTINGS")"; echo 0 > "$SETTINGS" ;;
-  esac
+  ANSWER=$("$PLAYER" --pick --games-file "$LIBRARY" --can-add --browse "$HOME" --browse /)
   case "$ANSWER" in
     *MVPLAYER_GAME=*) GAME=$(printf '%s\n' "$ANSWER" | sed -n 's/^MVPLAYER_GAME=//p' | head -n 1) ;;
     *) exit 0 ;;
   esac
-  play "$GAME" $FPS
+  play "$GAME"
 done

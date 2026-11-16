@@ -49,7 +49,6 @@ that one cannot be where games are copied.
 | --- | --- |
 | `RPGMV/<Game>/www` | The games. |
 | `RPGMV/mvplayer/logs/` | A copy of the log of every run (newest 30) and `picker.log`. |
-| `RPGMV/mvplayer/show-fps` | The frame-rate setting chosen in the game list. |
 | `RPGMV/mvplayer/games.txt` | The games played or added, the last one first. |
 | `RPGMV/mvplayer/args.txt` | For tests: if present, the app runs once with these arguments (one per line) instead of showing the list. |
 

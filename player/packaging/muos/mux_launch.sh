@@ -59,22 +59,13 @@ keep_log() {
 }
 LOGS="$PLAYER_DIR/logs"
 
-# The frames-per-second setting, as the list last left it.
-SETTINGS="$PLAYER_DIR/show-fps"
-FPS=""
-[ "$(cat "$SETTINGS" 2>/dev/null)" = 1 ] && FPS="--fps"
-
 while :; do
-	# The list prints the setting and the chosen game's folder; with no game
-	# chosen the loop ends.
-	ANSWER=$(./mvplayer --pick "$INTERNAL_GAMES" "$CARD_GAMES" --games-file "$PLAYER_DIR/games.txt" --can-add --browse /mnt $FPS)
-	case "$ANSWER" in
-		*MVPLAYER_FPS=1*) FPS="--fps"; echo 1 >"$SETTINGS" ;;
-		*MVPLAYER_FPS=0*) FPS=""; echo 0 >"$SETTINGS" ;;
-	esac
+	# The list prints the chosen game's folder; with no game chosen the
+	# loop ends.
+	ANSWER=$(./mvplayer --pick "$INTERNAL_GAMES" "$CARD_GAMES" --games-file "$PLAYER_DIR/games.txt" --can-add --browse /mnt)
 	GAME=$(printf '%s\n' "$ANSWER" | sed -n 's/^MVPLAYER_GAME=//p' | head -n 1)
 	[ -n "$GAME" ] || break
-	./mvplayer --game "$GAME" $FPS
+	./mvplayer --game "$GAME"
 	keep_log "$GAME" $?
 done
 
