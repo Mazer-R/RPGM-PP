@@ -34,6 +34,12 @@ else
   put() { "$ADB" push "$1" "$2" >/dev/null; }
 fi
 
+# Two players at once fight over the screen and spoil any measurement.
+if [ -n "$(remote 'pidof mvplayer' | tr -d '\r')" ]; then
+  echo "a player is already running on the handheld (a game or the game list); close it first" >&2
+  exit 1
+fi
+
 remote "mkdir -p $REMOTE/js $REMOTE/patches"
 put build-device/mvplayer "$REMOTE/mvplayer"
 for FILE in js/*.js patches/*; do put "$FILE" "$REMOTE/$FILE"; done

@@ -101,6 +101,10 @@ int main(int argc, char** argv) {
     }
   }
 
+  // The previous run's log is kept under a second name, so that a problem
+  // can still be read after the player has been started again.
+  std::rename(log_path.c_str(), (log_path + ".1").c_str());
+
   mvp::Clock clock;
   mvp::Log log(log_path, clock, 4 * 1024 * 1024);
   if (!log.ok()) std::fprintf(stderr, "warning: cannot open log file %s\n", log_path.c_str());

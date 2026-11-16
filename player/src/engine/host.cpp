@@ -6,6 +6,7 @@
 
 #include <cstdio>
 #include <fstream>
+#include <map>
 #include <algorithm>
 #include <chrono>
 #include <sstream>
@@ -56,6 +57,7 @@ Host::Host(Log& log, const Clock& clock) : log_(log), clock_(clock) {
 }
 
 Host::~Host() {
+  if (profiler_) profiler_->Dispose();
   watchdog_stop_ = true;
   if (watchdog_.joinable()) watchdog_.join();
   frame_callbacks_.clear();
@@ -175,6 +177,73 @@ void Host::PrintCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
   std::fflush(stdout);
 }
 
+// player.startProfile(): starts sampling where the scripts spend their time.
+void Host::StartProfileCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Host* host = FromArgs(args);
+  if (host->profiler_) return;
+  host->profiler_ = v8::CpuProfiler::New(args.GetIsolate());
+  host->profiler_->SetSamplingInterval(1000);  // microseconds
+  host->profiler_->StartProfiling(ToV8String(args.GetIsolate(), "profile"), true);
+}
+
+// player.stopProfile(count): ends the sampling and returns the `count`
+// functions with the most time spent in their own code (not in what they
+// call), as lines of text: share of all samples, function, file and line.
+void Host::StopProfileCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Host* host = FromArgs(args);
+  v8::Isolate* isolate = args.GetIsolate();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  if (!host->profiler_) return;
+  v8::CpuProfile* profile = host->profiler_->StopProfiling(ToV8String(isolate, "profile"));
+  std::map<std::string, unsigned> self_hits;
+  unsigned total = 0;
+  if (profile) {
+    std::vector<const v8::CpuProfileNode*> pending = {profile->GetTopDownRoot()};
+    while (!pending.empty()) {
+      const v8::CpuProfileNode* node = pending.back();
+      pending.pop_back();
+      unsigned hits = node->GetHitCount();
+      if (hits) {
+        std::string file = node->GetScriptResourceNameStr();
+        size_t slash = file.rfind('/');
+        if (slash != std::string::npos) file = file.substr(slash + 1);
+        std::string name = node->GetFunctionNameStr();
+        if (name.empty()) name = "(anonymous)";
+        std::string key = name + "  " + file + ":" + std::to_string(node->GetLineNumber());
+        // A native function (no script file) is listed once per script
+        // function that called it, so its cost can be traced to the caller.
+        const v8::CpuProfileNode* parent = node->GetParent();
+        if (file.empty() && parent) {
+          std::string parent_file = parent->GetScriptResourceNameStr();
+          size_t parent_slash = parent_file.rfind('/');
+          if (parent_slash != std::string::npos) parent_file = parent_file.substr(parent_slash + 1);
+          key = name + "  <- " + parent->GetFunctionNameStr() + "  " + parent_file + ":" +
+                std::to_string(parent->GetLineNumber());
+        }
+        self_hits[key] += hits;
+        total += hits;
+      }
+      for (int i = 0; i < node->GetChildrenCount(); i++) pending.push_back(node->GetChild(i));
+    }
+    profile->Delete();
+  }
+  host->profiler_->Dispose();
+  host->profiler_ = nullptr;
+
+  std::vector<std::pair<unsigned, std::string>> ranked;
+  for (const auto& entry : self_hits) ranked.push_back({entry.second, entry.first});
+  std::sort(ranked.begin(), ranked.end(), [](const auto& a, const auto& b) { return a.first > b.first; });
+  size_t count = args.Length() > 0 ? static_cast<size_t>(args[0]->Int32Value(context).FromMaybe(30)) : 30;
+  if (count > ranked.size()) count = ranked.size();
+  v8::Local<v8::Array> lines = v8::Array::New(isolate, static_cast<int>(count));
+  for (uint32_t i = 0; i < count; i++) {
+    char share[16];
+    std::snprintf(share, sizeof share, "%5.1f%%  ", total ? 100.0 * ranked[i].first / total : 0.0);
+    lines->Set(context, i, ToV8String(isolate, share + ranked[i].second)).Check();
+  }
+  args.GetReturnValue().Set(lines);
+}
+
 void Host::LoadScriptCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Host* host = FromArgs(args);
   // A script that fails here is logged and reported to the caller, which
@@ -289,6 +358,8 @@ void Host::InstallGlobals(v8::Local<v8::Context> context) {
   set(player, "makeSaveDir", make_function(MakeSaveDirCallback, "makeSaveDir"));
   set(player, "listDir", make_function(ListDirCallback, "listDir"));
   set(player, "print", make_function(PrintCallback, "print"));
+  set(player, "startProfile", make_function(StartProfileCallback, "startProfile"));
+  set(player, "stopProfile", make_function(StopProfileCallback, "stopProfile"));
   set(player, "v8Version", ToV8String(isolate_, v8::V8::GetVersion()));
   set(global, "player", player);
 }

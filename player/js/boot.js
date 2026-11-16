@@ -26,9 +26,14 @@
   // time of a logic step and of a drawing step, with the slowest frame. It
   // costs two clock readings per step, and lets a slow stretch of real play
   // be understood afterwards from the log alone.
+  //
+  // When a period ran below SLOW_FPS, the next period is also sampled with
+  // the engine's profiler, and the functions where the scripts spent most
+  // time are logged. This happens at most MAX_PROFILES times per run.
   function installPerformanceLog() {
     if (!globalThis.SceneManager || !SceneManager.updateScene || !SceneManager.renderScene) return;
-    var PERIOD_MS = 10000;
+    var PERIOD_MS = 10000, SLOW_FPS = 22, MAX_PROFILES = 4;
+    var profiling = false, profiles = 0;
     var since = performance.now(), frames = 0, steps = 0, logic = 0, draw = 0, worst = 0, frameStart = 0, lastFrameEnd = 0;
     var updateScene = SceneManager.updateScene, renderScene = SceneManager.renderScene, updateMain = SceneManager.updateMain;
     SceneManager.updateScene = function () {
@@ -52,6 +57,14 @@
         console.info('perf: ' + where + ': ' + (frames * 1000 / (now - since)).toFixed(0) + ' frames per second, ' +
           (steps / frames).toFixed(1) + ' steps per frame, logic ' + (logic / Math.max(1, steps)).toFixed(1) + ' ms per step, draw ' +
           (draw / frames).toFixed(1) + ' ms per frame, slowest frame ' + worst.toFixed(0) + ' ms');
+        if (profiling) {
+          profiling = false;
+          console.info('perf: where the scripts spent their own time in that period (share of samples):');
+          player.stopProfile(28).forEach(function (line) { console.info('perf:   ' + line); });
+        } else if (player.startProfile && profiles < MAX_PROFILES && frames * 1000 / (now - since) < SLOW_FPS && /Map|Battle/.test(scene)) {
+          profiling = true; profiles++;
+          player.startProfile();
+        }
         since = now; frames = 0; steps = 0; logic = 0; draw = 0; worst = 0;
       }
       return updateMain.apply(this, arguments);

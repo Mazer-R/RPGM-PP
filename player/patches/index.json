@@ -21,6 +21,31 @@
           "lazyRefresh": true,
           "lightEvery": 3
         }
+      },
+      {
+        "file": "preload-once.js",
+        "name": "preloadOnce"
+      },
+      {
+        "file": "frame-pacing.js",
+        "name": "framePacing",
+        "options": {
+          "maxStepsPerFrame": 2
+        }
+      },
+      {
+        "file": "common-event-throttle.js",
+        "name": "commonEventThrottle",
+        "options": {
+          "names": [
+            "Outfit change"
+          ],
+          "every": 6
+        }
+      },
+      {
+        "file": "lean-state.js",
+        "name": "leanState"
       }
     ]
   },
@@ -46,6 +71,21 @@
           "lazyRefresh": true,
           "lightEvery": 3
         }
+      },
+      {
+        "file": "preload-once.js",
+        "name": "preloadOnce"
+      },
+      {
+        "file": "frame-pacing.js",
+        "name": "framePacing",
+        "options": {
+          "maxStepsPerFrame": 2
+        }
+      },
+      {
+        "file": "lean-state.js",
+        "name": "leanState"
       }
     ]
   }

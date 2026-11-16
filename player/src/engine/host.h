@@ -16,6 +16,7 @@
 #include <thread>
 #include <vector>
 
+#include "v8-profiler.h"
 #include "v8.h"
 
 namespace mvp {
@@ -90,6 +91,8 @@ class Host {
   static void MakeSaveDirCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ListDirCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void PrintCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void StartProfileCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void StopProfileCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   // True if `path` is inside the game's save folder and has no "..".
   bool IsSavePath(const std::string& path) const;
@@ -109,6 +112,7 @@ class Host {
   std::string player_dir_;
   int script_depth_ = 0;  // > 0 while a script is running, for nested loads
   bool exit_requested_ = false;
+  v8::CpuProfiler* profiler_ = nullptr;  // only while a profile is being taken
   std::thread watchdog_;
   std::atomic<bool> watchdog_stop_{false};
   std::atomic<double> last_heartbeat_ms_{0};

@@ -411,6 +411,55 @@ adjustments where the game's own code is too expensive for this hardware.
         software renderer); not yet run on a real x86-64 machine. The window
         is still opened full-screen, as on the console.
 
+*   **Slow real play explained, and the first round of fixes (2026-11-16).**
+    The scripted measurements loaded the first save, from the start of the
+    game. Real play used later saves, seventeen times larger: 69 parallel
+    common events active (about 19,000 commands, 3,000 condition checks and
+    1,600 script commands, 27 of the lists with no wait) on a map with 280
+    events. There one logic step cost 12.7 ms standing and 15 to 20 ms
+    walking, and the engine's catch-up loop turned any delay into a spiral
+    (4 to 6 steps per frame, 7 to 11 frames per second).
+    *   **Tools added to find it:** a performance line every ten seconds in
+        the game's log; a sampling profiler in the host (`player.startProfile`,
+        `player.stopProfile`), which the player turns on by itself for the ten
+        seconds after a period below 22 frames per second; the previous
+        run's log kept as `mvplayer.log.1`; and
+        `tests/device/walk_watch.js`, which continues from a chosen save and
+        really walks (it picks open directions and confirms when an event
+        holds the character).
+    *   **Patches added** (all in `player/patches/`, each documented in its
+        file): `frame-pacing.js`, at most two logic steps per frame;
+        `preload-once.js`, an event's images are requested the first time its
+        command list starts, not on every restart of a parallel event;
+        `common-event-throttle.js`, the seven "outfit change" common events
+        run ten times a second; `lean-state.js`, a write that leaves a
+        switch, variable or self switch as it was no longer makes the map
+        re-evaluate its events, and events at a position are found with one
+        loop instead of a filtered list of every event.
+        `tests/patches/lean_state.test.js` (Node, no game files needed)
+        pins that last patch's behaviour.
+    *   **Measured on the console, save 4, map 37.** Standing: 11 to 32
+        frames per second before, 42 to 44 after, at full game speed, slowest
+        settled frame 50 ms (was over a second). Walking, by script: 13.2 ms
+        per logic step without `lean-state.js`, 12.1 ms with it; in that run
+        31,574 writes changed nothing and 3,703 did. The outfit throttle
+        gained less than expected (about 0.6 ms per step): those lists
+        usually end early.
+    *   **In the user's hands, before the last two patches:** 19 to 27
+        frames per second walking on that map, 28 to 41 in battle. That is
+        better and without stutter, but still under the goal of 30, and at
+        two steps per frame the game runs slightly slower than real time
+        there.
+    *   **What is left is the game's own event logic.** The profile taken
+        during real play is dominated by the common events' interpreters and
+        their condition checks. Real changes to switches and variables still
+        happen about five times per step, so the map still re-evaluates its
+        active events every step.
+    *   **The ub-mode tools did not apply:** crapper finds no functions in
+        this JavaScript (no package.json, function-expression style), dryer
+        and mutator do not handle JavaScript or C++. Only the lab's Python
+        viewer was scored (its `frame` function: CRAP 42, no tests).
+
 ## Critical User Journeys (CUJs)
 
 ### CUJ 1: First launch
