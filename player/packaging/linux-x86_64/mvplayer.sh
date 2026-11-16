@@ -22,6 +22,10 @@ if [ "${MVPLAYER_SYSTEM_LIBS:-0}" != 1 ]; then
 fi
 PLAYER="$HERE/mvplayer"
 LIBRARY="${XDG_CONFIG_HOME:-$HOME/.config}/mvplayer/games.txt"
+# Whether games show the frames per second, as the list last left it.
+SETTINGS="${XDG_CONFIG_HOME:-$HOME/.config}/mvplayer/show-fps"
+FPS=""
+[ "$(cat "$SETTINGS" 2>/dev/null)" = 1 ] && FPS="--fps"
 
 # Shows a message in a window when there is a dialog program, else in the terminal.
 say() {
@@ -86,12 +90,16 @@ while :; do
     GAME=$(add_game)
     [ -n "$GAME" ] || exit 0
   else
-    ANSWER=$("$PLAYER" --pick --games-file "$LIBRARY" --can-add)
+    ANSWER=$("$PLAYER" --pick --games-file "$LIBRARY" --can-add $FPS)
+    case "$ANSWER" in
+      *MVPLAYER_FPS=1*) FPS="--fps"; mkdir -p "$(dirname "$SETTINGS")"; echo 1 > "$SETTINGS" ;;
+      *MVPLAYER_FPS=0*) FPS=""; mkdir -p "$(dirname "$SETTINGS")"; echo 0 > "$SETTINGS" ;;
+    esac
     case "$ANSWER" in
       *MVPLAYER_GAME=*) GAME=$(printf '%s\n' "$ANSWER" | sed -n 's/^MVPLAYER_GAME=//p' | head -n 1) ;;
       *MVPLAYER_ADD*) GAME=$(add_game); [ -n "$GAME" ] || continue ;;
       *) exit 0 ;;
     esac
   fi
-  "$PLAYER" --game "$GAME"
+  "$PLAYER" --game "$GAME" $FPS
 done

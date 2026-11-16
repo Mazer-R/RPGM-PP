@@ -1174,6 +1174,21 @@ comparison.)
     * An error screen, a log file and a crash report on the device, since it
       has no debugger.
     * A desktop Linux build as the development and test host.
+* **Future Goals (after the device build is complete, not in the current scope):**
+    * An Android build, as a lighter alternative to JoiPlay for phones with
+      little memory. Noted on 2026-11-16; nothing has been compiled or
+      measured for Android.
+        * Expected to carry over: V8, SDL2, OpenGL ES 2, and the player's own
+          C++ and JavaScript. Cairo and FreeType must be built with the NDK.
+        * New work: packaging as an APK, a V8 build for Android's C library,
+          access to the game folder under Android's storage rules, on-screen
+          touch controls, and recreating the graphics context when the app
+          returns from the background.
+        * Assumption to check first: that JoiPlay runs MV games through the
+          system WebView. The memory advantage depends on it.
+        * Constraint on current work: do not tie the player to fixed file
+          paths or to physical buttons, the two things that differ most on
+          Android.
 * **Out-of-Scope Non-Goals:**
     * RPG Maker MZ, and MV versions before 1.5.
     * Other games, as a promise. They may work; only the reference game is

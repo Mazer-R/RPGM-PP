@@ -15,7 +15,8 @@
 #   <card>/ROMS/RPGMV/<Game>/www       the card's shared partition
 # Saves and the log stay in each game's www/save.
 # To leave a game: hold the menu button and press Start.
-# To show or hide the frames per second: hold the menu button and press Select.
+# Whether games show the frames per second is the last line of the list; the
+# choice is remembered. While playing, the menu button plus Select switches it.
 
 . /opt/muos/script/var/func.sh
 
@@ -42,11 +43,22 @@ cd "$PLAYER_DIR" || exit
 
 SET_VAR "system" "foreground_process" "mvplayer"
 
+# The frames-per-second setting, as the list last left it.
+SETTINGS="$PLAYER_DIR/show-fps"
+FPS=""
+[ "$(cat "$SETTINGS" 2>/dev/null)" = 1 ] && FPS="--fps"
+
 while :; do
-	# The list prints the chosen game's folder; any other outcome ends the loop.
-	GAME=$(./mvplayer --pick "$INTERNAL_GAMES" "$CARD_GAMES" | sed -n 's/^MVPLAYER_GAME=//p' | head -n 1)
+	# The list prints the setting and the chosen game's folder; with no game
+	# chosen the loop ends.
+	ANSWER=$(./mvplayer --pick "$INTERNAL_GAMES" "$CARD_GAMES" $FPS)
+	case "$ANSWER" in
+		*MVPLAYER_FPS=1*) FPS="--fps"; echo 1 >"$SETTINGS" ;;
+		*MVPLAYER_FPS=0*) FPS=""; echo 0 >"$SETTINGS" ;;
+	esac
+	GAME=$(printf '%s\n' "$ANSWER" | sed -n 's/^MVPLAYER_GAME=//p' | head -n 1)
 	[ -n "$GAME" ] || break
-	./mvplayer --game "$GAME"
+	./mvplayer --game "$GAME" $FPS
 done
 
 unset SDL_HQ_SCALER SDL_ROTATION SDL_BLITTER_DISABLED SDL_ASSERT

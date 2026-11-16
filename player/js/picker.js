@@ -9,6 +9,11 @@
 // player.canAddGame is set the list ends with an "add a game" line, which
 // prints "MVPLAYER_ADD" instead. Leaving without choosing exits with code 10.
 //
+// The list's last line is a setting: whether games show the frames per
+// second. It starts as the player was started (--fps) and, however the list
+// is left, its state is printed as "MVPLAYER_FPS=1" or "MVPLAYER_FPS=0", so
+// the program that started the player can pass it on and remember it.
+//
 // The list is drawn on a native canvas and shown through WebGL; none of the
 // browser stand-in layers are loaded for it.
 (function () {
@@ -42,6 +47,17 @@
   // The last line of the list, where the program that started the player
   // can take over to let the user point at a new game.
   if (player.canAddGame) games.push({ title: '+ Add a game...', add: true });
+  var showFps = !!player.showFps;
+  var fpsLine = { setting: true };
+  function nameFpsLine() { fpsLine.title = 'Show frames per second: ' + (showFps ? 'yes' : 'no'); }
+  nameFpsLine();
+  games.push(fpsLine);
+  // Leaves the list, always saying how the setting stands.
+  function leave(code, answer) {
+    player.print('MVPLAYER_FPS=' + (showFps ? 1 : 0));
+    if (answer) player.print(answer);
+    player.exit(code);
+  }
   console.info('picker: ' + games.length + ' lines; folders: ' + (player.libraryDirs || []).join(', '));
 
   // --- A font ---------------------------------------------------------------
@@ -79,9 +95,9 @@
     c2d.setOperator(canvas, 'source-over');
     c2d.fillRect(canvas, 0, 0, W, H, DARK, 1);
     text('RPG Maker MV games', 32, 56, 30, WHITE);
-    if (!games.length) {
-      text('No games found. A game is a folder holding its "www" folder, in:', 32, TOP + 30, 18, GREY);
-      (player.libraryDirs || []).forEach(function (dir, i) { text(fitted(dir, 18, W - 64), 32, TOP + 62 + i * 28, 18, WHITE); });
+    if (!games.some(function (line) { return line.www; })) {
+      text('No games yet. A game is a folder holding its "www" folder, in:', 32, H - 120, 16, GREY);
+      (player.libraryDirs || []).forEach(function (dir, i) { text(fitted(dir, 16, W - 64), 32, H - 96 + i * 22, 16, GREY); });
     }
     for (var row = 0; row < VISIBLE && first + row < games.length; row++) {
       var index = first + row, y = TOP + row * ROW;
@@ -89,7 +105,7 @@
       text(fitted(games[index].title, 24, W - 80), 36, y + 28, 24, index === selected ? WHITE : GREY);
     }
     if (games.length > VISIBLE) text((selected + 1) + ' / ' + games.length, W - 110, 56, 18, GREY);
-    text(games.length ? 'A: play     B: leave' : 'B: leave', 32, H - 24, 18, GREY);
+    text('A: choose     B: leave', 32, H - 24, 18, GREY);
   }
 
   // --- Showing the canvas -------------------------------------------------------
@@ -154,16 +170,20 @@
     else if (keyCode === KEY.down) move(1);
     else if (keyCode === KEY.pageUp) move(-VISIBLE);
     else if (keyCode === KEY.pageDown) move(VISIBLE);
-    else if (KEY.ok.indexOf(keyCode) >= 0 && games.length) {
-      if (games[selected].add) {
-        player.print('MVPLAYER_ADD');
+    else if (KEY.ok.indexOf(keyCode) >= 0) {
+      var line = games[selected];
+      if (line.setting) {
+        showFps = !showFps;
+        nameFpsLine();
+        changed = true;
+      } else if (line.add) {
+        leave(0, 'MVPLAYER_ADD');
       } else {
-        console.info('picker: chose ' + games[selected].www);
-        player.print('MVPLAYER_GAME=' + games[selected].www);
+        console.info('picker: chose ' + line.www);
+        leave(0, 'MVPLAYER_GAME=' + line.www);
       }
-      player.exit(0);
     } else if (KEY.back.indexOf(keyCode) >= 0) {
-      player.exit(EXIT_NOTHING_CHOSEN);
+      leave(EXIT_NOTHING_CHOSEN);
     }
   };
   requestAnimationFrame(frame);
