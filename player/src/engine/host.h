@@ -23,6 +23,7 @@ namespace mvp {
 
 class Clock;
 class AudioOutput;
+class VideoPlayer;
 class Log;
 
 class Host {
@@ -68,8 +69,9 @@ class Host {
   // context for the current OpenGL ES context, and `player.canvas`, the
   // Canvas 2D and image functions. The JavaScript browser layer builds the
   // objects the game expects on top of these.
-  // `audio` may be null: the scripts then see no player.audio.
-  void InstallBindings(int drawing_width, int drawing_height, AudioOutput* audio);
+  // `audio` may be null: the scripts then see no player.audio. Likewise
+  // `video` and player.video.
+  void InstallBindings(int drawing_width, int drawing_height, AudioOutput* audio, VideoPlayer* video);
   bool exit_requested() const { return exit_requested_; }
   int exit_code() const { return exit_code_; }
   bool had_script_error() const { return had_script_error_; }

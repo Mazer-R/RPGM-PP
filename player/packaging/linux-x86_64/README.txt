@@ -56,6 +56,13 @@ all of them. To check:
 
 lists any that are missing.
 
+Videos
+------
+To play a game's videos the player starts the system's ffmpeg program. It is
+optional: install it with the system's package manager (the package is
+called "ffmpeg" everywhere) to see them. Without it, a game goes on as if
+each video had ended at once.
+
 If the bundled libraries cause trouble
 --------------------------------------
 With SDL2, Cairo and FreeType installed on the system, the player can use

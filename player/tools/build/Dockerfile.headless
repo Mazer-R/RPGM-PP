@@ -2,9 +2,10 @@
 # screen: a virtual X display and Mesa's software OpenGL ES. It is slow and
 # silent, and it is not the console's graphics driver, but it runs the same
 # binary and the same scripts, which is enough to check behaviour.
+# It has ffmpeg, so videos play (see src/platform/video.h).
 #
 #   docker build -t mvp-player-headless -f tools/build/Dockerfile.headless tools/build
 FROM debian:bookworm
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-      xvfb xauth libsdl2-2.0-0 libgles2 libegl1 libgl1-mesa-dri libcairo2 libfreetype6 \
+      xvfb xauth libsdl2-2.0-0 libgles2 libegl1 libgl1-mesa-dri libcairo2 libfreetype6 ffmpeg \
     && rm -rf /var/lib/apt/lists/*

@@ -9,6 +9,7 @@
 #include "platform/input.h"
 #include "platform/log.h"
 #include "platform/touch.h"
+#include "platform/video.h"
 #include "platform/window.h"
 
 namespace mvp {
@@ -18,7 +19,7 @@ volatile std::sig_atomic_t g_terminate = 0;
 void OnTerminate(int) { g_terminate = 1; }
 }  // namespace
 
-int RunMainLoop(Window& window, Input& input, Host& host, const Clock& clock, Log& log) {
+int RunMainLoop(Window& window, Input& input, Host& host, const Clock& clock, Log& log, VideoPlayer& video) {
   std::signal(SIGTERM, OnTerminate);
   std::signal(SIGINT, OnTerminate);
 
@@ -54,7 +55,11 @@ int RunMainLoop(Window& window, Input& input, Host& host, const Clock& clock, Lo
     const std::vector<TouchCircle>& controls = input.VisibleTouchControls();
     std::vector<ScreenCircle> circles;
     for (const TouchCircle& control : controls) circles.push_back({control.x, control.y, control.radius});
-    PresentDrawingBuffer(window.width(), window.height(), circles);
+    VideoPicture picture;
+    ScreenVideo screen_video;
+    bool has_video = video.Picture(&picture);
+    if (has_video) screen_video = {picture.pixels, picture.width, picture.height, picture.changed};
+    PresentDrawingBuffer(window.width(), window.height(), circles, has_video ? &screen_video : nullptr);
     window.Swap();
     frames++;
   }

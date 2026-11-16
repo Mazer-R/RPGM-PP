@@ -8,11 +8,13 @@ class Clock;
 class Host;
 class Input;
 class Log;
+class VideoPlayer;
 class Window;
 
 // Runs until a script asks to exit, the system asks to quit, a termination
 // signal arrives, or there is nothing left that could ever run. Returns the
 // process exit code.
-int RunMainLoop(Window& window, Input& input, Host& host, const Clock& clock, Log& log);
+// A video that is playing and shown takes the place of the game's picture.
+int RunMainLoop(Window& window, Input& input, Host& host, const Clock& clock, Log& log, VideoPlayer& video);
 
 }  // namespace mvp

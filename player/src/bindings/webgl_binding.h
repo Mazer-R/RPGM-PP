@@ -38,7 +38,16 @@ v8::Local<v8::Object> CreateWebGLContext(v8::Isolate* isolate, v8::Local<v8::Con
 struct ScreenCircle {
   float x, y, radius;
 };
-void PresentDrawingBuffer(int screen_width, int screen_height, const std::vector<ScreenCircle>& circles);
+//
+// `video`, when given, is shown in place of the game's picture, fitted to
+// the screen the same way: a frame of a video that is playing.
+struct ScreenVideo {
+  const unsigned char* pixels = nullptr;  // RGBA, top row first
+  int width = 0, height = 0;
+  bool changed = false;  // the pixels differ from the last call's
+};
+void PresentDrawingBuffer(int screen_width, int screen_height, const std::vector<ScreenCircle>& circles,
+                          const ScreenVideo* video = nullptr);
 
 // True once the game has its own drawing buffer; the main loop then leaves
 // clearing to the game.

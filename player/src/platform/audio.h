@@ -5,6 +5,7 @@
 // effect. Many can play at once.
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <string>
 
@@ -28,9 +29,26 @@ struct PlayOptions {
   double offset = 0;     // seconds; where playing starts
 };
 
+// Sound that is already decoded and arrives a little at a time, such as a
+// video's sound track: stereo, 16 bits, at the output's own rate.
+class SoundStream {
+ public:
+  virtual ~SoundStream() = default;
+  // Called on the sound thread. Writes up to `frames` stereo frames to `out`
+  // and returns how many it wrote; the rest is played as silence.
+  virtual int Read(int16_t* out, int frames) = 0;
+};
+
 class AudioOutput {
  public:
   virtual ~AudioOutput() = default;
+
+  // Samples per second of the output.
+  virtual int Rate() const = 0;
+  // Mixes `stream` into the output until it is replaced; null removes it.
+  // One stream at a time. The stream must stay alive until it is removed.
+  virtual void SetStream(SoundStream* stream) = 0;
+  virtual void SetStreamVolume(float volume) = 0;
 
   // Text describing the output, for the log.
   virtual std::string Description() const = 0;

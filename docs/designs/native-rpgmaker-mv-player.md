@@ -639,6 +639,34 @@ adjustments where the game's own code is too expensive for this hardware.
         11.8-13.1 ms per step. The `eventLookup` patch answered 140
         lookups in such a run, none by scanning every event: correct, and
         too little work on this map to show in the totals.
+*   **Videos play, through the system's ffmpeg program (2026-11-16).**
+    *   **How**: the player has no decoder. It starts `ffmpeg` as a
+        separate program and reads plain RGBA frames (scaled to the
+        game's size, 30 per second) from one pipe and plain samples from
+        another. Nothing is linked, so any ffmpeg version works and a
+        machine without one has no video. The frame is drawn in the
+        present pass in place of the game's picture; the sound goes to
+        the mixer as a stream, and the pictures follow the sound.
+    *   **Never a stuck game**: without ffmpeg, or with a file it cannot
+        read, the video element reports the video as loaded and ended at
+        once. The engine's error handler is not used: it stops the game
+        with a retry screen.
+    *   **The console already has it**: muOS ships ffmpeg 4.4.4. It
+        decodes the Fear & Hunger intro (VP9 816x624, Opus, 32.8 s) in
+        8.1 s on one thread and 3.7 s on four, with a game running at the
+        same time.
+    *   **Checked**: headless, the intro plays from the engine's own
+        `Graphics.playVideo` to its end in 33.0-33.3 s, with sound
+        flowing through a dummy sound device, and a screen capture
+        matches the file's frame. Unit tests use a script in ffmpeg's
+        place.
+    *   **Not checked**: on the console itself (it went off the network
+        before the run), on a desktop Linux, by ear. Android has no
+        video: there is no ffmpeg program to start.
+    *   **Linux package**: the start script puts the bundled libraries
+        first in the search path; the decoder is started with the path as
+        it was before, so the system's ffmpeg loads the system's
+        libraries.
 
 ## Critical User Journeys (CUJs)
 

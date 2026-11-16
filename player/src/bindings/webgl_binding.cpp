@@ -52,6 +52,8 @@ struct State {
   int overlay_width = 0, overlay_height = 0, overlay_x = 0, overlay_y = 0;
   bool overlay_changed = false;
   GLuint overlay_texture = 0;
+  GLuint video_texture = 0;  // the frame of a playing video, shown in the game's place
+  int video_width = 0, video_height = 0;
   // Pixel memory of each texture, by OpenGL name, to report the total.
   std::map<GLuint, long long> texture_bytes;
   v8::Global<v8::Private> name_key;  // hidden property holding an object's GL name
@@ -595,7 +597,8 @@ v8::Local<v8::Object> CreateWebGLContext(v8::Isolate* isolate, v8::Local<v8::Con
 
 bool HasDrawingBuffer() { return g_state.buffer_framebuffer != 0; }
 
-void PresentDrawingBuffer(int screen_width, int screen_height, const std::vector<ScreenCircle>& circles) {
+void PresentDrawingBuffer(int screen_width, int screen_height, const std::vector<ScreenCircle>& circles,
+                          const ScreenVideo* video) {
   // Without a drawing buffer the scripts drew straight to the screen (the
   // game list does); only the touch controls are then added on top.
   bool has_buffer = g_state.buffer_framebuffer != 0;
@@ -653,12 +656,16 @@ void PresentDrawingBuffer(int screen_width, int screen_height, const std::vector
 
   if (has_buffer) {
     // Fit the game's picture inside the screen, keeping its proportions.
-    float scale_x = static_cast<float>(screen_width) / static_cast<float>(g_state.buffer_width);
-    float scale_y = static_cast<float>(screen_height) / static_cast<float>(g_state.buffer_height);
+    // A video frame takes the game's place; its first row is its top.
+    int picture_width = video ? video->width : g_state.buffer_width;
+    int picture_height = video ? video->height : g_state.buffer_height;
+    float scale_x = static_cast<float>(screen_width) / static_cast<float>(picture_width);
+    float scale_y = static_cast<float>(screen_height) / static_cast<float>(picture_height);
     float scale = scale_x < scale_y ? scale_x : scale_y;
-    float x = static_cast<float>(g_state.buffer_width) * scale / static_cast<float>(screen_width);
-    float y = static_cast<float>(g_state.buffer_height) * scale / static_cast<float>(screen_height);
-    const GLfloat quad[16] = {-x, -y, 0, 0, x, -y, 1, 0, -x, y, 0, 1, x, y, 1, 1};
+    float x = static_cast<float>(picture_width) * scale / static_cast<float>(screen_width);
+    float y = static_cast<float>(picture_height) * scale / static_cast<float>(screen_height);
+    float bottom_row = video ? 1.0f : 0.0f, top_row = video ? 0.0f : 1.0f;
+    const GLfloat quad[16] = {-x, -y, 0, bottom_row, x, -y, 1, bottom_row, -x, y, 0, top_row, x, y, 1, top_row};
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glViewport(0, 0, screen_width, screen_height);
@@ -667,7 +674,28 @@ void PresentDrawingBuffer(int screen_width, int screen_height, const std::vector
     glClearColor(0, 0, 0, 1);
     glClear(GL_COLOR_BUFFER_BIT);
     glUseProgram(g_state.present_program);
-    glBindTexture(GL_TEXTURE_2D, g_state.buffer_texture);
+    if (video) {
+      bool fresh = !g_state.video_texture;
+      if (fresh) glGenTextures(1, &g_state.video_texture);
+      glBindTexture(GL_TEXTURE_2D, g_state.video_texture);
+      if (fresh) {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+      }
+      if (fresh || video->width != g_state.video_width || video->height != g_state.video_height) {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, video->width, video->height, 0, GL_RGBA, GL_UNSIGNED_BYTE,
+                     video->pixels);
+        g_state.video_width = video->width;
+        g_state.video_height = video->height;
+      } else if (video->changed) {
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, video->width, video->height, GL_RGBA, GL_UNSIGNED_BYTE,
+                        video->pixels);
+      }
+    } else {
+      glBindTexture(GL_TEXTURE_2D, g_state.buffer_texture);
+    }
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);

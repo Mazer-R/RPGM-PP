@@ -104,6 +104,14 @@ class Mixer : public AudioOutput {
 
   std::string Description() const override { return description_; }
 
+  int Rate() const override { return kOutputRate; }
+  void SetStream(SoundStream* stream) override {
+    SDL_LockAudioDevice(device_);
+    stream_ = stream;
+    SDL_UnlockAudioDevice(device_);
+  }
+  void SetStreamVolume(float volume) override { stream_volume_.store(volume); }
+
   bool Info(const std::string& written_path, SoundInfo* info) override {
     auto known = infos_.find(written_path);
     if (known != infos_.end()) {
@@ -317,6 +325,12 @@ class Mixer : public AudioOutput {
         voice->position += voice->step;
       }
     }
+    if (stream_) {
+      stream_frames_.resize(static_cast<size_t>(frame_total) * 2);
+      int got = stream_->Read(stream_frames_.data(), frame_total);
+      float gain = stream_volume_.load() / 32768.0f;
+      for (int i = 0; i < got * 2; i++) mix_[i] += static_cast<float>(stream_frames_[i]) * gain;
+    }
     float peak = 0;
     for (int i = 0; i < frame_total * 2; i++) {
       float sample = std::min(1.0f, std::max(-1.0f, mix_[i]));
@@ -336,6 +350,9 @@ class Mixer : public AudioOutput {
   std::vector<Voice*> voices_;  // guarded by the audio device's lock
   std::vector<IdleDecoder> idle_;  // longest-waiting first; caller's thread only
   std::vector<float> mix_;      // used by the audio callback only
+  SoundStream* stream_ = nullptr;  // guarded by the audio device's lock
+  std::vector<int16_t> stream_frames_;  // used by the audio callback only
+  std::atomic<float> stream_volume_{1};
   std::map<std::string, SoundInfo> infos_;
   std::atomic<float> peak_{0};
   int next_id_ = 1;

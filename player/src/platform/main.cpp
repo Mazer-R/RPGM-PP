@@ -47,6 +47,7 @@
 
 #include "engine/host.h"
 #include "platform/audio.h"
+#include "platform/video.h"
 #include "platform/clock.h"
 #include "platform/input.h"
 #include "platform/log.h"
@@ -199,12 +200,16 @@ int PlayerMain(int argc, char** argv) {
   // Declared before the engine, so it outlives it.
   std::unique_ptr<mvp::AudioOutput> audio = mvp::CreateAudioOutput(log);
   log.Write(mvp::LogLevel::kInfo, "audio", audio ? audio->Description() : "silent");
+  // After the sound output, which it plays through; before the engine.
+  mvp::VideoPlayer video(audio.get());
+  log.Write(mvp::LogLevel::kInfo, "video",
+            video.available() ? "through " + mvp::VideoPlayer::FindDecoder() : "none: no ffmpeg program found");
 
   int exit_code;
   {
     mvp::Host host(log, clock);
     log.Write(mvp::LogLevel::kInfo, "host", std::string("V8 ") + v8::V8::GetVersion());
-    host.InstallBindings(window.width(), window.height(), audio.get());
+    host.InstallBindings(window.width(), window.height(), audio.get(), video.available() ? &video : nullptr);
     host.SetDirectories(game_dir, player_dir);
     host.SetFlag("noPatches", no_patches);
     host.SetStringList("libraryDirs", library_dirs);
@@ -219,7 +224,8 @@ int PlayerMain(int argc, char** argv) {
     for (const std::string& extra : extra_scripts) {
       if (started) started = host.RunFile(extra);
     }
-    exit_code = mvp::RunMainLoop(window, input, host, clock, log);
+    exit_code = mvp::RunMainLoop(window, input, host, clock, log, video);
+    video.Close();
     log.Write(mvp::LogLevel::kInfo, "host", host.HeapSummary());
   }
   log.Write(mvp::LogLevel::kInfo, "main", "exit code " + std::to_string(exit_code));

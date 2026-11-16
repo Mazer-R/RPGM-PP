@@ -9,3 +9,5 @@ g++ -std=c++17 -Wall -Wextra -Werror -Isrc tests/native/files_test.cpp src/platf
 build-device/tests/files_test
 g++ -std=c++17 -Wall -Wextra -Werror -Isrc tests/native/touch_test.cpp src/platform/touch.cpp -o build-device/tests/touch_test
 build-device/tests/touch_test
+g++ -std=c++17 -Wall -Wextra -Werror -pthread -Isrc tests/native/video_test.cpp src/platform/video.cpp -o build-device/tests/video_test
+build-device/tests/video_test

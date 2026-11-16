@@ -62,6 +62,7 @@ target_compile_options(stb_vorbis PRIVATE -w)
 set(MVP_SOURCES
   "${MVP_GL_CONSTANTS}"
   src/bindings/audio_binding.cpp
+  src/bindings/video_binding.cpp
   src/bindings/canvas_binding.cpp
   src/bindings/webgl_binding.cpp
   src/platform/main.cpp
@@ -77,10 +78,11 @@ set(MVP_SOURCES
 )
 if(ANDROID)
   # SDL's Java side loads the program as libmain.so and calls its SDL_main.
-  add_library(mvplayer SHARED ${MVP_SOURCES} src/platform/android_start.cpp)
+  # No ffmpeg program can be started there, so there is no video.
+  add_library(mvplayer SHARED ${MVP_SOURCES} src/platform/android_start.cpp src/platform/video_none.cpp)
   set_target_properties(mvplayer PROPERTIES OUTPUT_NAME main)
 else()
-  add_executable(mvplayer ${MVP_SOURCES})
+  add_executable(mvplayer ${MVP_SOURCES} src/platform/video.cpp)
 endif()
 target_include_directories(mvplayer PRIVATE src third_party/stb ${MVP_PLATFORM_INCLUDES} "${CMAKE_BINARY_DIR}/generated" "${MVP_V8_DIR}/include")
 target_compile_options(mvplayer PRIVATE -Wall -Wextra -Werror -Wno-unused-parameter)

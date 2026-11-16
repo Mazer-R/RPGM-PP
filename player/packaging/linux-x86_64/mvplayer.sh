@@ -17,10 +17,17 @@
 # script (or in ~/.config/mvplayer/logs if that cannot be written), named
 # after the game and the time: the place to look when a game misbehaves.
 #
+# Videos play if the system has the ffmpeg program installed; without it the
+# game goes on as if each video had ended at once.
+#
 # Set MVPLAYER_SYSTEM_LIBS=1 to ignore the lib/ folder and use the system's
 # own SDL2, Cairo and FreeType instead.
 HERE=$(dirname -- "$(readlink -f -- "$0")")
 if [ "${MVPLAYER_SYSTEM_LIBS:-0}" != 1 ]; then
+  # The player starts the system's ffmpeg to play videos; that program must
+  # get the library search path as it was, without the lib/ folder.
+  MVPLAYER_SYSTEM_LIBRARY_PATH="${LD_LIBRARY_PATH:-}"
+  export MVPLAYER_SYSTEM_LIBRARY_PATH
   LD_LIBRARY_PATH="$HERE/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
   export LD_LIBRARY_PATH
 fi

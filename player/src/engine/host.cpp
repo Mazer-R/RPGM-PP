@@ -13,6 +13,7 @@
 #include <utility>
 
 #include "bindings/audio_binding.h"
+#include "bindings/video_binding.h"
 #include "bindings/canvas_binding.h"
 #include "bindings/webgl_binding.h"
 #include "libplatform/libplatform.h"
@@ -416,7 +417,7 @@ void Host::InstallGlobals(v8::Local<v8::Context> context) {
   set(global, "player", player);
 }
 
-void Host::InstallBindings(int drawing_width, int drawing_height, AudioOutput* audio) {
+void Host::InstallBindings(int drawing_width, int drawing_height, AudioOutput* audio, VideoPlayer* video) {
   v8::Isolate::Scope isolate_scope(isolate_);
   v8::HandleScope handle_scope(isolate_);
   v8::Local<v8::Context> context = context_.Get(isolate_);
@@ -432,6 +433,7 @@ void Host::InstallBindings(int drawing_width, int drawing_height, AudioOutput* a
       .Check();
   InstallCanvasBinding(isolate_, context, player.As<v8::Object>());
   if (audio) InstallAudioBinding(isolate_, context, player.As<v8::Object>(), audio);
+  if (video) InstallVideoBinding(isolate_, context, player.As<v8::Object>(), video);
 }
 
 void Host::ReportException(v8::TryCatch* try_catch) {

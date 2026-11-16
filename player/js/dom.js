@@ -126,6 +126,7 @@
     frameCallbacks = [];
     callbacks.forEach(function (entry) { guarded(entry.fn, globalThis, [now], 'frame'); });
     if (browser.updateAudio) browser.updateAudio();
+    if (browser.updateVideo) browser.updateVideo();
     frameRateDisplay(now);
   }
 
@@ -262,9 +263,9 @@
       return { left: 0, top: 0, x: 0, y: 0, width: w, height: h, right: w, bottom: h };
     },
     focus: function () {}, blur: function () {}, click: function () {},
-    // What a sound or video element says it can play. Sound goes through the
-    // Web Audio stand-in (audio.js), which plays Ogg Vorbis; nothing plays
-    // through the elements themselves, and there is no video.
+    // What a sound element says it can play. Sound goes through the Web Audio
+    // stand-in (audio.js), which plays Ogg Vorbis; nothing plays through the
+    // elements themselves. Video elements answer for themselves (video.js).
     canPlayType: function (type) { return player.audio && /audio\/ogg/.test(String(type)) ? 'probably' : ''; },
     play: function () {}, pause: function () {}, load: function () {},
   });
@@ -585,6 +586,7 @@
       if (name === 'canvas') return new HTMLCanvasElement();
       if (name === 'img') return new HTMLImageElement();
       var element = new Element(name);
+      if (name === 'video' && browser.makeVideo) return browser.makeVideo(element);
       // The engine adds fonts at run time by inserting a rule in a style sheet.
       if (name === 'style') element.sheet = { insertRule: function (rule) { registerFontFaceRules(String(rule), ''); return 0; } };
       return element;
