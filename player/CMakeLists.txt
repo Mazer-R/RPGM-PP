@@ -70,6 +70,7 @@ set(MVP_SOURCES
   src/platform/clock.cpp
   src/platform/input.cpp
   src/platform/files.cpp
+  src/platform/game_library.cpp
   src/platform/log.cpp
   src/platform/button_map.cpp
   src/platform/settings_menu.cpp

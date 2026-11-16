@@ -179,8 +179,11 @@ int main(int, char**) {
     // The list prints its answers; they are read back from a file.
     if (!std::freopen(answers.c_str(), "w", stdout)) return 1;
     bool show_fps = ReadText(base + "/show-fps").rfind("1", 0) == 0;
+    // The list remembers the games played and added, and can look through
+    // the shared storage for a game to add.
     std::vector<std::string> pick = {"--pick", shared_games, games, "--player", player_dir,
-                                     "--log", logs + "/picker.log"};
+                                     "--log", logs + "/picker.log", "--games-file", base + "/games.txt",
+                                     "--can-add", "--browse", shared_games.substr(0, shared_games.rfind('/'))};
     if (show_fps) pick.push_back("--fps");
     int code = Run(pick);
     std::fflush(stdout);

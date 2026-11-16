@@ -5,14 +5,18 @@
 //       Runs a game: loads <player-dir>/js/boot.js, which starts the game in
 //       <www-dir>. The log goes to <www-dir>/save/mvplayer.log, so that
 //       everything the player writes stays in the game's save folder.
-//   mvplayer --pick [<games-dir> ...] [--games-file <file>] [--can-add]
+//   mvplayer --pick [<games-dir> ...] [--games-file <file>] [--can-add] [--browse <dir> ...]
 //       Shows a list of games and lets the user choose one: the games found
 //       in the given folders (each game is a folder that holds the game's
 //       www folder) and the games named in <file>, one path per line. Prints
 //       "MVPLAYER_GAME=<www-dir>" on standard output and exits with 0, or
-//       exits with 10 if the user leaves without choosing. With --can-add the
-//       list has an "add a game" line, which prints "MVPLAYER_ADD". The
-//       program that started the player then acts on what was printed.
+//       exits with 10 if the user leaves without choosing. The program that
+//       started the player then runs the game. <file> is the list's own
+//       memory: the game chosen goes to its top, so the games played last
+//       are shown first. With --can-add the list has an "add a game" line
+//       that lets the user look through folders, starting from each
+//       --browse <dir> (from "/" if none is given), for a game to add to
+//       <file>.
 //   mvplayer --resolve <path>
 //       Prints the game's www folder for <path> and exits with 0, or exits
 //       with 1 if there is no game there. Opens no window.
@@ -50,6 +54,7 @@
 
 #include "engine/host.h"
 #include "platform/audio.h"
+#include "platform/game_library.h"
 #include "platform/video.h"
 #include "platform/clock.h"
 #include "platform/input.h"
@@ -67,25 +72,6 @@ std::string ExecutableDir() {
   std::string full(path, static_cast<size_t>(length));
   size_t slash = full.rfind('/');
   return slash == std::string::npos ? "." : full.substr(0, slash);
-}
-
-bool IsFile(const std::string& path) {
-  struct stat info {};
-  return stat(path.c_str(), &info) == 0 && S_ISREG(info.st_mode);
-}
-
-// The www folder of the game at `path`, or "" if there is none. See the
-// forms of <path> listed at the top of this file.
-std::string ResolveGameDir(std::string path) {
-  while (path.size() > 1 && path.back() == '/') path.pop_back();
-  if (IsFile(path)) {
-    size_t slash = path.rfind('/');
-    path = slash == std::string::npos ? "." : path.substr(0, slash);
-  }
-  for (const std::string& candidate : {path, path + "/www"}) {
-    if (IsFile(candidate + "/index.html") && IsFile(candidate + "/js/rpg_core.js")) return candidate;
-  }
-  return "";
 }
 
 std::string WithoutTrailingSlash(std::string path) {
@@ -111,7 +97,7 @@ int PlayerMain(int argc, char** argv) {
   bool no_patches = false;
   bool profile_slow = false;
   bool pick = false;
-  std::vector<std::string> library_dirs, library_games;
+  std::vector<std::string> library_dirs, library_games, browse_dirs;
   std::string game_path, games_file, resolve_path;
   bool can_add = false;
   const char* fps_setting = std::getenv("MVPLAYER_FPS");
@@ -128,6 +114,7 @@ int PlayerMain(int argc, char** argv) {
     }
     else if (arg == "--games-file" && i + 1 < argc) games_file = argv[++i];
     else if (arg == "--can-add") can_add = true;
+    else if (arg == "--browse" && i + 1 < argc) browse_dirs.push_back(WithoutTrailingSlash(argv[++i]));
     else if (arg == "--fps") show_fps = true;
     else if (arg == "--resolve" && i + 1 < argc) resolve_path = argv[++i];
     else if (arg == "--game" && i + 1 < argc) game_path = argv[++i];
@@ -167,7 +154,7 @@ int PlayerMain(int argc, char** argv) {
   }
   if (script.empty()) {
     std::fprintf(stderr, "usage: mvplayer --game <game folder, www folder or .exe> [--log <file>]\n"
-                         "       mvplayer --pick [<games-dir> ...] [--games-file <file>] [--can-add]\n"
+                         "       mvplayer --pick [<games-dir> ...] [--games-file <file>] [--can-add] [--browse <dir> ...]\n"
                          "       mvplayer --resolve <path>\n"
                          "       mvplayer <script.js> [--log <file>]\n");
     return 1;
@@ -226,6 +213,8 @@ int PlayerMain(int argc, char** argv) {
     host.SetStringList("libraryDirs", library_dirs);
     host.SetStringList("libraryGames", library_games);
     host.SetFlag("canAddGame", can_add);
+    host.SetStringList("browseDirs", browse_dirs);
+    host.SetGamesFile(games_file);
 #ifdef __ANDROID__
     // The game list then explains the permission the games folder needs.
     host.SetFlag("needsFileAccess", true);

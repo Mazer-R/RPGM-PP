@@ -796,6 +796,36 @@ adjustments where the game's own code is too expensive for this hardware.
         libraries and plays Fear & Hunger's intro video to the end
         through the system's ffmpeg.
     *   **Not checked**: a real ARM desktop, with a real GPU driver.
+*   **The game list remembers, adds and browses (2026-11-16).**
+    *   **Asked for**: a game chooser that shows the games played last,
+        lets new ones be added, and lets the user look through folders
+        for a game, saying what to choose.
+    *   **Recents**: the list keeps one file of www folders (`--games-file`),
+        the game chosen or added last on top, and shows those games first,
+        then the others by title. Every platform passes that file now:
+        `MUOS/emulator/mvplayer/games.txt`, `RPGMV/mvplayer/games.txt` on
+        Android, `~/.config/mvplayer/games.txt` on desktop Linux.
+    *   **Adding**: "+ Add a game..." opens a second screen inside the
+        list that shows folders, from the places given with `--browse`
+        (`/mnt` on muOS, the shared storage on Android, the home folder
+        and `/` on desktop Linux). Two lines say what to do: go into the
+        game's own folder and choose its .exe, or index.html inside www.
+        Shown are folders and the files that can stand for a game (.exe,
+        index.html, package.json); a folder that is itself a game offers
+        "Add this game: <title>" as its first line.
+    *   **One place for each decision**: which game a path points at
+        (`ResolveGameDir`) and the remembered list (`RememberGame`) are
+        native, in `platform/game_library`; order and browser lines are
+        in `js/picker-model.js`. Both have tests. The desktop launcher no
+        longer opens a zenity or kdialog file dialog.
+    *   **Checked on the RG35XX SP** with scripted key presses and screen
+        captures: the list, the browser at `/mnt`, adding a game from its
+        own folder, the order afterwards, and the file written. A game
+        already in the list vanished after adding another one; fixed,
+        with a test.
+    *   **Not checked**: on Android and desktop Linux (builds not yet
+        made), a folder with hundreds of entries, touch-only use beyond
+        the on-screen pad.
 
 ## Critical User Journeys (CUJs)
 

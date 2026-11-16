@@ -38,6 +38,10 @@ with index.html). Games are looked for in two places:
     /opt/mvplayer/games/MyGame/www/index.html    internal storage (fastest)
     ROMS/RPGMV/MyGame/www/index.html             this folder, on the card
 
+A game kept in any other folder can be added from the list's "Add a game"
+line: go into the game's own folder and choose its .exe. The list shows the
+games played last first.
+
 Saves and the player's log are written to the game's www/save folder.
 To leave a game, hold the menu button and press Start.
 NOTE

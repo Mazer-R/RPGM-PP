@@ -126,7 +126,9 @@ nearly every phone sold since 2017. 32-bit-only phones and x86 devices
 3. Copy each game into the `RPGMV` folder at the top of the device's shared
    storage, one folder per game, each holding the game's `www` folder:
    `RPGMV/<Game>/www`. A file manager or a USB cable will do.
-4. Choose the game from the list.
+4. Choose the game from the list; the games played last come first. A game
+   kept anywhere else on the device can be added with the list's "Add a
+   game" line: go into the game's own folder and choose its `.exe`.
 
 Without a controller, the screen shows a direction pad and three buttons.
 The MENU button in the top right corner opens the settings; "TOUCH
@@ -143,7 +145,10 @@ the list. Videos do not play on Android yet.
 2. Copy each game to `ROMS/RPGMV/<Game>/www` on the card. A game also runs
    from `/opt/mvplayer/games/<Game>/www` on internal storage, which loads
    faster.
-3. On the console: Apps, then "RPG Maker MV". Choose the game with A.
+3. On the console: Apps, then "RPG Maker MV". Choose the game with A; the
+   games played last come first. A game kept in any other folder of the
+   cards can be added with the list's "Add a game" line: go into the game's
+   own folder and choose its `.exe`.
 
 | Buttons | What they do |
 | --- | --- |
@@ -161,9 +166,10 @@ ARM desktop.
 
 1. Extract `mvplayer-linux-x86_64.tar.gz` or `mvplayer-linux-aarch64.tar.gz`
    anywhere and keep its files together.
-2. Run `./mvplayer.sh`. The first time, and from the list's "Add a game"
-   line, a file dialog opens: choose the game's `.exe` or the `index.html`
-   in its `www` folder. Games added are remembered.
+2. Run `./mvplayer.sh`. The list's "Add a game" line shows your folders:
+   go into the game's own folder and choose its `.exe` (or the `index.html`
+   in its `www` folder). Games added are remembered, and the ones played
+   last come first.
 3. Optional: `./mvplayer.sh --install-launcher` adds the player to the
    desktop's application menu, and `./mvplayer.sh --check-libs` lists any
    system library that is missing.
@@ -404,7 +410,10 @@ y los dispositivos x86 (algunos emuladores y Chromebooks) no.
 3. Copia cada juego a la carpeta `RPGMV`, en la raíz del almacenamiento
    compartido, una carpeta por juego con su `www` dentro:
    `RPGMV/<Juego>/www`. Sirve un gestor de archivos o un cable USB.
-4. Elige el juego en la lista.
+4. Elige el juego en la lista; los últimos jugados salen primero. Un juego
+   guardado en cualquier otro sitio del dispositivo se añade con la línea
+   "Add a game" de la lista: entra en la carpeta del juego y elige su
+   `.exe`.
 
 Sin mando, la pantalla muestra una cruceta y tres botones. El botón MENU,
 arriba a la derecha, abre los ajustes; "TOUCH CONTROLS" permite mover,
@@ -421,7 +430,10 @@ lista. En Android todavía no se reproducen vídeos.
 2. Copia cada juego a `ROMS/RPGMV/<Juego>/www` en la tarjeta. Un juego
    también funciona desde `/opt/mvplayer/games/<Juego>/www`, en el
    almacenamiento interno, donde carga más rápido.
-3. En la consola: Apps y después "RPG Maker MV". Elige el juego con A.
+3. En la consola: Apps y después "RPG Maker MV". Elige el juego con A; los
+   últimos jugados salen primero. Un juego guardado en cualquier otra
+   carpeta de las tarjetas se añade con la línea "Add a game" de la lista:
+   entra en la carpeta del juego y elige su `.exe`.
 
 | Botones | Qué hacen |
 | --- | --- |
@@ -439,9 +451,10 @@ un escritorio ARM real.
 
 1. Extrae `mvplayer-linux-x86_64.tar.gz` o `mvplayer-linux-aarch64.tar.gz`
    donde quieras y mantén sus archivos juntos.
-2. Ejecuta `./mvplayer.sh`. La primera vez, y desde la línea "Add a game"
-   de la lista, se abre un diálogo de archivos: elige el `.exe` del juego o
-   el `index.html` de su carpeta `www`. Los juegos añadidos se recuerdan.
+2. Ejecuta `./mvplayer.sh`. La línea "Add a game" de la lista muestra tus
+   carpetas: entra en la carpeta del juego y elige su `.exe` (o el
+   `index.html` de su carpeta `www`). Los juegos añadidos se recuerdan, y
+   los últimos jugados salen primero.
 3. Opcional: `./mvplayer.sh --install-launcher` añade el reproductor al
    menú de aplicaciones del escritorio, y `./mvplayer.sh --check-libs`
    enumera las bibliotecas del sistema que falten.

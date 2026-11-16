@@ -32,7 +32,10 @@ adb push "My Game" /sdcard/RPGMV/
 
 Games go in the `RPGMV` folder at the top of the device's shared storage,
 one folder per game, each holding the game's `www` folder; any file manager
-or a USB cable can put them there. Saves and the log stay in each game's
+or a USB cable can put them there. A game kept anywhere else in the shared
+storage can be added from the list's "Add a game" line, which shows the
+folders: go into the game's own folder and choose its `.exe`. The list
+shows the games played last first. Saves and the log stay in each game's
 `www/save`.
 
 The first time it starts, the app opens the system screen for "all files
@@ -46,6 +49,7 @@ that one cannot be where games are copied.
 | `RPGMV/<Game>/www` | The games. |
 | `RPGMV/mvplayer/logs/` | A copy of the log of every run (newest 30) and `picker.log`. |
 | `RPGMV/mvplayer/show-fps` | The frame-rate setting chosen in the game list. |
+| `RPGMV/mvplayer/games.txt` | The games played or added, the last one first. |
 | `RPGMV/mvplayer/args.txt` | For tests: if present, the app runs once with these arguments (one per line) instead of showing the list. |
 
 Until access is allowed, the `mvplayer` folder is kept in

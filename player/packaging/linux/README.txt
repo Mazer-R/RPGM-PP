@@ -9,10 +9,11 @@ Extract the archive anywhere. Then either:
 
     ./mvplayer.sh
 
-which shows the list of your games. The first time, and from the list's
-"Add a game" line, a file dialog opens: choose the game's .exe (or the
-index.html inside its www folder). Games added this way are remembered.
-In the list: arrow keys to move, Z or Enter to play, X or Esc to leave.
+which shows the list of your games, the ones played last first. Its "Add a
+game" line shows your folders: go into the game's own folder and choose its
+.exe (or the index.html inside its www folder). Games added this way are
+remembered. In the list: arrow keys to move, Z or Enter to choose, X or Esc
+to go back or leave.
 
 Or start one game directly, giving its folder, its www folder or its .exe:
 
@@ -31,8 +32,7 @@ are kept per game, in the game's www/save/buttons.txt.
 Saves and the player's log (mvplayer.log) are written to the game's
 www/save folder. A copy of the log of every run is also kept in the logs/
 folder next to mvplayer.sh, named after the game and the time; if something
-goes wrong, that is the first thing to look at (and to send along). The file dialog needs zenity or kdialog, which desktops normally
-have.
+goes wrong, that is the first thing to look at (and to send along).
 
 Always start the player through mvplayer.sh: it makes the player use the
 libraries in the lib/ folder. Keep the files together; the player looks for

@@ -19,6 +19,7 @@
 #include "libplatform/libplatform.h"
 #include "platform/clock.h"
 #include "platform/files.h"
+#include "platform/game_library.h"
 #include "platform/log.h"
 
 namespace mvp {
@@ -245,6 +246,44 @@ void Host::ListDirCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(list);
 }
 
+// player.listFolder(path): what a folder holds, for the game list's
+// browser: folders first, each ending in "/", then files; names that start
+// with a dot are left out.
+void Host::ListFolderCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::Isolate* isolate = args.GetIsolate();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  std::vector<std::string> names = ListFolder(ToStdString(isolate, args[0]));
+  v8::Local<v8::Array> list = v8::Array::New(isolate, static_cast<int>(names.size()));
+  for (uint32_t i = 0; i < names.size(); i++) list->Set(context, i, ToV8String(isolate, names[i])).Check();
+  args.GetReturnValue().Set(list);
+}
+
+// player.resolveGame(path): the www folder of the game that a folder or a
+// file (the game's .exe, its index.html) belongs to, or "" if none.
+void Host::ResolveGameCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::Isolate* isolate = args.GetIsolate();
+  args.GetReturnValue().Set(ToV8String(isolate, ResolveGameDir(ToStdString(isolate, args[0]))));
+}
+
+// player.rememberGame(www): puts a game at the top of the remembered games,
+// the file the game list was given. Returns whether it was written.
+void Host::RememberGameCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Host* host = FromArgs(args);
+  args.GetReturnValue().Set(false);
+  std::string www = ToStdString(args.GetIsolate(), args[0]);
+  if (host->games_file_.empty() || www.empty()) return;
+  std::ostringstream before;
+  before << std::ifstream(host->games_file_).rdbuf();
+  std::ofstream file(host->games_file_, std::ios::trunc);
+  file << RememberGame(before.str(), www);
+  file.flush();
+  if (!file.good()) {
+    host->log_.Write(LogLevel::kError, "files", "cannot write the remembered games: " + host->games_file_);
+    return;
+  }
+  args.GetReturnValue().Set(true);
+}
+
 // player.print(text): one line on standard output, for a script whose
 // result is read by the program that started the player.
 void Host::PrintCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -448,6 +487,9 @@ void Host::InstallGlobals(v8::Local<v8::Context> context) {
   set(player, "removeSaveFile", make_function(RemoveSaveFileCallback, "removeSaveFile"));
   set(player, "makeSaveDir", make_function(MakeSaveDirCallback, "makeSaveDir"));
   set(player, "listDir", make_function(ListDirCallback, "listDir"));
+  set(player, "listFolder", make_function(ListFolderCallback, "listFolder"));
+  set(player, "resolveGame", make_function(ResolveGameCallback, "resolveGame"));
+  set(player, "rememberGame", make_function(RememberGameCallback, "rememberGame"));
   set(player, "print", make_function(PrintCallback, "print"));
   set(player, "readFileBytes", make_function(ReadFileBytesCallback, "readFileBytes"));
   set(player, "fileHead", make_function(FileHeadCallback, "fileHead"));

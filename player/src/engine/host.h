@@ -57,6 +57,8 @@ class Host {
   void SetStringList(const std::string& name, const std::vector<std::string>& values);
   // Sets player.<name> to true or false, for options scripts consult.
   void SetFlag(const std::string& name, bool value);
+  // The file the game list keeps its remembered games in; none by default.
+  void SetGamesFile(const std::string& path) { games_file_ = path; }
   void RunFrameCallbacks(double now_ms);
   // Tells the scripts that a key went down or up, by calling player.onKey
   // (keyCode, down) if a script has set it. `key_code` is a browser key code.
@@ -94,6 +96,9 @@ class Host {
   static void RemoveSaveFileCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void MakeSaveDirCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ListDirCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ListFolderCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ResolveGameCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RememberGameCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void FileHeadCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ReadFileBytesCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void PrintCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -116,6 +121,7 @@ class Host {
   float clear_color_[3] = {0.0f, 0.0f, 0.0f};
   std::string game_dir_;
   std::string player_dir_;
+  std::string games_file_;
   int script_depth_ = 0;  // > 0 while a script is running, for nested loads
   bool exit_requested_ = false;
   v8::CpuProfiler* profiler_ = nullptr;  // only while a profile is being taken

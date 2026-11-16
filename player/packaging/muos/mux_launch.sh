@@ -67,7 +67,7 @@ FPS=""
 while :; do
 	# The list prints the setting and the chosen game's folder; with no game
 	# chosen the loop ends.
-	ANSWER=$(./mvplayer --pick "$INTERNAL_GAMES" "$CARD_GAMES" $FPS)
+	ANSWER=$(./mvplayer --pick "$INTERNAL_GAMES" "$CARD_GAMES" --games-file "$PLAYER_DIR/games.txt" --can-add --browse /mnt $FPS)
 	case "$ANSWER" in
 		*MVPLAYER_FPS=1*) FPS="--fps"; echo 1 >"$SETTINGS" ;;
 		*MVPLAYER_FPS=0*) FPS=""; echo 0 >"$SETTINGS" ;;
