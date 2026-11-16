@@ -12,10 +12,12 @@
 #include <sstream>
 #include <utility>
 
+#include "bindings/audio_binding.h"
 #include "bindings/canvas_binding.h"
 #include "bindings/webgl_binding.h"
 #include "libplatform/libplatform.h"
 #include "platform/clock.h"
+#include "platform/files.h"
 #include "platform/log.h"
 
 namespace mvp {
@@ -135,7 +137,7 @@ bool Host::IsSavePath(const std::string& path) const {
 
 void Host::ReadTextFileCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
-  std::ifstream file(ToStdString(isolate, args[0]), std::ios::binary);
+  std::ifstream file(FindFile(ToStdString(isolate, args[0])), std::ios::binary);
   if (!file) {
     args.GetReturnValue().SetNull();
     return;
@@ -147,7 +149,26 @@ void Host::ReadTextFileCallback(const v8::FunctionCallbackInfo<v8::Value>& args)
 
 void Host::FileExistsCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
   struct stat info {};
-  args.GetReturnValue().Set(stat(ToStdString(args.GetIsolate(), args[0]).c_str(), &info) == 0);
+  args.GetReturnValue().Set(stat(FindFile(ToStdString(args.GetIsolate(), args[0])).c_str(), &info) == 0);
+}
+
+// player.readFileBytes(path, maxBytes): the file's bytes as an ArrayBuffer,
+// or its first maxBytes when that is given and smaller; null if it cannot
+// be read.
+void Host::ReadFileBytesCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::Isolate* isolate = args.GetIsolate();
+  std::ifstream file(FindFile(ToStdString(isolate, args[0])), std::ios::binary | std::ios::ate);
+  if (!file) {
+    args.GetReturnValue().SetNull();
+    return;
+  }
+  std::streamoff size = file.tellg();
+  double limit = args.Length() > 1 ? args[1]->NumberValue(isolate->GetCurrentContext()).FromMaybe(0) : 0;
+  if (limit >= 1 && limit < static_cast<double>(size)) size = static_cast<std::streamoff>(limit);
+  v8::Local<v8::ArrayBuffer> buffer = v8::ArrayBuffer::New(isolate, static_cast<size_t>(size));
+  file.seekg(0);
+  file.read(static_cast<char*>(buffer->Data()), size);
+  args.GetReturnValue().Set(buffer);
 }
 
 // player.listDir(path): the names in a folder, sorted, without "." and "..";
@@ -260,6 +281,7 @@ void Host::LoadScriptCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
 // flushed to the card, the previous version is kept as a backup, and only
 // then does the temporary file take the real name.
 void Host::WriteSaveFileCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  ForgetFileNames();  // the folder is about to change
   Host* host = FromArgs(args);
   v8::Isolate* isolate = args.GetIsolate();
   std::string path = ToStdString(isolate, args[0]);
@@ -293,12 +315,14 @@ void Host::WriteSaveFileCallback(const v8::FunctionCallbackInfo<v8::Value>& args
 }
 
 void Host::RemoveSaveFileCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  ForgetFileNames();  // the folder is about to change
   Host* host = FromArgs(args);
   std::string path = ToStdString(args.GetIsolate(), args[0]);
   args.GetReturnValue().Set(host->IsSavePath(path) && std::remove(path.c_str()) == 0);
 }
 
 void Host::MakeSaveDirCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  ForgetFileNames();  // the folder is about to change
   Host* host = FromArgs(args);
   std::string path = ToStdString(args.GetIsolate(), args[0]);
   args.GetReturnValue().Set(host->IsSavePath(path) && mkdir(path.c_str(), 0755) == 0);
@@ -358,13 +382,14 @@ void Host::InstallGlobals(v8::Local<v8::Context> context) {
   set(player, "makeSaveDir", make_function(MakeSaveDirCallback, "makeSaveDir"));
   set(player, "listDir", make_function(ListDirCallback, "listDir"));
   set(player, "print", make_function(PrintCallback, "print"));
+  set(player, "readFileBytes", make_function(ReadFileBytesCallback, "readFileBytes"));
   set(player, "startProfile", make_function(StartProfileCallback, "startProfile"));
   set(player, "stopProfile", make_function(StopProfileCallback, "stopProfile"));
   set(player, "v8Version", ToV8String(isolate_, v8::V8::GetVersion()));
   set(global, "player", player);
 }
 
-void Host::InstallBindings(int drawing_width, int drawing_height) {
+void Host::InstallBindings(int drawing_width, int drawing_height, AudioOutput* audio) {
   v8::Isolate::Scope isolate_scope(isolate_);
   v8::HandleScope handle_scope(isolate_);
   v8::Local<v8::Context> context = context_.Get(isolate_);
@@ -379,6 +404,7 @@ void Host::InstallBindings(int drawing_width, int drawing_height) {
             CreateWebGLContext(isolate_, context, drawing_width, drawing_height))
       .Check();
   InstallCanvasBinding(isolate_, context, player.As<v8::Object>());
+  if (audio) InstallAudioBinding(isolate_, context, player.As<v8::Object>(), audio);
 }
 
 void Host::ReportException(v8::TryCatch* try_catch) {
@@ -399,7 +425,9 @@ void Host::ReportException(v8::TryCatch* try_catch) {
   log_.Write(LogLevel::kError, "script", text);
 }
 
-bool Host::RunFile(const std::string& path) {
+bool Host::RunFile(const std::string& written_path) {
+  // Scripts are compiled under the name the file really has.
+  std::string path = FindFile(written_path);
   std::ifstream file(path, std::ios::binary);
   if (!file) {
     log_.Write(LogLevel::kError, "host", "cannot read script: " + path);

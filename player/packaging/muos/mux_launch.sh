@@ -15,6 +15,7 @@
 #   <card>/ROMS/RPGMV/<Game>/www       the card's shared partition
 # Saves and the log stay in each game's www/save.
 # To leave a game: hold the menu button and press Start.
+# To show or hide the frames per second: hold the menu button and press Select.
 
 . /opt/muos/script/var/func.sh
 

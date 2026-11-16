@@ -1,5 +1,7 @@
 #include "bindings/canvas_binding.h"
 
+#include "platform/files.h"
+
 #include <cairo-ft.h>
 #include <cairo.h>
 #include <ft2build.h>
@@ -234,7 +236,7 @@ void InstallFunctions(v8::Isolate* isolate, v8::Local<v8::Object> canvas) {
   // Reads only the size of a PNG file, from its header. Returns [width,
   // height], or null if the file is missing or is not a PNG.
   FN(imageSize, {
-    std::string path = ToStd(ISO, args[0]);
+    std::string path = mvp::FindFile(ToStd(ISO, args[0]));
     unsigned char header[24];
     FILE* file = std::fopen(path.c_str(), "rb");
     size_t got = file ? std::fread(header, 1, sizeof header, file) : 0;
@@ -255,7 +257,7 @@ void InstallFunctions(v8::Isolate* isolate, v8::Local<v8::Object> canvas) {
   });
   // Decodes a PNG file. Returns a surface handle, or null if it cannot be read.
   FN(loadImage, {
-    std::string path = ToStd(ISO, args[0]);
+    std::string path = mvp::FindFile(ToStd(ISO, args[0]));
     cairo_surface_t* image = cairo_image_surface_create_from_png(path.c_str());
     if (cairo_surface_status(image) != CAIRO_STATUS_SUCCESS) {
       cairo_surface_destroy(image);

@@ -59,6 +59,9 @@ remote "
   [ -n \"\$FRONTEND\" ] && kill -STOP \$FRONTEND
   [ -n \"\$MODULE\" ] && kill -STOP \$MODULE
   export SDL_HQ_SCALER=2 SDL_ROTATION=0 SDL_BLITTER_DISABLED=1 SDL_ASSERT=always_ignore
+  # Where muOS's sound service listens; programs started from its menu
+  # inherit this, a shell that came in from outside does not.
+  export XDG_RUNTIME_DIR=/var/run PIPEWIRE_RUNTIME_DIR=/var/run
   rm -f $GAME/save/mvplayer.log /tmp/mvplayer.rss
   # Memory in use, sampled once the game has had time to start.
   (sleep 12; grep -E 'VmRSS|VmHWM' /proc/\$(pidof mvplayer)/status > /tmp/mvplayer.rss 2>/dev/null

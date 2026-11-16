@@ -7,6 +7,7 @@
 (function () {
   'use strict';
   var layers = ['css.js', 'dom.js', 'canvas2d.js', 'desktop.js'];
+  if (player.audio) layers.push('audio.js');
   for (var i = 0; i < layers.length; i++) {
     if (!player.loadScript(player.playerDir + '/js/' + layers[i])) {
       console.error('boot: cannot load ' + layers[i]);

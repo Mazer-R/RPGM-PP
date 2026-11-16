@@ -22,6 +22,7 @@
 namespace mvp {
 
 class Clock;
+class AudioOutput;
 class Log;
 
 class Host {
@@ -67,7 +68,8 @@ class Host {
   // context for the current OpenGL ES context, and `player.canvas`, the
   // Canvas 2D and image functions. The JavaScript browser layer builds the
   // objects the game expects on top of these.
-  void InstallBindings(int drawing_width, int drawing_height);
+  // `audio` may be null: the scripts then see no player.audio.
+  void InstallBindings(int drawing_width, int drawing_height, AudioOutput* audio);
   bool exit_requested() const { return exit_requested_; }
   int exit_code() const { return exit_code_; }
   bool had_script_error() const { return had_script_error_; }
@@ -90,6 +92,7 @@ class Host {
   static void RemoveSaveFileCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void MakeSaveDirCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ListDirCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ReadFileBytesCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void PrintCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void StartProfileCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void StopProfileCallback(const v8::FunctionCallbackInfo<v8::Value>& args);

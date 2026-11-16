@@ -5,13 +5,29 @@ A player for RPG Maker MV games. This build is for testing only.
 
 Run
 ---
-Extract the archive anywhere and run, from a terminal:
+Extract the archive anywhere. Then either:
 
-    ./mvplayer.sh --game /path/to/game/www
+    ./mvplayer.sh
 
-where "www" is the game's folder that contains index.html. Saves and the
-player's log (mvplayer.log) are written to the game's www/save folder; if
-something goes wrong, that log is the first thing to look at.
+which shows the list of your games. The first time, and from the list's
+"Add a game" line, a file dialog opens: choose the game's .exe (or the
+index.html inside its www folder). Games added this way are remembered.
+In the list: arrow keys to move, Z or Enter to play, X or Esc to leave.
+
+Or start one game directly, giving its folder, its www folder or its .exe:
+
+    ./mvplayer.sh "/path/to/the game/Game.exe"
+
+    ./mvplayer.sh --install-launcher
+
+adds "RPG Maker MV Player" to the desktop's application menu.
+
+While playing, F2 shows or hides the frames per second.
+
+Saves and the player's log (mvplayer.log) are written to the game's
+www/save folder; if something goes wrong, that log is the first thing to
+look at. The file dialog needs zenity or kdialog, which desktops normally
+have.
 
 Always start the player through mvplayer.sh: it makes the player use the
 libraries in the lib/ folder. Keep the files together; the player looks for

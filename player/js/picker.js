@@ -1,11 +1,13 @@
 // The game list. The native player runs this file when it is given --pick.
 //
-// It looks in the folders in player.libraryDirs for games (a game is a
-// folder that holds the game's own www folder, the one with index.html),
-// shows them as a list, and lets the user choose one with the controls. The
-// choice is printed as "MVPLAYER_GAME=<www folder>" for the program that
-// started the player, which then runs the player again with --game. Leaving
-// without choosing exits with code 10.
+// It shows two kinds of games as one list: those found in the folders in
+// player.libraryDirs (a game is a folder that holds the game's own www
+// folder, the one with index.html), and those named one by one in
+// player.libraryGames. The user chooses with the controls. The choice is
+// printed as "MVPLAYER_GAME=<www folder>" for the program that started the
+// player, which then runs the player again with --game. When
+// player.canAddGame is set the list ends with an "add a game" line, which
+// prints "MVPLAYER_ADD" instead. Leaving without choosing exits with code 10.
 //
 // The list is drawn on a native canvas and shown through WebGL; none of the
 // browser stand-in layers are loaded for it.
@@ -31,16 +33,28 @@
       if (player.fileExists(www + '/index.html')) games.push({ title: titleOf(www, name), www: www });
     });
   });
+  (player.libraryGames || []).forEach(function (www) {
+    var known = games.some(function (game) { return game.www === www; });
+    // Named after the folder that holds www when the page has no title.
+    if (!known && player.fileExists(www + '/index.html')) games.push({ title: titleOf(www, www.split('/').slice(-2, -1)[0] || www), www: www });
+  });
   games.sort(function (a, b) { return a.title.toLowerCase() < b.title.toLowerCase() ? -1 : 1; });
-  console.info('picker: ' + games.length + ' games in ' + (player.libraryDirs || []).join(', '));
+  // The last line of the list, where the program that started the player
+  // can take over to let the user point at a new game.
+  if (player.canAddGame) games.push({ title: '+ Add a game...', add: true });
+  console.info('picker: ' + games.length + ' lines; folders: ' + (player.libraryDirs || []).join(', '));
 
   // --- A font ---------------------------------------------------------------
   // The player ships no font of its own. Every RPG Maker MV game carries
-  // this one, so the first game that has it lends it to the list.
-  var hasFont = games.some(function (game) {
-    var file = game.www + '/fonts/mplus-1m-regular.ttf';
-    return player.fileExists(file) && c2d.registerFont('Picker', file);
-  });
+  // this one, so the first game that has it lends it to the list. With no
+  // game yet, a desktop system's own font is used.
+  var SYSTEM_FONTS = ['/usr/share/fonts/TTF/DejaVuSans.ttf', '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+    '/usr/share/fonts/dejavu/DejaVuSans.ttf', '/usr/share/fonts/noto/NotoSans-Regular.ttf',
+    '/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf', '/usr/share/fonts/liberation/LiberationSans-Regular.ttf',
+    '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf'];
+  var fontFiles = games.filter(function (game) { return game.www; })
+    .map(function (game) { return game.www + '/fonts/mplus-1m-regular.ttf'; }).concat(SYSTEM_FONTS);
+  var hasFont = fontFiles.some(function (file) { return player.fileExists(file) && c2d.registerFont('Picker', file); });
 
   // --- Drawing ----------------------------------------------------------------
   var canvas = c2d.create(W, H);
@@ -141,8 +155,12 @@
     else if (keyCode === KEY.pageUp) move(-VISIBLE);
     else if (keyCode === KEY.pageDown) move(VISIBLE);
     else if (KEY.ok.indexOf(keyCode) >= 0 && games.length) {
-      console.info('picker: chose ' + games[selected].www);
-      player.print('MVPLAYER_GAME=' + games[selected].www);
+      if (games[selected].add) {
+        player.print('MVPLAYER_ADD');
+      } else {
+        console.info('picker: chose ' + games[selected].www);
+        player.print('MVPLAYER_GAME=' + games[selected].www);
+      }
       player.exit(0);
     } else if (KEY.back.indexOf(keyCode) >= 0) {
       player.exit(EXIT_NOTHING_CHOSEN);

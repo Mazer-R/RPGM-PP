@@ -45,6 +45,12 @@ struct State {
   int buffer_width = 0;
   int buffer_height = 0;
   GLuint present_program = 0;
+  // A small picture drawn over the game when it is shown on the screen (the
+  // frame-rate display). Pixels are RGBA rows, top row first.
+  std::vector<uint8_t> overlay_pixels;
+  int overlay_width = 0, overlay_height = 0, overlay_x = 0, overlay_y = 0;
+  bool overlay_changed = false;
+  GLuint overlay_texture = 0;
   // Pixel memory of each texture, by OpenGL name, to report the total.
   std::map<GLuint, long long> texture_bytes;
   v8::Global<v8::Private> name_key;  // hidden property holding an object's GL name
@@ -416,6 +422,20 @@ void InstallFunctions(v8::Isolate* isolate, v8::Local<v8::Object> gl) {
     GLuint name = N(1);
     glBindFramebuffer(U(0), name ? name : g_state.buffer_framebuffer);
   });
+  // Not part of WebGL: setOverlay(canvas, x, y) shows a canvas over the game
+  // at that position of the screen, in screen pixels from the top left;
+  // setOverlay(null) removes it. The canvas is copied when this is called.
+  FN(setOverlay, {
+    g_state.overlay_pixels.clear();
+    g_state.overlay_width = g_state.overlay_height = 0;
+    if (args.Length() > 0 && !args[0]->IsNullOrUndefined()) {
+      SurfacePixelsForUpload(ISO, args[0], true, false, &g_state.overlay_pixels, &g_state.overlay_width,
+                             &g_state.overlay_height);
+      g_state.overlay_x = I(1);
+      g_state.overlay_y = I(2);
+    }
+    g_state.overlay_changed = true;
+  });
   // Not part of WebGL: gives the game a drawing buffer of its own size.
   FN(setDrawingBufferSize, SetDrawingBufferSize(I(0), I(1)));
   FN(framebufferTexture2D, glFramebufferTexture2D(U(0), U(1), U(2), N(3), I(4)));
@@ -634,6 +654,33 @@ void PresentDrawingBuffer(int screen_width, int screen_height) {
   glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), quad);
   glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), quad + 2);
   glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+  // The overlay, if any, in screen pixels over the scaled picture.
+  if (!g_state.overlay_pixels.empty() && g_state.overlay_width > 0 && g_state.overlay_height > 0) {
+    if (!g_state.overlay_texture) {
+      glGenTextures(1, &g_state.overlay_texture);
+      glBindTexture(GL_TEXTURE_2D, g_state.overlay_texture);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    }
+    glBindTexture(GL_TEXTURE_2D, g_state.overlay_texture);
+    if (g_state.overlay_changed) {
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, g_state.overlay_width, g_state.overlay_height, 0, GL_RGBA,
+                   GL_UNSIGNED_BYTE, g_state.overlay_pixels.data());
+      g_state.overlay_changed = false;
+    }
+    float left = -1.0f + 2.0f * static_cast<float>(g_state.overlay_x) / static_cast<float>(screen_width);
+    float right = left + 2.0f * static_cast<float>(g_state.overlay_width) / static_cast<float>(screen_width);
+    float top = 1.0f - 2.0f * static_cast<float>(g_state.overlay_y) / static_cast<float>(screen_height);
+    float bottom = top - 2.0f * static_cast<float>(g_state.overlay_height) / static_cast<float>(screen_height);
+    // The first row of the pixels is the top of the picture.
+    const GLfloat box[16] = {left, bottom, 0, 1, right, bottom, 1, 1, left, top, 0, 0, right, top, 1, 0};
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), box);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), box + 2);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+  }
 
   // Put everything back.
   for (GLuint i = 0; i < 2; i++) {

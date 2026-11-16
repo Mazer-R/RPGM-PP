@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(mvplayer CXX)
+project(mvplayer C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -34,22 +34,31 @@ add_custom_command(
   COMMENT "Generating the WebGL constant table"
 )
 
+# The Ogg Vorbis decoder is third-party C code, built without this project's
+# warnings.
+add_library(stb_vorbis STATIC third_party/stb/stb_vorbis.c)
+target_compile_options(stb_vorbis PRIVATE -w)
+
 add_executable(mvplayer
   "${MVP_GL_CONSTANTS}"
+  src/bindings/audio_binding.cpp
   src/bindings/canvas_binding.cpp
   src/bindings/webgl_binding.cpp
   src/platform/main.cpp
+  src/platform/audio_mixer.cpp
   src/platform/clock.cpp
   src/platform/input.cpp
+  src/platform/files.cpp
   src/platform/log.cpp
   src/platform/window.cpp
   src/platform/main_loop.cpp
   src/engine/host.cpp
 )
-target_include_directories(mvplayer PRIVATE src "${CMAKE_BINARY_DIR}/generated" "${MVP_V8_DIR}/include")
+target_include_directories(mvplayer PRIVATE src third_party/stb "${CMAKE_BINARY_DIR}/generated" "${MVP_V8_DIR}/include")
 target_compile_options(mvplayer PRIVATE -Wall -Wextra -Werror -Wno-unused-parameter)
 target_link_libraries(mvplayer PRIVATE
   "${MVP_V8_DIR}/lib/libv8_monolith.a"
+  stb_vorbis
   PkgConfig::SDL2 PkgConfig::GLES2 PkgConfig::CAIRO PkgConfig::FREETYPE
   pthread dl
 )

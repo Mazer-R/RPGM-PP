@@ -16,6 +16,7 @@ constexpr int kKeyEnter = 13, kKeyShift = 16, kKeyEscape = 27, kKeySpace = 32;
 constexpr int kKeyPageUp = 33, kKeyPageDown = 34;
 constexpr int kKeyLeft = 37, kKeyUp = 38, kKeyRight = 39, kKeyDown = 40;
 constexpr int kKeyX = 88, kKeyZ = 90;
+constexpr int kKeyF2 = 113;  // shows or hides the frame-rate display
 
 // How far the stick must be pushed (of 32767) to count as a direction.
 constexpr int kStickThreshold = 16000;
@@ -140,6 +141,9 @@ void Input::HandleEvent(const SDL_Event& event) {
         guide_down_ = down;
         if (down) guide_down_at_ms_ = event.cbutton.timestamp;
         log_.Write(LogLevel::kInfo, "input", down ? "menu button down" : "menu button up");
+      } else if (guide_down_ && event.cbutton.button == SDL_CONTROLLER_BUTTON_BACK) {
+        // Menu button + Select: the frame-rate display, as the F2 key.
+        Queue(kKeyF2, down);
       } else if (down && guide_down_ && event.cbutton.button == SDL_CONTROLLER_BUTTON_START &&
                  event.cbutton.timestamp - guide_down_at_ms_ <= kQuitWindowMs) {
         // The time limit guards against a menu button whose release was never

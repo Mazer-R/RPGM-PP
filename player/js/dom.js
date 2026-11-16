@@ -102,6 +102,7 @@
   // result of a load. Images are decoded here, so the work per frame is
   // limited to keep frames coming while many files load.
   function later(fn) { tasks.push(fn); }
+  browser.later = later;
   var TASK_BUDGET_MS = 12;
 
   function guarded(fn, self, args, what) {
@@ -124,6 +125,43 @@
     var callbacks = frameCallbacks;
     frameCallbacks = [];
     callbacks.forEach(function (entry) { guarded(entry.fn, globalThis, [now], 'frame'); });
+    if (browser.updateAudio) browser.updateAudio();
+    frameRateDisplay(now);
+  }
+
+  // --- Frame-rate display -----------------------------------------------------
+  // A small box in the screen's top-left corner with the frames shown per
+  // second and the longest frame of the last half second: the first says how
+  // fast, the second how steady. Off unless the player was started with
+  // --fps; F2 (menu button + Select on the console) switches it.
+  var fps = { on: !!player.showFps, canvas: null, since: 0, frames: 0, last: 0, longest: 0 };
+  function frameRateDisplay(now) {
+    if (!fps.on) return;
+    if (fps.last) fps.longest = Math.max(fps.longest, now - fps.last);
+    fps.last = now;
+    fps.frames++;
+    if (!fps.since) fps.since = now;
+    if (now - fps.since < 500) return;
+    var W = 132, H = 24;
+    if (!fps.canvas) fps.canvas = c2d.create(W, H);
+    var rate = fps.frames * 1000 / (now - fps.since);
+    c2d.setOperator(fps.canvas, 'source-over');
+    c2d.fillRect(fps.canvas, 0, 0, W, H, [0, 0, 0, 1], 1);
+    var family = browser.resolveFontFamily(['sans-serif']);
+    if (family.name) {
+      c2d.setFont(fps.canvas, family.name, 16);
+      // Green at 50 and above, yellow from 30, red below.
+      var colour = rate >= 50 ? [0.45, 1, 0.45, 1] : rate >= 30 ? [1, 0.9, 0.3, 1] : [1, 0.4, 0.4, 1];
+      c2d.fillText(fps.canvas, rate.toFixed(0) + ' fps  ' + fps.longest.toFixed(0) + ' ms', 6, 18, colour, 1);
+    }
+    gl.setOverlay(fps.canvas, 4, 4);
+    fps.since = now; fps.frames = 0; fps.longest = 0;
+  }
+  function switchFrameRateDisplay() {
+    fps.on = !fps.on;
+    fps.since = fps.frames = fps.last = fps.longest = 0;
+    if (!fps.on) gl.setOverlay(null);
+    console.info('frame-rate display ' + (fps.on ? 'on' : 'off'));
   }
   nativeRequestFrame(pump);
 
@@ -224,8 +262,10 @@
       return { left: 0, top: 0, x: 0, y: 0, width: w, height: h, right: w, bottom: h };
     },
     focus: function () {}, blur: function () {}, click: function () {},
-    // Sound and video elements: nothing is playable through them yet.
-    canPlayType: function () { return ''; },
+    // What a sound or video element says it can play. Sound goes through the
+    // Web Audio stand-in (audio.js), which plays Ogg Vorbis; nothing plays
+    // through the elements themselves, and there is no video.
+    canPlayType: function (type) { return player.audio && /audio\/ogg/.test(String(type)) ? 'probably' : ''; },
     play: function () {}, pause: function () {}, load: function () {},
   });
   Object.defineProperties(Element.prototype, {
@@ -441,10 +481,22 @@
       later(function () {
         if (request._aborted) return;
         var text = null;
-        if (request.responseType === 'arraybuffer' || request.responseType === 'blob') {
-          browser.missing('file requests for binary data (' + request.responseType + ')');
+        var file = gamePath(request._url);
+        if (request.responseType === 'arraybuffer') {
+          // Sound files are not handed over whole: see audio.js.
+          var isSound = browser.readSoundFile && /\.(ogg|m4a|rpgmvo)$/i.test(file);
+          var bytes = isSound ? browser.readSoundFile(file) : player.readFileBytes(file);
+          request.readyState = 4;
+          if (bytes) {
+            request.status = 200;
+            request.response = bytes;
+            emit(request, 'readystatechange');
+            return emit(request, 'load');
+          }
+        } else if (request.responseType === 'blob') {
+          browser.missing('file requests for binary data (blob)');
         } else {
-          text = player.readTextFile(gamePath(request._url));
+          text = player.readTextFile(file);
         }
         request.readyState = 4;
         if (text === null) {
@@ -508,9 +560,9 @@
     XMLHttpRequest: XMLHttpRequest,
     WebGLRenderingContext: function WebGLRenderingContext() {},
     devicePixelRatio: 1,
-    // Sound is switched off until the player has its audio output: with this
-    // option the engine skips loading and playing audio.
-    location: { search: '?noaudio', hash: '', pathname: '/index.html', href: 'file://' + player.gameDir + '/index.html', protocol: 'file:', reload: function () { browser.missing('location.reload'); } },
+    // Without a sound output the engine is told to skip loading and playing
+    // audio, with its own option for that.
+    location: { search: player.audio ? '' : '?noaudio', hash: '', pathname: '/index.html', href: 'file://' + player.gameDir + '/index.html', protocol: 'file:', reload: function () { browser.missing('location.reload'); } },
     navigator: {
       userAgent: 'Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/65.0 Safari/537.36 mvplayer',
       platform: 'Linux aarch64', language: 'en-US', languages: ['en-US'], maxTouchPoints: 0, onLine: false,
@@ -554,6 +606,9 @@
     32: ' ', 33: 'PageUp', 34: 'PageDown', 37: 'ArrowLeft', 38: 'ArrowUp', 39: 'ArrowRight', 40: 'ArrowDown', 45: 'Insert' };
   var keysDown = {};
   player.onKey = function (keyCode, down) {
+    // F2 belongs to the player: the engine's own frame counter is a page
+    // element this player does not have.
+    if (keyCode === 113) { if (down) switchFrameRateDisplay(); return; }
     var name = KEY_NAMES[keyCode] || String.fromCharCode(keyCode).toLowerCase();
     var event = new Event(down ? 'keydown' : 'keyup', {
       keyCode: keyCode, which: keyCode, key: name, repeat: false, target: document.body,

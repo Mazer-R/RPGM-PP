@@ -460,6 +460,54 @@ adjustments where the game's own code is too expensive for this hardware.
         and mutator do not handle JavaScript or C++. Only the lab's Python
         viewer was scored (its `frame` function: CRAP 42, no tests).
 
+*   **Sound, a game chooser, file names in any case, and an on-screen
+    frame rate (2026-11-16).**
+    *   **Sound works.** Decision changed with the owner's agreement: not
+        SDL2_mixer but the player's own mixer (`src/platform/audio_mixer.cpp`)
+        behind the interface in `src/platform/audio.h`, so it can still be
+        swapped. Reason: the games play music and an ambience at once, both
+        looping, with loop points inside the file and pitch changes on
+        effects; SDL2_mixer streams one music only, would hold every other
+        long sound decoded in memory, and cannot change pitch. The mixer
+        gives each voice its own Ogg Vorbis decoder (stb_vorbis 1.24, public
+        domain, vendored in `third_party/stb/`), decodes while playing,
+        resamples for pitch, loops between sample positions, ramps volume
+        and mixes in SDL2's audio callback.
+    *   `js/audio.js` is the part of the Web Audio API the engine uses. No
+        sound is decoded into JavaScript: the engine is handed the first
+        256 KB of a sound file (it reads the loop points from the header
+        itself) and a "decoded buffer" that is only the file's name and
+        length. Node tests: `tests/js/audio.test.js`.
+    *   **Measured on the console:** output opened through ALSA to the
+        system's PipeWire at 44.1 kHz; on the title screen the mixer's
+        loudest sample per second was between 0.06 and 0.34 while the engine
+        reported the title music playing; 60 frames per second and 244 MB
+        there. **Nobody has listened to it yet**; ambiences, effects, fades,
+        pitch and loop points are covered only by the Node tests of the
+        JavaScript side, not by ear or by a native test. Encrypted audio
+        (`.rpgmvo`) and `.m4a` are not supported.
+    *   **File names in any case** (`src/platform/files.{h,cpp}`, native test
+        `tests/native/files_test.cpp`, run by `tools/build/test.sh`): the
+        second game asks for `img/layers/fog1.png` and ships `Fog1.png`;
+        it waited for ever when leaving the train. Reads of files, scripts,
+        images and sounds now fall back to a case-insensitive lookup, folder
+        by folder, with the listings remembered. This is the plan's "file
+        service" in its simplest form.
+    *   **Choosing a game.** `--game` accepts the game's www folder, the
+        folder that holds it, or any file directly inside either (the .exe);
+        `--resolve <path>` prints the www folder. The game list takes named
+        games (`--games-file`) and can end with an "add a game" line
+        (`--can-add`). On the desktop, `mvplayer.sh` with no arguments shows
+        the list, opens the system's file dialog (zenity or kdialog) to add
+        a game, remembers games in `~/.config/mvplayer/games.txt`, and
+        `--install-launcher` adds a menu entry. Checked under emulation with
+        a stand-in dialog; not yet on a real desktop.
+    *   **Frame rate on screen:** `--fps`, `MVPLAYER_FPS=1`, F2, or the menu
+        button plus Select on the console. A small box shows frames per
+        second and the longest frame of the last half second, drawn by the
+        native present pass from a canvas (`gl.setOverlay`). Seen on the
+        console's screen memory.
+
 ## Critical User Journeys (CUJs)
 
 ### CUJ 1: First launch
