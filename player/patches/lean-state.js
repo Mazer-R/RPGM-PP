@@ -18,8 +18,10 @@
 //
 // The answers are the engine's own in every case; only the work differs.
 //
-// It never edits game files. To turn it off, remove it from the game's entry
-// in patches/index.json, or start the player with --no-patches. Its counters
+// It never edits game files. To turn it off for one game, name it
+// under "off" in that game's save/mvplayer-patches.json; for every game,
+// remove its line from patches/index.json or start the player with
+// --no-patches. Its counters
 // are in player.patchStats.leanState.
 player.patches.leanState = function (options) {
   var stats = { writesThatChangedNothing: 0, writesThatChanged: 0 };
@@ -57,27 +59,39 @@ player.patches.leanState = function (options) {
 
   // --- 2. Lookups without a list of every event -------------------------------
   if (!globalThis.Game_Map) return;
-  Game_Map.prototype.eventsXy = function (x, y) {
-    var all = this._events, found = [];
-    for (var i = 0; i < all.length; i++) {
-      var event = all[i];
-      if (event && event.pos(x, y)) found.push(event);
-    }
-    return found;
-  };
-  Game_Map.prototype.eventsXyNt = function (x, y) {
-    var all = this._events, found = [];
-    for (var i = 0; i < all.length; i++) {
-      var event = all[i];
-      if (event && event.posNt(x, y)) found.push(event);
-    }
-    return found;
-  };
-  Game_Map.prototype.isAnyEventStarting = function () {
-    var all = this._events;
-    for (var i = 0; i < all.length; i++) {
-      if (all[i] && all[i].isStarting()) return true;
-    }
-    return false;
-  };
+  // Each lookup is replaced only if it is still the engine's own code. One
+  // that a plugin has rewritten stays as the plugin made it.
+  var sameCode = player.patchTools.sameCode;
+  var left = [];
+  function replace(name, engineCode, lean) {
+    if (sameCode(Game_Map.prototype[name], engineCode)) Game_Map.prototype[name] = lean;
+    else left.push(name);
+  }
+  replace('eventsXy', 'function(x, y) { return this.events().filter(function(event) { return event.pos(x, y); }); }',
+    function (x, y) {
+      var all = this._events, found = [];
+      for (var i = 0; i < all.length; i++) {
+        var event = all[i];
+        if (event && event.pos(x, y)) found.push(event);
+      }
+      return found;
+    });
+  replace('eventsXyNt', 'function(x, y) { return this.events().filter(function(event) { return event.posNt(x, y); }); }',
+    function (x, y) {
+      var all = this._events, found = [];
+      for (var i = 0; i < all.length; i++) {
+        var event = all[i];
+        if (event && event.posNt(x, y)) found.push(event);
+      }
+      return found;
+    });
+  replace('isAnyEventStarting', 'function() { return this.events().some(function(event) { return event.isStarting(); }); }',
+    function () {
+      var all = this._events;
+      for (var i = 0; i < all.length; i++) {
+        if (all[i] && all[i].isStarting()) return true;
+      }
+      return false;
+    });
+  if (left.length) return 'left as a plugin made them: ' + left.join(', ');
 };

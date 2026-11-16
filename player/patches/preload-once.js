@@ -13,8 +13,10 @@
 // engine later drops one of those images from its cache, the command that
 // shows it loads it again at that moment, as it would for any image.
 //
-// It never edits game files. To turn it off, remove it from the game's entry
-// in patches/index.json, or start the player with --no-patches. Its counters
+// It never edits game files. To turn it off for one game, name it
+// under "off" in that game's save/mvplayer-patches.json; for every game,
+// remove its line from patches/index.json or start the player with
+// --no-patches. Its counters
 // are in player.patchStats.preloadOnce.
 player.patches.preloadOnce = function (options) {
   var stats = { walked: 0, skipped: 0 };

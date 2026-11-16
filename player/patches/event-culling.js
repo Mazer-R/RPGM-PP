@@ -15,11 +15,20 @@
 //
 // Options: { margin: tiles, lazyRefresh: true|false, lightEvery: 1|2|3... }
 //
-// It never edits game files. To turn it off, remove it from the game's entry
-// in patches/index.json, or start the player with --no-patches. Its counters
+// It never edits game files. To turn it off for one game, name it
+// under "off" in that game's save/mvplayer-patches.json; for every game,
+// remove its line from patches/index.json or start the player with
+// --no-patches. Its counters
 // are in player.patchStats.eventCulling.
 player.patches.eventCulling = function (options) {
   options = options || {};
+  // This patch replaces the map's event update outright. If a plugin has
+  // already rewritten it, the plugin's version stays and nothing is installed.
+  if (!player.patchTools.sameCode(Game_Map.prototype.updateEvents,
+      'function() { this.events().forEach(function(event) { event.update(); });' +
+      ' this._commonEvents.forEach(function(event) { event.update(); }); }')) {
+    return 'not installed: the map\'s event update is not the engine\'s own';
+  }
   var margin = Number(options.margin) >= 0 ? Number(options.margin) : 4;
   var lazyRefresh = options.lazyRefresh !== false;
   var lightEvery = Math.max(1, Number(options.lightEvery) || 1);

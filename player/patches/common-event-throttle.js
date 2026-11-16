@@ -18,8 +18,10 @@
 //
 // Options: { names: ["text", ...], every: N }
 //
-// It never edits game files. To turn it off, remove it from the game's entry
-// in patches/index.json, or start the player with --no-patches. Its counters
+// It never edits game files. To turn it off for one game, name it
+// under "off" in that game's save/mvplayer-patches.json; for every game,
+// remove its line from patches/index.json or start the player with
+// --no-patches. Its counters
 // are in player.patchStats.commonEventThrottle.
 player.patches.commonEventThrottle = function (options) {
   var names = (options && options.names) || [];

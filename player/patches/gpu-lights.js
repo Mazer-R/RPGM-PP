@@ -20,8 +20,9 @@
 //   - directional (half) lights are drawn as full circles;
 //   - the flashlight cone is drawn as a single round light at the player.
 //
-// It needs the WebGL renderer and never edits game files. To turn it off,
-// remove it from the game's entry in patches/index.json, or start the player
+// It needs the WebGL renderer and never edits game files. To turn it off for
+// one game, name it under "off" in that game's save/mvplayer-patches.json; for
+// every game, remove its line from patches/index.json or start the player
 // with --no-patches. Its counters are in player.patchStats.gpuLights.
 player.patches.gpuLights = function (options) {
   var stats = { steps: 0, radial: 0, cone: 0, rect: 0, circle: 0, baseFills: 0, unsupported: 0, active: false };

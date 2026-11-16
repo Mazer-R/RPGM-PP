@@ -11,9 +11,15 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-function engine() {
+// `before` is code run after the engine stand-in is defined and before the
+// patch is installed: what a plugin loaded by the game would have done.
+function engine(before) {
   const sandbox = { player: { patches: {}, patchStats: {} }, refreshRequests: 0, listsBuilt: 0 };
+  sandbox.globalThis = sandbox;
   vm.createContext(sandbox);
+  const tools = path.join(__dirname, '..', '..', 'js', 'patch-select.js');
+  vm.runInContext(fs.readFileSync(tools, 'utf8'), sandbox, { filename: tools });
+  sandbox.player.patchTools = sandbox.__patchSelect;
   vm.runInContext(`
     var $dataSystem = { switches: new Array(20), variables: new Array(20) };
     var $gameMap;
@@ -65,7 +71,8 @@ function engine() {
   `, sandbox);
   const file = path.join(__dirname, '..', '..', 'patches', 'lean-state.js');
   vm.runInContext(fs.readFileSync(file, 'utf8'), sandbox, { filename: file });
-  sandbox.player.patches.leanState({});
+  if (before) vm.runInContext(before, sandbox);
+  sandbox.installResult = sandbox.player.patches.leanState({});
   return sandbox;
 }
 const run = (sandbox, code) => vm.runInContext(code, sandbox);
@@ -151,6 +158,19 @@ const tests = {
     run(e, '$gameMap.setupEvents([null, ev(1, 3, 4), ev(2, 5, 5)]);');
     run(e, '$gameMap.eventsXy(3, 4); $gameMap.eventsXyNt(3, 4); $gameMap.isAnyEventStarting();');
     assert.strictEqual(e.listsBuilt, 0);
+  },
+  'a lookup that a plugin already replaced is left as the plugin made it, and that is reported'() {
+    const e = engine('Game_Map.prototype.eventsXy = function (x, y) { pluginLookups++; return []; }; var pluginLookups = 0;');
+    run(e, '$gameMap.setupEvents([null, ev(1, 3, 4)]); $gameMap.eventsXy(3, 4);');
+    assert.strictEqual(run(e, 'pluginLookups'), 1);
+    assert.ok(/eventsXy/.test(String(e.installResult)), 'reported: ' + e.installResult);
+    // The lookups the plugin did not touch are still replaced.
+    run(e, '$gameMap.eventsXyNt(3, 4); $gameMap.isAnyEventStarting();');
+    assert.strictEqual(e.listsBuilt, 0);
+  },
+  'with the engine as shipped, nothing is reported'() {
+    const e = engine();
+    assert.strictEqual(e.installResult, undefined);
   },
   'a map that follows another one is looked up, not the old one'() {
     const e = engine();

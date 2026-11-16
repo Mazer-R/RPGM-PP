@@ -6,7 +6,7 @@
 // what starts the engine.
 (function () {
   'use strict';
-  var layers = ['css.js', 'dom.js', 'canvas2d.js', 'desktop.js'];
+  var layers = ['css.js', 'dom.js', 'canvas2d.js', 'desktop.js', 'patch-select.js'];
   if (player.audio) layers.push('audio.js');
   for (var i = 0; i < layers.length; i++) {
     if (!player.loadScript(player.playerDir + '/js/' + layers[i])) {
@@ -17,11 +17,11 @@
   var browser = globalThis.__browser;
 
   // Patches are JavaScript files in the player's patches/ folder that change
-  // how one particular game runs, without touching its files. index.json
-  // says which patches belong to which game; a game is recognised by its
-  // title, its engine and the plugins it has switched on. Each patch file
-  // adds an install function to player.patches. They are installed when the
-  // engine has finished booting, just before the first real scene.
+  // how a game runs, without touching its files. index.json lists them, each
+  // with what it depends on (the engine, a plugin, one game); patch-select.js
+  // decides which of them this game gets. Each patch file adds an install
+  // function to player.patches. They are installed when the engine has
+  // finished booting, just before the first real scene.
   // Every ten seconds of play, one log line says how the game ran: where
   // (scene and map), frames shown, logic steps per frame, and the average
   // time of a logic step and of a drawing step, with the slowest frame. It
@@ -72,25 +72,36 @@
     };
   }
 
+  // What the game switched off: <game>/save/mvplayer-patches.json, written by
+  // hand, of the form { "off": ["framePacing"] }.
+  function switchedOff() {
+    var text = player.readTextFile(player.gameDir + '/save/mvplayer-patches.json');
+    if (text === null) return [];
+    try {
+      var off = JSON.parse(text).off;
+      return Array.isArray(off) ? off.map(String) : [];
+    } catch (error) {
+      console.warn('patches: save/mvplayer-patches.json is not valid: ' + error);
+      return [];
+    }
+  }
   function selectPatches() {
     if (player.noPatches) return console.info('patches: switched off'), [];
     var text = player.readTextFile(player.playerDir + '/patches/index.json');
     if (text === null) return [];
-    var active = (globalThis.$plugins || []).filter(function (p) { return p.status; }).map(function (p) { return p.name; });
-    var selected = [];
-    JSON.parse(text).forEach(function (entry) {
-      var m = entry.match || {};
-      if (m.title && m.title !== document.title) return;
-      if (m.engine && !(globalThis.Utils && Utils.RPGMAKER_NAME === m.engine)) return;
-      if ((m.plugins || []).some(function (name) { return active.indexOf(name) < 0; })) return;
-      console.info('patches: this game is "' + entry.game + '"');
-      selected = selected.concat(entry.patches || []);
-    });
-    return selected;
+    var game = {
+      title: document.title,
+      engine: globalThis.Utils && Utils.RPGMAKER_NAME,
+      plugins: (globalThis.$plugins || []).filter(function (p) { return p.status; }).map(function (p) { return p.name; }),
+    };
+    var result = globalThis.__patchSelect.select(JSON.parse(text), game, switchedOff());
+    result.notes.forEach(function (note) { console.info('patches: ' + note); });
+    return result.selected;
   }
   function installPatches() {
     player.patches = {};
     player.patchStats = {};
+    player.patchTools = globalThis.__patchSelect;
     var selected;
     try { selected = selectPatches(); }
     catch (error) { return console.error('patches: index.json: ' + error); }
@@ -98,13 +109,15 @@
     if (!globalThis.Scene_Boot) return;
     var start = Scene_Boot.prototype.start;
     Scene_Boot.prototype.start = function () {
-      selected.forEach(function (patch) {
+      selected.forEach(function (rule) {
         try {
-          if (!player.loadScript(player.playerDir + '/patches/' + patch.file)) throw new Error('cannot load ' + patch.file);
-          player.patches[patch.name](patch.options || {});
-          console.info('patches: installed ' + patch.name + ' ' + JSON.stringify(patch.options || {}));
+          if (!player.loadScript(player.playerDir + '/patches/' + rule.file)) throw new Error('cannot load ' + rule.file);
+          // A patch that held back, wholly or in part, says why.
+          var heldBack = player.patches[rule.patch](rule.options || {});
+          console.info('patches: installed ' + rule.patch + ' ' + JSON.stringify(rule.options || {}) +
+            (heldBack ? ' (' + heldBack + ')' : ''));
         } catch (error) {
-          console.error('patches: ' + patch.name + ' not installed: ' + (error && error.stack ? error.stack : error));
+          console.error('patches: ' + rule.patch + ' not installed: ' + (error && error.stack ? error.stack : error));
         }
       });
       return start.apply(this, arguments);

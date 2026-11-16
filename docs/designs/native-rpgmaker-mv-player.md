@@ -508,6 +508,35 @@ adjustments where the game's own code is too expensive for this hardware.
         native present pass from a canvas (`gl.setOverlay`). Seen on the
         console's screen memory.
 
+*   **Patches chosen by what they depend on (2026-11-16).** The list
+    (`patches/index.json`) no longer says "this game gets these patches".
+    Each line is one patch and says what it needs: the engine, a plugin, or
+    one game. Four are engine-wide (event culling, preload once, frame
+    pacing, lean state), one follows the lighting plugin, one is for Fear &
+    Hunger alone. A third MV game now gets the engine-wide ones without
+    being listed.
+    *   The decision is a pure function, `js/patch-select.js`, tested with
+        Node (`tests/js/patch_select.test.js`, written first). An unknown
+        condition keeps a patch out.
+    *   **A patch that replaces an engine function outright first checks
+        that the function is still the engine's own code** (`sameCode`,
+        spacing aside). `lean-state.js` replaces each lookup separately and
+        leaves alone any that a plugin rewrote; `event-culling.js` does not
+        install at all in that case. Both say so in the log.
+    *   **One game can switch patches off** with
+        `<game>/save/mvplayer-patches.json`, of the form
+        `{ "off": ["framePacing"] }`; a name that is no patch is reported.
+        `--no-patches` still turns all of them off.
+    *   **Checked** with a new tool, `tools/run-headless.sh` (image
+        `tools/build/Dockerfile.headless`): the console's own build of the
+        player run on the build machine with a virtual display and Mesa's
+        software OpenGL ES, no screen and no sound. Fear & Hunger gets six
+        patches, Fear & Hunger 2 five (the same sets as before this change),
+        the switched-off patch is left out, `--no-patches` installs none.
+        Not checked on the console: it was in use. The risk that an untested
+        game misbehaves with an engine-wide patch remains; the two switches
+        are the way out.
+
 ## Critical User Journeys (CUJs)
 
 ### CUJ 1: First launch
