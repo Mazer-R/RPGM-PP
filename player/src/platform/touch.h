@@ -1,15 +1,24 @@
-// On-screen controls for a touch screen: a direction pad on the left and
-// three buttons on the right (confirm, cancel or menu, and dash). Fingers go in, the same key presses a keyboard
-// or controller produces come out. This file knows nothing about SDL or
-// drawing: it only places the controls for a screen size and decides which
-// keys the fingers currently hold.
+// On-screen controls for a touch screen: by default a direction pad on the
+// left and three buttons on the right (confirm, cancel or menu, and dash).
+// Fingers go in, the same key presses a keyboard or controller produces come
+// out. This file knows nothing about SDL or drawing: it only places the
+// controls for a screen size, decides which keys the fingers currently hold,
+// and says what there is to draw.
+//
+// A small MENU button asks for the player's settings menu, from which the
+// controls can be changed on the screen itself. While editing, no key is
+// pressed: a finger drags a control to a new place, and a row of buttons
+// adds a control for any key, removes the chosen one, changes its size, or
+// brings the standard layout back.
 #pragma once
 
 #include <map>
 #include <set>
+#include <string>
 #include <vector>
 
 #include "platform/input.h"
+#include "platform/touch_layout.h"
 
 namespace mvp {
 
@@ -19,6 +28,17 @@ namespace mvp {
 struct TouchCircle {
   float x, y, radius;
   int key_code;
+};
+
+// Something to draw: a control, or one of the editing buttons. `label` is the
+// text to write on it; empty for the controls that have a drawing of their
+// own (the pad, confirm, cancel and dash, told apart by key_code). `lit` is
+// as Lit() gives it.
+struct TouchShape {
+  float x, y, radius;
+  int key_code;
+  int lit;
+  std::string label;
 };
 
 // What Lit() answers for the direction pad: one bit per arm being held.
@@ -33,10 +53,30 @@ void HoldQuickReleases(std::vector<KeyChange>* batch, std::vector<KeyChange>* la
 
 class TouchControls {
  public:
+  TouchControls();
+
   // Places the controls for a screen of this size. Sizes follow the screen's
   // shorter side, so they are the same physical proportion on any screen.
   void SetScreen(int width, int height);
   const std::vector<TouchCircle>& circles() const { return circles_; }
+
+  // The controls there are; the standard ones until told otherwise.
+  void SetLayout(const std::vector<TouchControl>& layout);
+  const std::vector<TouchControl>& layout() const { return layout_; }
+
+  // Whether the MENU button is offered. Off at first.
+  void OfferMenu(bool offered);
+  // True once after the MENU button has been touched. Every key held was
+  // let go.
+  bool TakeMenuRequest();
+  void StartEditing();
+  bool editing() const { return editing_; }
+  // True once after an edit that changed the layout has been ended with OK:
+  // the moment to save layout().
+  bool TakeLayoutChanged();
+
+  // Everything to draw, bottom first.
+  std::vector<TouchShape> Shapes() const;
 
   // A finger touching, sliding to, or leaving the screen. Fingers are told
   // apart by `finger`. A finger that slides from one control to another
@@ -53,8 +93,26 @@ class TouchControls {
 
  private:
   std::set<int> KeysAt(float x, float y) const;
+  void PlaceCircles();
+  void StoreLayout();
+  void Edit(long long finger, float x, float y, bool fresh);
+  void Act(const std::string& button);
+  void KeepOnScreen(TouchCircle* circle) const;
+  std::vector<TouchShape> EditButtons() const;
+  std::vector<TouchShape> KeyChoices() const;
+  TouchShape MenuButton() const;
 
-  std::vector<TouchCircle> circles_;
+  float width_ = 0, height_ = 0;
+  std::vector<TouchControl> layout_;
+  std::vector<TouchCircle> circles_;  // layout_ on this screen, in the same order
+  bool menu_offered_ = false, menu_requested_ = false, editing_ = false;
+  bool choosing_ = false;   // the list of keys for a new control is open
+  bool dirty_ = false;      // this edit changed something
+  bool changed_ = false;    // an ended edit left something to save
+  int chosen_ = -1;         // index of the control the editing buttons act on
+  long long dragging_finger_ = -1;
+  bool dragging_ = false;
+  float drag_dx_ = 0, drag_dy_ = 0;
   std::map<long long, std::set<int>> held_by_finger_;
   std::set<int> reported_;  // keys reported as down so far
 };

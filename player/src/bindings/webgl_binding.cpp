@@ -1,4 +1,5 @@
 #include "bindings/webgl_binding.h"
+#include "bindings/control_font.h"
 
 #include <GLES2/gl2.h>
 
@@ -46,6 +47,9 @@ struct State {
   int buffer_height = 0;
   GLuint present_program = 0;
   GLuint ring_program = 0;  // draws the touch controls
+  GLuint box_program = 0;   // fills the rectangles of the player's menu
+  GLuint text_program = 0;  // writes the names on them
+  GLuint font_texture = 0;  // every glyph of the built-in font, side by side
   // A small picture drawn over the game when it is shown on the screen (the
   // frame-rate display). Pixels are RGBA rows, top row first.
   std::vector<uint8_t> overlay_pixels;
@@ -595,14 +599,121 @@ v8::Local<v8::Object> CreateWebGLContext(v8::Isolate* isolate, v8::Local<v8::Con
   return scope.Escape(gl);
 }
 
+// Fills `boxes`. Expects blending to be set up, and leaves the program
+// changed, as the rest of the present pass does.
+static void DrawBoxes(int screen_width, int screen_height, const std::vector<ScreenBox>& boxes) {
+  if (boxes.empty()) return;
+  if (!g_state.box_program) {
+    g_state.box_program = glCreateProgram();
+    glAttachShader(g_state.box_program, CompileInternal(GL_VERTEX_SHADER,
+        "attribute vec2 p; void main(){ gl_Position = vec4(p, 0.0, 1.0); }"));
+    glAttachShader(g_state.box_program, CompileInternal(GL_FRAGMENT_SHADER,
+        "precision mediump float; uniform vec4 c; void main(){ gl_FragColor = c; }"));
+    glBindAttribLocation(g_state.box_program, 0, "p");
+    glLinkProgram(g_state.box_program);
+  }
+  glUseProgram(g_state.box_program);
+  GLint colour = glGetUniformLocation(g_state.box_program, "c");
+  for (const ScreenBox& box : boxes) {
+    // To the screen's own measure: -1 to 1, up positive.
+    float left = -1.0f + 2.0f * box.x / screen_width, right = -1.0f + 2.0f * (box.x + box.width) / screen_width;
+    float top = 1.0f - 2.0f * box.y / screen_height, bottom = 1.0f - 2.0f * (box.y + box.height) / screen_height;
+    const GLfloat corners[8] = {left, bottom, right, bottom, left, top, right, top};
+    glUniform4f(colour, box.shade, box.shade, box.shade, box.alpha);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, corners);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+  }
+}
+
+// Writes `texts` in the built-in font. Expects blending to be set up, and
+// leaves texture unit 0 and the program changed, as the rest of the present
+// pass does.
+static void DrawTexts(int screen_width, int screen_height, const std::vector<ScreenText>& texts) {
+  if (texts.empty()) return;
+  // Each glyph has a cell one dot wider and higher than itself, so that
+  // neighbours never bleed into each other.
+  const int cell_width = kFontWidth + 1, cell_height = kFontHeight + 1;
+  const int atlas_width = cell_width * kFontGlyphCount;
+  if (!g_state.font_texture) {
+    std::vector<uint8_t> pixels(static_cast<size_t>(atlas_width) * cell_height * 4, 0);
+    for (int glyph = 0; glyph < kFontGlyphCount; glyph++) {
+      for (int row = 0; row < kFontHeight; row++) {
+        for (int column = 0; column < kFontWidth; column++) {
+          if (!(kFontGlyphs[glyph].rows[row] & (0x10 >> column))) continue;
+          size_t at = (static_cast<size_t>(row) * atlas_width + glyph * cell_width + column) * 4;
+          pixels[at] = pixels[at + 1] = pixels[at + 2] = pixels[at + 3] = 255;
+        }
+      }
+    }
+    glGenTextures(1, &g_state.font_texture);
+    glBindTexture(GL_TEXTURE_2D, g_state.font_texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    // The scripts may have left their own settings for texture uploads.
+    GLint alignment = 4;
+    glGetIntegerv(GL_UNPACK_ALIGNMENT, &alignment);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, atlas_width, cell_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
+    glPixelStorei(GL_UNPACK_ALIGNMENT, alignment);
+  }
+  if (!g_state.text_program) {
+    g_state.text_program = glCreateProgram();
+    glAttachShader(g_state.text_program, CompileInternal(GL_VERTEX_SHADER,
+        "attribute vec2 p; attribute vec2 t; varying vec2 v;"
+        "void main(){ v = t; gl_Position = vec4(p, 0.0, 1.0); }"));
+    glAttachShader(g_state.text_program, CompileInternal(GL_FRAGMENT_SHADER,
+        "precision mediump float; varying vec2 v; uniform sampler2D s;"
+        "void main(){ gl_FragColor = vec4(1.0, 1.0, 1.0, texture2D(s, v).a * 0.9); }"));
+    glBindAttribLocation(g_state.text_program, 0, "p");
+    glBindAttribLocation(g_state.text_program, 1, "t");
+    glLinkProgram(g_state.text_program);
+  }
+
+  // Two triangles per letter, all in one draw.
+  std::vector<GLfloat> corners;
+  for (const ScreenText& text : texts) {
+    float dot = text.height / kFontHeight;
+    float left = text.x - (static_cast<float>(text.text.size()) * cell_width - 1) * dot / 2;
+    float top = text.y - text.height / 2;
+    for (size_t i = 0; i < text.text.size(); i++) {
+      int glyph = -1;
+      for (int g = 0; g < kFontGlyphCount; g++) {
+        if (kFontGlyphs[g].character == text.text[i]) glyph = g;
+      }
+      if (glyph < 0) continue;
+      float x0 = left + static_cast<float>(i) * cell_width * dot, x1 = x0 + kFontWidth * dot;
+      float y0 = top, y1 = top + text.height;
+      float u0 = static_cast<float>(glyph * cell_width) / atlas_width;
+      float u1 = static_cast<float>(glyph * cell_width + kFontWidth) / atlas_width;
+      float v1 = static_cast<float>(kFontHeight) / cell_height;
+      // To the screen's own measure: -1 to 1, up positive.
+      float a = -1.0f + 2.0f * x0 / screen_width, b = -1.0f + 2.0f * x1 / screen_width;
+      float c = 1.0f - 2.0f * y0 / screen_height, d = 1.0f - 2.0f * y1 / screen_height;
+      const GLfloat letter[24] = {a, c, u0, 0, b, c, u1, 0, a, d, u0, v1, b, c, u1, 0, b, d, u1, v1, a, d, u0, v1};
+      corners.insert(corners.end(), letter, letter + 24);
+    }
+  }
+  if (corners.empty()) return;
+  glUseProgram(g_state.text_program);
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, g_state.font_texture);
+  glUniform1i(glGetUniformLocation(g_state.text_program, "s"), 0);
+  glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), corners.data());
+  glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), corners.data() + 2);
+  glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(corners.size() / 4));
+}
+
 bool HasDrawingBuffer() { return g_state.buffer_framebuffer != 0; }
 
 void PresentDrawingBuffer(int screen_width, int screen_height, const std::vector<ScreenCircle>& circles,
-                          const ScreenVideo* video) {
+                          const std::vector<ScreenBox>& boxes, const std::vector<ScreenText>& texts, const ScreenVideo* video) {
   // Without a drawing buffer the scripts drew straight to the screen (the
   // game list does); only the touch controls are then added on top.
   bool has_buffer = g_state.buffer_framebuffer != 0;
-  if (!has_buffer && circles.empty()) return;
+  bool has_extras = !circles.empty() || !boxes.empty() || !texts.empty();
+  if (!has_buffer && !has_extras) return;
 
   // Remember every piece of OpenGL state touched below. PIXI keeps its own
   // record of the state it set, so it must find things exactly as it left them.
@@ -742,7 +853,7 @@ void PresentDrawingBuffer(int screen_width, int screen_height, const std::vector
   // The touch controls: each a square whose shader paints the control's
   // shape from the position inside the square (-1 to 1, up positive),
   // blended over the picture.
-  if (!circles.empty()) {
+  if (has_extras) {
     if (!g_state.ring_program) {
       g_state.ring_program = glCreateProgram();
       glAttachShader(g_state.ring_program, CompileInternal(GL_VERTEX_SHADER,
@@ -772,6 +883,7 @@ void PresentDrawingBuffer(int screen_width, int screen_height, const std::vector
           "                              stroke(v, vec2(-0.12, -0.30), vec2(0.45, 0.36)));"
           "    else if (symbol < 2.5) s = min(stroke(v, vec2(-0.34, -0.34), vec2(0.34, 0.34)),"
           "                                   stroke(v, vec2(-0.34, 0.34), vec2(0.34, -0.34)));"
+          "    else if (symbol > 3.5) s = 1.0;"
           "    else s = min(min(stroke(v, vec2(-0.42, 0.34), vec2(-0.08, 0.0)), stroke(v, vec2(-0.08, 0.0), vec2(-0.42, -0.34))),"
           "                 min(stroke(v, vec2(0.04, 0.34), vec2(0.38, 0.0)), stroke(v, vec2(0.38, 0.0), vec2(0.04, -0.34))));"
           "    if (s < 0.09) a = 0.85;"
@@ -800,6 +912,8 @@ void PresentDrawingBuffer(int screen_width, int screen_height, const std::vector
       glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), box + 2);
       glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     }
+    DrawBoxes(screen_width, screen_height, boxes);
+    DrawTexts(screen_width, screen_height, texts);
     glBlendFuncSeparate(static_cast<GLenum>(blend_function[0]), static_cast<GLenum>(blend_function[1]),
                         static_cast<GLenum>(blend_function[2]), static_cast<GLenum>(blend_function[3]));
   }

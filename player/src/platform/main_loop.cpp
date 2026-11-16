@@ -1,5 +1,6 @@
 #include "platform/main_loop.h"
 
+#include <algorithm>
 #include <csignal>
 #include <string>
 
@@ -8,6 +9,7 @@
 #include "platform/clock.h"
 #include "platform/input.h"
 #include "platform/log.h"
+#include "platform/settings_menu.h"
 #include "platform/touch.h"
 #include "platform/video.h"
 #include "platform/window.h"
@@ -18,15 +20,24 @@ namespace {
 volatile std::sig_atomic_t g_terminate = 0;
 void OnTerminate(int) { g_terminate = 1; }
 
-// How an on-screen control is drawn, from the key it presses (browser key
-// codes; 0 is the direction pad).
-ControlSymbol SymbolFor(int key_code) {
-  switch (key_code) {
+// How an on-screen control is drawn: by its name when it has one, else from
+// the key it presses (browser key codes; 0 is the direction pad).
+ControlSymbol SymbolFor(const TouchShape& shape) {
+  if (!shape.label.empty()) return ControlSymbol::kPlain;
+  switch (shape.key_code) {
     case 0: return ControlSymbol::kDirections;
     case 88: return ControlSymbol::kCancel;
     case 16: return ControlSymbol::kDash;
     default: return ControlSymbol::kConfirm;
   }
+}
+
+// The height of a name's letters, so that it fits inside its circle: a
+// letter is 5 dots wide and 7 high, with a dot between letters.
+float LetterHeight(const TouchShape& shape) {
+  float dots_wide = static_cast<float>(shape.label.size()) * 6.0f - 1.0f;
+  float dot = std::min(shape.radius * 1.5f / dots_wide, shape.radius * 0.8f / 7.0f);
+  return dot * 7.0f;
 }
 }  // namespace
 
@@ -62,17 +73,26 @@ int RunMainLoop(Window& window, Input& input, Host& host, const Clock& clock, Lo
       const float* colour = host.clear_color();
       window.Clear(colour[0], colour[1], colour[2]);
     }
-    host.RunFrameCallbacks(clock.NowMs());
-    const std::vector<TouchCircle>& controls = input.VisibleTouchControls();
+    // The game waits while the player's own menu is open; its last picture
+    // stays on the screen under the menu.
+    if (!input.menu_open()) host.RunFrameCallbacks(clock.NowMs());
     std::vector<ScreenCircle> circles;
-    for (const TouchCircle& control : controls) {
-      circles.push_back({control.x, control.y, control.radius, SymbolFor(control.key_code), input.TouchLit(control)});
+    std::vector<ScreenText> texts;
+    for (const TouchShape& shape : input.TouchShapes()) {
+      circles.push_back({shape.x, shape.y, shape.radius, SymbolFor(shape), shape.lit});
+      if (!shape.label.empty()) texts.push_back({shape.x, shape.y, LetterHeight(shape), shape.label});
     }
+    std::vector<MenuBox> menu_boxes;
+    std::vector<MenuText> menu_texts;
+    input.MenuPicture(&menu_boxes, &menu_texts);
+    std::vector<ScreenBox> boxes;
+    for (const MenuBox& box : menu_boxes) boxes.push_back({box.x, box.y, box.width, box.height, box.shade, box.alpha});
+    for (const MenuText& text : menu_texts) texts.push_back({text.x, text.y, text.height, text.text});
     VideoPicture picture;
     ScreenVideo screen_video;
     bool has_video = video.Picture(&picture);
     if (has_video) screen_video = {picture.pixels, picture.width, picture.height, picture.changed};
-    PresentDrawingBuffer(window.width(), window.height(), circles, has_video ? &screen_video : nullptr);
+    PresentDrawingBuffer(window.width(), window.height(), circles, boxes, texts, has_video ? &screen_video : nullptr);
     window.Swap();
     frames++;
   }

@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "platform/touch.h"
+#include "platform/touch_layout.h"
 
 namespace {
 
@@ -34,6 +35,175 @@ const mvp::TouchCircle& Control(const mvp::TouchControls& controls, int key_code
   }
   std::printf("FAIL no control for key %d\n", key_code);
   std::exit(1);
+}
+
+// What is drawn, found by the text on it.
+bool Shown(const mvp::TouchControls& controls, const std::string& label) {
+  for (const mvp::TouchShape& shape : controls.Shapes()) {
+    if (shape.label == label) return true;
+  }
+  return false;
+}
+
+mvp::TouchShape Shape(const mvp::TouchControls& controls, const std::string& label) {
+  for (const mvp::TouchShape& shape : controls.Shapes()) {
+    if (shape.label == label) return shape;
+  }
+  std::printf("FAIL nothing drawn with the text %s\n", label.c_str());
+  std::exit(1);
+}
+
+// A finger down and up again on what carries this text.
+void Tap(mvp::TouchControls* controls, const std::string& label) {
+  mvp::TouchShape shape = Shape(*controls, label);
+  controls->Place(50, shape.x, shape.y);
+  controls->Lift(50);
+}
+
+std::string Keys(const std::vector<mvp::TouchControl>& layout) {
+  std::string text;
+  for (const mvp::TouchControl& control : layout) text += (text.empty() ? "" : " ") + std::to_string(control.key_code);
+  return text;
+}
+
+void TestLayouts() {
+  std::vector<mvp::TouchControl> standard = mvp::DefaultTouchLayout();
+  Expect("the standard layout is the pad, confirm, cancel and dash", Keys(standard), "0 90 88 16");
+  Expect("a layout written out and read back is the same layout",
+         mvp::FormatTouchLayout(mvp::ParseTouchLayout(mvp::FormatTouchLayout(standard))),
+         mvp::FormatTouchLayout(standard));
+  std::vector<mvp::TouchControl> read = mvp::ParseTouchLayout(
+      "# a comment\npad 0.2 -0.2 0.17\n84 -0.3 0.5 0.08\nnonsense\n84 1 2\n999999 0.1 0.1 0.1\n\n90 0.5 0.5 0\n");
+  Expect("lines that are not a control are skipped", Keys(read), "0 84");
+  Expect("an empty file is a layout without controls", Keys(mvp::ParseTouchLayout("")), "");
+
+  Expect("a letter key is named by its letter", mvp::TouchKeyLabel(84), "T");
+  Expect("a digit key by its digit", mvp::TouchKeyLabel(49), "1");
+  Expect("the other keys by a short name", mvp::TouchKeyLabel(13) + " " + mvp::TouchKeyLabel(27), "ENTER ESC");
+  bool has_t = false, has_pad = false;
+  for (int key : mvp::TouchKeyChoices()) {
+    has_t = has_t || key == 84;
+    has_pad = has_pad || key == 0;
+  }
+  Expect("the keys to choose from include T and the direction pad", has_t && has_pad ? "yes" : "no", "yes");
+
+  // A layout places its controls from the nearer edge, in units of the
+  // screen's shorter side.
+  mvp::TouchControls controls;
+  controls.SetLayout({{0.2f, -0.2f, 0.1f, 84}, {-0.3f, 0.25f, 0.05f, 13}});
+  controls.SetScreen(2000, 1000);
+  const mvp::TouchCircle t = Control(controls, 84);
+  const mvp::TouchCircle enter = Control(controls, 13);
+  Expect("positive positions count from the left and the top, negative ones from the right and the bottom",
+         std::to_string(static_cast<int>(t.x + 0.5f)) + "," + std::to_string(static_cast<int>(t.y + 0.5f)) + " " +
+             std::to_string(static_cast<int>(enter.x + 0.5f)) + "," + std::to_string(static_cast<int>(enter.y + 0.5f)),
+         "200,800 1700,250");
+  controls.Place(1, t.x, t.y);
+  Expect("a button added for the T key presses T", Text(controls.TakeChanges()), "+84");
+  controls.Lift(1);
+  controls.TakeChanges();
+  Expect("a button for another key carries the key's name", Shown(controls, "T") ? "yes" : "no", "yes");
+}
+
+void TestEditing() {
+  mvp::TouchControls controls;
+  controls.SetScreen(2400, 1080);
+  Expect("the button for the settings menu is not there unless offered", Shown(controls, "MENU") ? "yes" : "no", "no");
+  controls.OfferMenu(true);
+  Expect("when offered it is", Shown(controls, "MENU") ? "yes" : "no", "yes");
+  Expect("nobody has asked for the menu yet", controls.TakeMenuRequest() ? "yes" : "no", "no");
+
+  const mvp::TouchCircle confirm = Control(controls, 90);
+  controls.Place(1, confirm.x, confirm.y);
+  controls.TakeChanges();
+  Tap(&controls, "MENU");
+  Expect("touching MENU lets go of what was held", Text(controls.TakeChanges()), "-90");
+  Expect("and asks for the menu", controls.TakeMenuRequest() ? "yes" : "no", "yes");
+  Expect("once", controls.TakeMenuRequest() ? "yes" : "no", "no");
+  controls.Lift(1);
+  controls.StartEditing();
+  Expect("editing is on", controls.editing() ? "yes" : "no", "yes");
+  Expect("the editing buttons are shown",
+         Shown(controls, "ADD") && Shown(controls, "DEL") && Shown(controls, "RESET") && Shown(controls, "OK") ? "yes" : "no",
+         "yes");
+
+  // Moving: a finger put on a control drags it.
+  controls.Place(1, confirm.x + 5, confirm.y);
+  controls.Place(1, 1205, 500);
+  controls.Lift(1);
+  Expect("no key is pressed while editing", Text(controls.TakeChanges()), "");
+  const mvp::TouchCircle moved = Control(controls, 90);
+  Expect("a dragged control follows the finger, keeping where it was held",
+         std::to_string(static_cast<int>(moved.x + 0.5f)) + "," + std::to_string(static_cast<int>(moved.y + 0.5f)),
+         "1200,500");
+  controls.Place(1, 1200, 500);
+  controls.Place(1, 5000, -300);
+  controls.Lift(1);
+  const mvp::TouchCircle edge = Control(controls, 90);
+  Expect("a control cannot be dragged off the screen",
+         edge.x + edge.radius <= 2400 && edge.y - edge.radius >= 0 ? "yes" : "no", "yes");
+
+  controls.Place(1, edge.x, edge.y);
+  controls.Place(1, 1200, 500);
+  controls.Lift(1);
+
+  // Size: the control touched last is the one the buttons act on.
+  float before = Control(controls, 90).radius;
+  Tap(&controls, "+");
+  Expect("+ makes the chosen control bigger", Control(controls, 90).radius > before ? "yes" : "no", "yes");
+  Tap(&controls, "-");
+  Tap(&controls, "-");
+  Expect("- makes it smaller", Control(controls, 90).radius < before ? "yes" : "no", "yes");
+  for (int i = 0; i < 40; i++) Tap(&controls, "-");
+  Expect("but never too small to touch", Control(controls, 90).radius >= 1080 * 0.03f ? "yes" : "no", "yes");
+
+  // Adding: choose a key from the list.
+  Tap(&controls, "ADD");
+  Expect("ADD shows the keys to choose from", Shown(controls, "T") && Shown(controls, "PAD") ? "yes" : "no", "yes");
+  Tap(&controls, "T");
+  Expect("choosing a key adds a button for it", Keys(controls.layout()), "0 90 88 16 84");
+  Expect("and closes the list", Shown(controls, "PAD") ? "yes" : "no", "no");
+  Tap(&controls, "ADD");
+  controls.Place(1, 2, 1078);
+  controls.Lift(1);
+  Expect("a touch beside the keys closes the list without adding", Keys(controls.layout()), "0 90 88 16 84");
+
+  // Removing: the button just added is the chosen one.
+  Tap(&controls, "T");
+  Tap(&controls, "DEL");
+  Expect("DEL removes the chosen control", Keys(controls.layout()), "0 90 88 16");
+  Tap(&controls, "DEL");
+  Expect("with nothing chosen DEL removes nothing", Keys(controls.layout()), "0 90 88 16");
+
+  Expect("nothing is to be saved while editing goes on", controls.TakeLayoutChanged() ? "yes" : "no", "no");
+  Tap(&controls, "OK");
+  Expect("OK ends editing", controls.editing() ? "yes" : "no", "no");
+  Expect("and the changed layout is to be saved", controls.TakeLayoutChanged() ? "yes" : "no", "yes");
+  Expect("once", controls.TakeLayoutChanged() ? "yes" : "no", "no");
+  const mvp::TouchCircle after = Control(controls, 90);
+  controls.Place(1, after.x, after.y);
+  Expect("the controls work again where they now are", Text(controls.TakeChanges()), "+90");
+  controls.Lift(1);
+  controls.TakeChanges();
+
+  // The layout survives a change of screen size.
+  std::string saved = mvp::FormatTouchLayout(controls.layout());
+  mvp::TouchControls again;
+  again.SetLayout(mvp::ParseTouchLayout(saved));
+  again.SetScreen(2400, 1080);
+  const mvp::TouchCircle restored = Control(again, 90);
+  Expect("a saved layout puts the controls back where they were",
+         std::to_string(static_cast<int>(restored.x + 0.5f)) + "," + std::to_string(static_cast<int>(restored.y + 0.5f)),
+         std::to_string(static_cast<int>(after.x + 0.5f)) + "," + std::to_string(static_cast<int>(after.y + 0.5f)));
+
+  controls.StartEditing();
+  Tap(&controls, "OK");
+  Expect("editing without changing anything leaves nothing to save", controls.TakeLayoutChanged() ? "yes" : "no", "no");
+  controls.StartEditing();
+  Tap(&controls, "RESET");
+  Tap(&controls, "OK");
+  Expect("RESET brings the standard layout back",
+         mvp::FormatTouchLayout(controls.layout()), mvp::FormatTouchLayout(mvp::DefaultTouchLayout()));
 }
 
 }  // namespace
@@ -147,6 +317,9 @@ int main() {
   }
   Expect("on a small upright screen every control is still on the screen", inside ? "yes" : "no", "yes");
   (void)kUp; (void)kRight; (void)kDown; (void)kLeft;
+
+  TestLayouts();
+  TestEditing();
 
   std::printf(g_failures ? "%d failed\n" : "all passed\n", g_failures);
   return g_failures ? 1 : 0;

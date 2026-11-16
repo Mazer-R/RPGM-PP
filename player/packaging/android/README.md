@@ -58,3 +58,12 @@ screen shows a direction pad on the left and three buttons on the right
 (confirm, cancel/menu, dash); they hide while a controller or keyboard is in
 use. The Back button is cancel/menu; held for a second it leaves the game
 and returns to the list.
+
+Inside a game, the small MENU button in the top right corner opens the
+player's settings menu: the frame counter, which key each controller button
+presses, the touch controls, and leaving the game. "TOUCH CONTROLS" lets you
+change them on the screen: drag a control to move it; ADD puts a new button
+for any key (a game that needs the T key gets a T button), DEL removes the
+one touched last, - and + change its size, RESET brings the standard ones
+back, OK ends. Controls and buttons are kept per game, in the game's
+`www/save` folder (`touch-controls.txt`, `buttons.txt`).

@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory>
+#include <string>
 #include <vector>
 
 union SDL_Event;
@@ -13,8 +14,12 @@ struct _SDL_GameController;
 namespace mvp {
 
 class Log;
+class ButtonMap;
+class SettingsMenu;
 class TouchControls;
-struct TouchCircle;
+struct MenuBox;
+struct MenuText;
+struct TouchShape;
 
 // One key going down or up, as a browser key code (for example 37 = left).
 struct KeyChange {
@@ -33,11 +38,21 @@ class Input {
   void Open();
   // The screen's size in pixels, which places the on-screen touch controls.
   void SetScreenSize(int width, int height);
+  // The folder a game's settings are kept in. Its touch controls
+  // (touch-controls.txt) and button map (buttons.txt) are read now, if they
+  // exist. From then on the player's settings menu can be opened over the
+  // game, and what is changed there is written back. Without a folder there
+  // is no menu, and controls and buttons are the standard ones.
+  void SetSettingsDir(const std::string& dir);
   // The touch controls to draw: empty unless a finger was the last thing
-  // used (on Android also at the start, before anything has been used).
-  const std::vector<TouchCircle>& VisibleTouchControls() const;
-  // What of a control a finger is on right now (see TouchControls::Lit).
-  int TouchLit(const TouchCircle& control) const;
+  // used (on Android also at the start, before anything has been used), and
+  // while the settings menu is open.
+  std::vector<TouchShape> TouchShapes() const;
+  // The settings menu: opened with the console's menu button + X, the F1
+  // key, or the MENU touch control. While it is open the game should wait,
+  // and no key reaches it.
+  bool menu_open() const;
+  void MenuPicture(std::vector<MenuBox>* boxes, std::vector<MenuText>* texts) const;
   // Looks at one SDL event; key changes are queued.
   void HandleEvent(const SDL_Event& event);
   // Returns the queued key changes, oldest first, and empties the queue.
@@ -58,10 +73,24 @@ class Input {
   std::vector<_SDL_GameController*> controllers_;
   bool guide_down_ = false;
   unsigned guide_down_at_ms_ = 0;  // SDL ticks when the menu button went down
-  unsigned back_down_at_ms_ = 0;   // SDL ticks when a phone's Back button went down
+  bool back_down_ = false;         // a phone's Back button is down, and the game saw it go down
+  unsigned back_down_at_ms_ = 0;   // SDL ticks when it went down
   bool quit_requested_ = false;
   bool stick_[4] = {false, false, false, false};  // left, up, right, down
+  void AfterTouch();
+  void OpenMenu();
+  // One input for the open menu, and what follows from it.
+  void MenuPress(int input);
+  void MenuEffectDone(int effect);
+  void HandleMenuEvent(const SDL_Event& event);
+  void SetTrigger(int index, bool down);
+
   std::unique_ptr<TouchControls> touch_;
+  std::unique_ptr<ButtonMap> buttons_;
+  std::unique_ptr<SettingsMenu> menu_;
+  std::string settings_dir_;
+  std::vector<int> keys_down_;  // keys the game has been told are down
+  bool trigger_[2] = {false, false};  // left, right
   bool touch_visible_ = false;
   int screen_width_ = 0, screen_height_ = 0;
 };

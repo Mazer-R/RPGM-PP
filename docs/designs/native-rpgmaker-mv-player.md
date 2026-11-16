@@ -680,6 +680,32 @@ adjustments where the game's own code is too expensive for this hardware.
         game list's "A: choose, B: leave" hint sits under the pad and
         names buttons a touch screen does not have.
 
+*   **Per-game controls and an in-game settings menu (2026-11-16)**
+    *   **Why**: a game may need a key the player had no control for
+        (one needs T), on a phone and on the console alike.
+    *   **Menu**: the player's own settings menu opens over a running
+        game with the console's menu button + X, the F1 key, or a MENU
+        touch control. The game waits meanwhile and gets no keys. Rows:
+        resume, frame counter, buttons, touch controls, quit. It is
+        native (boxes plus a built-in 5x7 font drawn in the present
+        pass), so it does not depend on the game's scripts or fonts.
+    *   **Buttons**: each controller button, by its SDL game controller
+        name, can be given any key; the triggers (L2, R2) and stick
+        clicks count as buttons and start unassigned. Kept per game in
+        `save/buttons.txt`. The direction pad is not remappable.
+    *   **Touch controls**: can be dragged, resized, removed and added
+        for any key on the screen itself; kept per game in
+        `save/touch-controls.txt`, measured in units of the screen's
+        shorter side from the nearer edge.
+    *   **Checked**: unit tests for layouts, editing, the button map
+        and the menu; on the Android emulator: adding and moving a T
+        button, giving L2 the T key, the frame counter, Back closing
+        the menu. All three builds compile.
+    *   **Not checked**: the menu on the console (menu + X, the
+        triggers) and with a real controller; the frame counter row
+        does not show whether it is on, and the choice lasts for the
+        run only.
+
 ## Critical User Journeys (CUJs)
 
 ### CUJ 1: First launch

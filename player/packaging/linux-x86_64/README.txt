@@ -23,6 +23,10 @@ Or start one game directly, giving its folder, its www folder or its .exe:
 adds "RPG Maker MV Player" to the desktop's application menu.
 
 While playing, F2 shows or hides the frames per second.
+F1 opens the player's settings menu over the game (on a controller: the
+menu button held, then X). There you can switch the frame counter, choose
+which key each controller button presses, and leave the game. The buttons
+are kept per game, in the game's www/save/buttons.txt.
 
 Saves and the player's log (mvplayer.log) are written to the game's
 www/save folder. A copy of the log of every run is also kept in the logs/

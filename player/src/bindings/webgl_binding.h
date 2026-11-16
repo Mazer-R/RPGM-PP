@@ -15,6 +15,7 @@
 // that context current.
 #pragma once
 
+#include <string>
 #include <vector>
 
 #include "v8.h"
@@ -39,11 +40,27 @@ v8::Local<v8::Object> CreateWebGLContext(v8::Isolate* isolate, v8::Local<v8::Con
 // pad as a cross with an arrowhead on each arm, a button as a ring around a
 // symbol. `lit` brightens what a finger is on: any value for a button; for
 // the pad, 1 left + 2 up + 4 right + 8 down.
-enum class ControlSymbol { kDirections = 0, kConfirm = 1, kCancel = 2, kDash = 3 };
+// kPlain is the ring alone, for a control that carries a name instead (see
+// `texts`).
+enum class ControlSymbol { kDirections = 0, kConfirm = 1, kCancel = 2, kDash = 3, kPlain = 4 };
 struct ScreenCircle {
   float x, y, radius;
   ControlSymbol symbol = ControlSymbol::kConfirm;
   int lit = 0;
+};
+//
+// `boxes` are filled rectangles drawn over the circles: the player's own
+// menu. `shade` runs from 0 (black) to 1 (white).
+struct ScreenBox {
+  float x, y, width, height, shade, alpha;
+};
+//
+// `texts` are written over the circles and the boxes, in the player's own small font
+// (capital letters, digits and a few signs; anything else is left blank):
+// each centred on x, y, its letters `height` pixels high.
+struct ScreenText {
+  float x, y, height;
+  std::string text;
 };
 //
 // `video`, when given, is shown in place of the game's picture, fitted to
@@ -54,7 +71,7 @@ struct ScreenVideo {
   bool changed = false;  // the pixels differ from the last call's
 };
 void PresentDrawingBuffer(int screen_width, int screen_height, const std::vector<ScreenCircle>& circles,
-                          const ScreenVideo* video = nullptr);
+                          const std::vector<ScreenBox>& boxes, const std::vector<ScreenText>& texts, const ScreenVideo* video = nullptr);
 
 // True once the game has its own drawing buffer; the main loop then leaves
 // clearing to the game.
