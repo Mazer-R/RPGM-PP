@@ -59,7 +59,7 @@ player.patches.gpuLights = function (options) {
     var original = Bitmap.prototype[name];
     if (typeof original !== 'function') return;
     Bitmap.prototype[name] = function () {
-      if (recording && this.__labLightMask) { record.apply(null, arguments); return; }
+      if (recording && this.__mvpLightMask) { record.apply(null, arguments); return; }
       return original.apply(this, arguments);
     };
   }
@@ -154,12 +154,12 @@ player.patches.gpuLights = function (options) {
     createLightmask.apply(this, arguments);
     var mask = this._lightmask;
     if (!mask || !mask._maskBitmap) return;
-    mask._maskBitmap.__labLightMask = true;
+    mask._maskBitmap.__mvpLightMask = true;
     var proto = Object.getPrototypeOf(mask);
-    if (proto.__labGpuLights || typeof proto._updateMask !== 'function') return;
+    if (proto.__mvpGpuLights || typeof proto._updateMask !== 'function') return;
     var updateMask = proto._updateMask;
     proto._updateMask = function () {
-      if (this._maskBitmap) this._maskBitmap.__labLightMask = true;
+      if (this._maskBitmap) this._maskBitmap.__mvpLightMask = true;
       commands.length = 0;
       recording = true;
       try { updateMask.apply(this, arguments); }
@@ -167,7 +167,7 @@ player.patches.gpuLights = function (options) {
       stats.steps++;
       draw(this);
     };
-    proto.__labGpuLights = true;
+    proto.__mvpGpuLights = true;
     stats.active = true;
   };
 };

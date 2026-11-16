@@ -1,5 +1,6 @@
-// The main loop: window events, the scripts' frame callbacks, then present.
-// Later stages add input, timers and finished loads before the callbacks.
+// The main loop: window events and input, the scripts' frame callbacks,
+// then the touch controls and the settings menu over the picture, and
+// present.
 #pragma once
 
 namespace mvp {

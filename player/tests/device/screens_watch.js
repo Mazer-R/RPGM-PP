@@ -2,7 +2,7 @@
 // the game shows without touching the controls. Every time the scene changes
 // it logs the scene's name, and it saves a picture two seconds into each new
 // scene (mvplayer-shot-<n>-<scene>.txt in the game's save folder; see
-// stage2_title_watch.js for the format), for the first SHOTS scenes. Once a
+// title_watch.js for the format), for the first SHOTS scenes. Once a
 // second it logs the frame rate. Exits with 0 after RUN_MS.
 (function () {
   'use strict';

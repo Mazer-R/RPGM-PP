@@ -17,8 +17,8 @@
 # run is also kept in MUOS/emulator/mvplayer/logs on the card, where it can be
 # read from a computer when a game misbehaves.
 # To leave a game: hold the menu button and press Start.
-# Whether games show the frames per second is the last line of the list; the
-# choice is remembered. While playing, the menu button plus Select switches it.
+# While playing, the menu button plus Select shows or hides the frames per
+# second, and the menu button plus X opens the player's settings.
 
 . /opt/muos/script/var/func.sh
 

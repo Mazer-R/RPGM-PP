@@ -4,7 +4,7 @@
 // map, whether images are still loading, the event command being run, any
 // message on screen, and the frame rate. It saves a picture every SHOT_MS
 // (mvplayer-shot-<n>.txt in the game's save folder; see
-// stage2_title_watch.js for the format). Exits with 0 after RUN_MS.
+// title_watch.js for the format). Exits with 0 after RUN_MS.
 (function () {
   'use strict';
   var gl = player.gl;

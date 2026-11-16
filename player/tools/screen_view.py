@@ -11,7 +11,7 @@ in /tmp.
 Usage: python3 tools/screen_view.py [port]
 Needs a way to reach the handheld:
   - over USB: adb on PATH or in $ADB, the handheld in ADB mode; or
-  - over the network: $SSH_HOST set (for example root@192.168.1.33) and,
+  - over the network: $SSH_HOST set (for example root@<console-address>) and,
     optionally, $SSH_KEY naming the private key to use.
 """
 import http.server

@@ -1,8 +1,8 @@
-// First-stage check, run by the player on the handheld: the engine is up,
+// Check of the basics, run by the player on the handheld: the engine is up,
 // the screen shows frames paced by the display, promises resolve, and the
 // log receives messages. Cycles the screen colour for a few seconds, reports
 // how regular the frames were, and exits.
-console.log('stage 1 script running on V8 ' + player.v8Version);
+console.log('frame pacing check running on V8 ' + player.v8Version);
 
 var FRAMES = 240;
 var intervals = [];

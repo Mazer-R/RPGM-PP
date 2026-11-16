@@ -11,7 +11,7 @@
 # button held plus Start quits the player.
 # Needs: the player built in build-device/, and a way to reach the handheld:
 #   - over USB: adb on PATH or in $ADB, the handheld in ADB mode; or
-#   - over the network: $SSH_HOST set (for example root@192.168.1.33) and,
+#   - over the network: $SSH_HOST set (for example root@<console-address>) and,
 #     optionally, $SSH_KEY naming the private key to use.
 # The log is the game's own save/mvplayer.log, as in normal use.
 set -eu

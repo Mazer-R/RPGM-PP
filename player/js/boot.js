@@ -16,12 +16,6 @@
   }
   var browser = globalThis.__browser;
 
-  // Patches are JavaScript files in the player's patches/ folder that change
-  // how a game runs, without touching its files. index.json lists them, each
-  // with what it depends on (the engine, a plugin, one game); patch-select.js
-  // decides which of them this game gets. Each patch file adds an install
-  // function to player.patches. They are installed when the engine has
-  // finished booting, just before the first real scene.
   // Every ten seconds of play, one log line says how the game ran: where
   // (scene and map), frames shown, logic steps per frame, and the average
   // time of a logic step and of a drawing step. It costs two clock readings
@@ -96,6 +90,13 @@
     };
   }
 
+  // Patches are JavaScript files in the player's patches/ folder that change
+  // how a game runs, without touching its files. index.json lists them, each
+  // with what it depends on (the engine, a plugin, one game); patch-select.js
+  // decides which of them this game gets. Each patch file adds an install
+  // function to player.patches. They are installed when the engine has
+  // finished booting, just before the first real scene.
+  //
   // What the game switched off: <game>/save/mvplayer-patches.json, written by
   // hand, of the form { "off": ["framePacing"] }.
   function switchedOff() {
@@ -184,8 +185,8 @@
   installPerformanceLog();
 
   // The engine catches its own errors and shows them on the page. Record the
-  // full error in the log as well, and stop: the on-screen error display
-  // belongs to a later stage.
+  // full error in the log as well, and stop: the player does not show the
+  // page's error display yet.
   if (globalThis.SceneManager && typeof SceneManager.catchException === 'function') {
     var catchException = SceneManager.catchException;
     SceneManager.catchException = function (error) {

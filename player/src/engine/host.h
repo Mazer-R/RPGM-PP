@@ -3,10 +3,11 @@
 // callbacks the scripts register, and turns uncaught errors into log entries
 // with the script name and line.
 //
-// For now it also provides the few global functions the first stage needs
-// (console, performance.now, requestAnimationFrame and a small `player`
-// object). Later stages move those into the bindings and the JavaScript
-// browser layer.
+// It gives scripts their few native globals (console, performance.now,
+// requestAnimationFrame) and the `player` object: files, the game list's
+// functions, profiling, and the bindings installed by InstallBindings (gl,
+// canvas, audio, video). Everything a browser has beyond that is made in
+// JavaScript, in js/.
 #pragma once
 
 #include <atomic>

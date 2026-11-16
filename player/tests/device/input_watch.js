@@ -7,7 +7,7 @@
 // same entry point the native player uses for real buttons: at the title it
 // moves the cursor down and back up, confirms "new game", then keeps
 // confirming for a while and reports the scenes the game went through. It
-// saves a picture at the end (see stage2_title_watch.js for the format).
+// saves a picture at the end (see title_watch.js for the format).
 // Exits with 0 if the game left the title scene, 4 otherwise.
 (function () {
   'use strict';

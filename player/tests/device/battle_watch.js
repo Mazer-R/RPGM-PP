@@ -3,7 +3,7 @@
 // title menu, waits on the first map, starts a battle against troop TROOP,
 // and logs the scene, the battle phase and the frame rate once a second,
 // confirming with the action key now and then. It saves pictures of the
-// battle in the game's save folder (see stage2_title_watch.js for the
+// battle in the game's save folder (see title_watch.js for the
 // format). Exits with 0 if the battle scene ran for the whole time, 4 if it
 // never appeared.
 (function () {

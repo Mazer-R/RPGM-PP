@@ -51,7 +51,7 @@ Anbernic RG35XX SP (Allwinner H700, Mali-G31, 640x480), muOS.
 
 The numbers, how they were taken and their limits are in
 `docs/designs/native-rpgmaker-mv-player.md`. The earlier feasibility
-measurements are in `concepts_brief.md`.
+measurements are in `docs/history/feasibility-study.md`.
 
 ## What works
 
@@ -208,12 +208,11 @@ player/
   src/platform/    window, input, sound mixer, video, files, settings menu
   js/              the browser stand-in and the game list
   patches/         the patches and their index
-  packaging/       muOS, Linux x86-64 and Android packages
+  packaging/       muOS, desktop Linux and Android packages
   tests/           native, JavaScript and on-device tests
   tools/           build scripts, V8 build, helpers
 docs/designs/      the design document, with every result
-lab/               the feasibility experiments
-concepts_brief.md  the idea and the first measurements
+docs/history/      the feasibility study and the experiments behind it
 ```
 
 ## Building
@@ -334,7 +333,7 @@ Anbernic RG35XX SP (Allwinner H700, Mali-G31, 640x480), muOS.
 
 Las cifras, cómo se tomaron y sus límites están en
 `docs/designs/native-rpgmaker-mv-player.md` (en inglés). Las mediciones de
-viabilidad anteriores están en `concepts_brief.md`.
+viabilidad anteriores están en `docs/history/feasibility-study.md`.
 
 ## Qué funciona
 
@@ -496,12 +495,11 @@ player/
   src/platform/    ventana, entrada, mezclador, vídeo, archivos, menú de ajustes
   js/              el sustituto del navegador y la lista de juegos
   patches/         los parches y su índice
-  packaging/       paquetes para muOS, Linux x86-64 y Android
+  packaging/       paquetes para muOS, Linux de escritorio y Android
   tests/           pruebas nativas, de JavaScript y en la consola
   tools/           scripts de compilación, compilación de V8, utilidades
 docs/designs/      el documento de diseño, con todos los resultados
-lab/               los experimentos de viabilidad
-concepts_brief.md  la idea y las primeras mediciones
+docs/history/      el estudio de viabilidad y sus experimentos
 ```
 
 ## Compilar

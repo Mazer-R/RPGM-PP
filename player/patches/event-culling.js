@@ -131,7 +131,7 @@ player.patches.eventCulling = function (options) {
     var mask = scene && scene._spriteset && scene._spriteset._lightmask;
     if (!mask) return;
     var proto = Object.getPrototypeOf(mask);
-    if (proto.__labThrottled || typeof proto._updateMask !== 'function') return;
+    if (proto.__mvpThrottled || typeof proto._updateMask !== 'function') return;
     var updateMask = proto._updateMask;
     var calls = 0;
     proto._updateMask = function () {
@@ -139,7 +139,7 @@ player.patches.eventCulling = function (options) {
       stats.lightUpdatesRun++;
       return updateMask.apply(this, arguments);
     };
-    proto.__labThrottled = true;
+    proto.__mvpThrottled = true;
   }
 
   function refresh(map) {

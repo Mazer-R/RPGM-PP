@@ -3,6 +3,12 @@
 * **Author:** mcerezo
 * **Date:** 2026-11-15
 
+> This is the feasibility study the player started from, kept as it was
+> written. The experiments it names under `lab/` are now in
+> `docs/history/lab/`; their raw output (`lab/out/`) was never part of the
+> repository. What was built afterwards is in
+> `docs/designs/native-rpgmaker-mv-player.md`.
+
 ## Overview
 
 RPG Maker MV games ship inside NW.js, which is a Chromium browser plus Node.

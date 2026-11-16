@@ -57,7 +57,7 @@
   var games = [];
   function listGames() {
     games = model.order(found, recent);
-    if (player.canAddGame) games.push({ title: '+ Add a game...', add: true });
+    if (player.canAddGame) games.push({ add: true });
   }
   listGames();
   // Puts a game on top of the remembered ones, here and in the file.

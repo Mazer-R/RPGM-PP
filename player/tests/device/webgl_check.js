@@ -1,4 +1,4 @@
-// Second-stage check of the WebGL binding, run by the player on the
+// Check of the WebGL binding, run by the player on the
 // handheld. It uses WebGL the way PIXI does, without PIXI:
 //   - compiles a shader pair that declares medium precision (the binding
 //     must rewrite it to high precision) and reads back its active uniforms;

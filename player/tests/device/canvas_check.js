@@ -1,5 +1,5 @@
-// Second-stage check of the canvas and image binding, run by the player on
-// the handheld. It draws on a canvas the way the game's engine does and
+// Check of the canvas and image binding, run by the player on the
+// handheld. It draws on a canvas the way the game's engine does and
 // shows the result through WebGL:
 //   - a gradient background and solid rectangles with a blend mode;
 //   - text in a font loaded from a file, outlined and then filled, which is
@@ -7,12 +7,16 @@
 //   - a region of a PNG image, copied unscaled and scaled;
 //   - pixels read back from the canvas;
 //   - the canvas uploaded as a WebGL texture and redrawn when it changes.
-// The font and the image are passed in as paths (see FONT and IMAGE). Exits
-// with 0 when every check passes.
+// The font and the image are any RPG Maker MV game's own: CHECK_GAME names
+// the game's www folder, set by a script run before this one, for example
+//   mvplayer where.js --run canvas_check.js
+// with where.js holding: globalThis.CHECK_GAME = '/path/to/Game/www';
+// Exits with 0 when every check passes.
 var gl = player.gl;
 var c2d = player.canvas;
-var FONT = '/opt/rpgmv-lab/www/fonts/mplus-1m-regular.ttf';
-var IMAGE = '/opt/rpgmv-lab/www/img/system/IconSet.png';
+var GAME = globalThis.CHECK_GAME || player.gameDir || '.';
+var FONT = GAME + '/fonts/mplus-1m-regular.ttf';
+var IMAGE = GAME + '/img/system/IconSet.png';
 var W = 816, H = 624;
 
 var failures = [];

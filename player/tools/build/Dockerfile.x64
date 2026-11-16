@@ -7,7 +7,7 @@
 # Debian's multiarch support. The binary is therefore linked against Debian
 # bookworm's glibc (2.36) and runs on any distribution with that or newer.
 #
-# qemu-user-static is only used by package-x64.sh to start the finished
+# qemu-user-static is only used by packaging/linux/build-package.sh to start the finished
 # x86-64 binary once, as a check that it loads.
 FROM debian:bookworm
 

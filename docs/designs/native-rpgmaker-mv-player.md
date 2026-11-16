@@ -22,8 +22,8 @@ it.
 
 The first and only tested target is the game Fear & Hunger (version 1.4.1,
 MV core 1.6.0, PIXI 4.5.4) on an Anbernic RG35XX SP running muOS. The
-measurements behind this design are recorded in `concepts_brief.md`,
-sections 10 to 28, and the experiments that produced them are in `lab/`.
+measurements behind this design are recorded in `docs/history/feasibility-study.md`,
+sections 10 to 28, and the experiments that produced them are in `docs/history/lab/`.
 
 ## The Problem
 
@@ -144,10 +144,10 @@ adjustments where the game's own code is too expensive for this hardware.
 *   **Stage 1 runs on the console** (2026-11-15). The player opens the
     screen through SDL2 and OpenGL ES 2 (Mali-G31, 640x480), starts the V8
     built above, runs a script, and writes a log. A test script
-    (`player/tests/device/stage1.js`) presented 230 frames at a median of
+    (`player/tests/device/frame_pacing_check.js`) presented 230 frames at a median of
     16.67 ms with none over 20 ms; the window is up 15 ms after start and V8
     26 ms after start. A script that throws
-    (`player/tests/device/stage1_error.js`) is reported in the log with its
+    (`player/tests/device/error_report_check.js`) is reported in the log with its
     file, line and call stack, and the player exits with code 2. The binary
     is 31 MB.
 
@@ -174,7 +174,7 @@ adjustments where the game's own code is too expensive for this hardware.
     game yet. `player/src/bindings/webgl_binding.cpp` exposes the WebGL
     constants, generated from the OpenGL ES 2 header, and about ninety
     functions wired to OpenGL ES 2. A hand-written script
-    (`player/tests/device/stage2_webgl.js`) uses it the way PIXI does:
+    (`player/tests/device/webgl_check.js`) uses it the way PIXI does:
     shaders that declare medium precision, an array uniform looked up by
     its bare name, a texture uploaded with the premultiply flag, blended
     quads from an index buffer, a scene drawn into an 816x624 off-screen
@@ -200,7 +200,7 @@ adjustments where the game's own code is too expensive for this hardware.
     Canvas 2D drawing on Cairo, text through FreeType from a font file, PNG
     decoding, pixel read and write, and hands a canvas or an image to the
     WebGL binding as a texture source. A hand-written script
-    (`player/tests/device/stage2_canvas.js`) draws a gradient, additive
+    (`player/tests/device/canvas_check.js`) draws a gradient, additive
     bars, outlined and filled text and a region of a PNG, reads pixels
     back, and shows the canvas through WebGL. Every check passes on the
     console at a median of 16.67 ms per frame.
@@ -232,7 +232,7 @@ adjustments where the game's own code is too expensive for this hardware.
     and menu text in the game's font. The JavaScript layers are in
     `player/js/` (`boot.js`, `css.js`, `dom.js`, `canvas2d.js`,
     `desktop.js`); `player/tools/run-game.sh` runs a game on the console and
-    `player/tests/device/stage2_title_watch.js` checks the result.
+    `player/tests/device/title_watch.js` checks the result.
     *   **Measured on the console:** title scene 8.0 s after start; 56.9
         frames per second on the title scene; 265 MB resident memory 12 s
         after start (goal: under 450 MB); JavaScript heap 98 MB; about 59
@@ -278,7 +278,7 @@ adjustments where the game's own code is too expensive for this hardware.
         layout found in `/usr/lib/gamecontrollerdb.txt` (read when
         `SDL_GAMECONTROLLERCONFIG_FILE` is not set).
     *   **Checked on the console by a script**
-        (`player/tests/device/stage3_input_watch.js`) that feeds key codes
+        (`player/tests/device/input_watch.js`) that feeds key codes
         through the entry point the native side uses: the title menu cursor
         moved down and up, "new game" started, and the game went through
         its map scene to character selection and the name entry screen
@@ -993,7 +993,7 @@ The player is one native executable plus a folder of JavaScript files that
 ship with it. The split follows one rule: **native code only where a native
 resource is owned or where work is done per pixel or per audio sample;
 everything else is JavaScript.** The lab followed the same rule and its
-JavaScript layer (about 700 lines in `lab/minimal/run.js`) is the starting
+JavaScript layer (about 700 lines in `docs/history/lab/minimal/run.js`) is the starting
 point for the one described here.
 
 ```text
@@ -1139,7 +1139,7 @@ each iteration of the main loop:
 ```
 
 Measured on the console (brief sections 22 to 27, and a screen test from a
-native module in `lab/out/node-screen-test.txt`):
+native module in `docs/history/lab/out/node-screen-test.txt`):
 
 *   The buffer swap waits for the 60 Hz refresh when a frame is early. When
     a frame is late the swap returns at once, so a 22 ms frame costs
@@ -1393,12 +1393,12 @@ the architecture.
 
 ### Additional Resources
 
-*   `concepts_brief.md`: the feasibility study. Sections 10 to 28 hold
+*   `docs/history/feasibility-study.md`: the feasibility study. Sections 10 to 28 hold
     every measurement this design relies on, with its limits.
-*   `lab/`: the experiments. `lab/minimal/run.js` is the JavaScript layer
-    the player's browser layer starts from; `lab/overlays/` holds the three
-    patches; `lab/device-*.sh` are the measurement runs on the console.
-*   `lab/out/` (not in git): raw output of the measurements, including
+*   `docs/history/lab/`: the experiments. `docs/history/lab/minimal/run.js` is the JavaScript layer
+    the player's browser layer starts from; `docs/history/lab/overlays/` holds the three
+    patches; `docs/history/lab/device-*.sh` are the measurement runs on the console.
+*   `docs/history/lab/out/` (not in git): raw output of the measurements, including
     `node-screen-test.txt` for the frame-pacing test and `gl-*.out` for the
     list of WebGL functions the game uses.
 
@@ -1417,7 +1417,7 @@ the architecture.
 ## Detailed Implementation Plan
 
 All new code lives under `player/`. The feasibility experiments stay in
-`lab/` and are not modified, except where a file is copied from them as a
+`docs/history/lab/` and are not modified, except where a file is copied from them as a
 starting point. Paths are relative to the repository root.
 
 Choices made here because they have one practical answer: CMake as the
@@ -1512,7 +1512,7 @@ runs on the console.
 *   **Proposed Changes**: Copies the built player and its JavaScript folder
     to the console over adb, pauses the muOS menu, runs the player on a
     given game folder, resumes the menu and pulls the log and any crash
-    file back. Based on `lab/device-gles-run.sh`.
+    file back. Based on `docs/history/lab/device-gles-run.sh`.
 
 ##### 10. `player/third_party/doctest/doctest.h` (Create)
 
@@ -1777,7 +1777,7 @@ runs on the console.
 *   **Type / Scope**: C++ module, stage 2.
 *   **Proposed Changes**: Exposes the WebGL context object and its
     constants to JavaScript. Covers the functions recorded in the lab
-    (`lab/out/gl-*.out`): buffers, textures, framebuffers, shaders and
+    (`docs/history/lab/out/gl-*.out`): buffers, textures, framebuffers, shaders and
     programs, uniforms, vertex attributes, state, clears, draws, and pixel
     read-back. Accepts images and canvases as texture sources.
 
@@ -1829,7 +1829,7 @@ runs on the console.
     helper libraries that are not needed (the frame-rate meter and the
     inline-video helper) with empty stand-ins, loads patches, loads the
     game's scripts in order and fires the page's load event. Based on
-    `lab/minimal/run.js`.
+    `docs/history/lab/minimal/run.js`.
 
 ##### 53. `player/js/browser/window.js`, `document.js`, `elements.js`, `events.js` (Create)
 
@@ -1895,13 +1895,13 @@ runs on the console.
 ##### 61. `player/js/patches/fear-and-hunger-1.4.1/event-culling.js` (Create)
 
 *   **Type / Scope**: JavaScript, stage 3.
-*   **Proposed Changes**: Copied from `lab/overlays/event-culling-v3.js`:
+*   **Proposed Changes**: Copied from `docs/history/lab/overlays/event-culling-v3.js`:
     lists of nearby events, far sprites detached, deferred page refresh.
 
 ##### 62. `player/js/patches/fear-and-hunger-1.4.1/gpu-lights.js` (Create)
 
 *   **Type / Scope**: JavaScript, stage 3.
-*   **Proposed Changes**: Copied from `lab/overlays/gpu-lights.js`: the
+*   **Proposed Changes**: Copied from `docs/history/lab/overlays/gpu-lights.js`: the
     lighting plugin's painting replaced by sprites drawn through WebGL.
 
 ##### 63. `player/js/patches/fear-and-hunger-1.4.1/lighting-rate.js` (Create)
@@ -1989,7 +1989,7 @@ runs on the console.
 *   **Type / Scope**: Measurement script, console.
 *   **Proposed Changes**: Runs the player on the console over adb on the
     two large test maps and reports logic step, frame time and peak memory
-    against the goals. Based on `lab/device-gpu-lights.sh`.
+    against the goals. Based on `docs/history/lab/device-gpu-lights.sh`.
 
 ### Verification Plan
 

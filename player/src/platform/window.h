@@ -25,8 +25,9 @@ class Window {
   bool Open(std::string* error);
   // Text describing the graphics driver, for the log.
   std::string DriverDescription() const;
-  // Fills the frame with one colour. Stands in for real drawing until the
-  // WebGL binding exists.
+  // Fills the frame with one colour: what shows under whatever a script
+  // draws straight to the screen (the game list does; a game draws into its
+  // own buffer instead).
   void Clear(float r, float g, float b);
   // Presents the frame. Waits for the display refresh when the frame is early.
   void Swap();
