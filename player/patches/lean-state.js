@@ -8,13 +8,10 @@
 //    same switches cause that re-evaluation on every step. Here a write
 //    that changes nothing asks for nothing.
 //
-// 2. Lookups that list every event first. To find the events at a position,
-//    or whether any event is starting, the engine first builds a list of all
-//    the map's events and then filters it, each with a function call per
-//    event. Characters ask "is that square blocked?" all the time, so on a
-//    map with hundreds of events these lists are built many times per step.
-//    Here the same answers come from one plain loop over the map's events.
-//    Each event is still asked through its own methods, in the same order.
+// 2. One question asked over and over. "Is any event starting?" is asked
+//    many times per step, in some games once per event, and answered each
+//    time by going through every event. Here it is answered once and the
+//    answer kept until an event starts or stops starting.
 //
 // The answers are the engine's own in every case; only the work differs.
 //
@@ -24,7 +21,7 @@
 // --no-patches. Its counters
 // are in player.patchStats.leanState.
 player.patches.leanState = function (options) {
-  var stats = { writesThatChangedNothing: 0, writesThatChanged: 0 };
+  var stats = { writesThatChangedNothing: 0, writesThatChanged: 0, startingAsked: 0, startingWorkedOut: 0 };
   player.patchStats.leanState = stats;
 
   // --- 1. Writes that change nothing -----------------------------------------
@@ -59,39 +56,65 @@ player.patches.leanState = function (options) {
 
   // --- 2. Lookups without a list of every event -------------------------------
   if (!globalThis.Game_Map) return;
-  // Each lookup is replaced only if it is still the engine's own code. One
+  // The question is replaced only if it is still the engine's own code. One
   // that a plugin has rewritten stays as the plugin made it.
   var sameCode = player.patchTools.sameCode;
   var left = [];
-  function replace(name, engineCode, lean) {
-    if (sameCode(Game_Map.prototype[name], engineCode)) Game_Map.prototype[name] = lean;
-    else left.push(name);
+  // "Is any event starting?" is asked by the engine and, in games with the
+  // usual movement plugins, once per event per step, each time by going
+  // through every event of the map. The answer only changes when an event
+  // starts or stops starting, so it is worked out once and kept until then.
+  // It is also dropped at every logic step, in case something changed the
+  // events without going through the engine's own functions.
+  var starting = { map: null, events: null, known: false, value: false };
+  function forgetStarting() { starting.known = false; }
+  function anyEventStarting() {
+    stats.startingAsked++;
+    if (starting.known && starting.map === this && starting.events === this._events) return starting.value;
+    stats.startingWorkedOut++;
+    var all = this._events, value = false;
+    for (var i = 0; i < all.length; i++) {
+      if (all[i] && all[i].isStarting()) { value = true; break; }
+    }
+    starting.map = this;
+    starting.events = this._events;
+    starting.value = value;
+    starting.known = true;
+    return value;
   }
-  replace('eventsXy', 'function(x, y) { return this.events().filter(function(event) { return event.pos(x, y); }); }',
-    function (x, y) {
-      var all = this._events, found = [];
-      for (var i = 0; i < all.length; i++) {
-        var event = all[i];
-        if (event && event.pos(x, y)) found.push(event);
-      }
-      return found;
-    });
-  replace('eventsXyNt', 'function(x, y) { return this.events().filter(function(event) { return event.posNt(x, y); }); }',
-    function (x, y) {
-      var all = this._events, found = [];
-      for (var i = 0; i < all.length; i++) {
-        var event = all[i];
-        if (event && event.posNt(x, y)) found.push(event);
-      }
-      return found;
-    });
-  replace('isAnyEventStarting', 'function() { return this.events().some(function(event) { return event.isStarting(); }); }',
-    function () {
-      var all = this._events;
-      for (var i = 0; i < all.length; i++) {
-        if (all[i] && all[i].isStarting()) return true;
-      }
-      return false;
-    });
+  function forgetAfter(owner, name) {
+    if (!owner || typeof owner.prototype[name] !== 'function') return;
+    var original = owner.prototype[name];
+    owner.prototype[name] = function () {
+      forgetStarting();
+      return original.apply(this, arguments);
+    };
+  }
+  var sharesAnswer = false;
+  if (sameCode(Game_Map.prototype.isAnyEventStarting,
+      'function() { return this.events().some(function(event) { return event.isStarting(); }); }')) {
+    Game_Map.prototype.isAnyEventStarting = anyEventStarting;
+    sharesAnswer = true;
+  } else {
+    left.push('isAnyEventStarting');
+  }
+  // The copy of the same question that a widely used movement plugin adds.
+  if (sameCode(Game_Map.prototype.isAnyEventStartingQuick,
+      'function() { var max = this._events.length; for (var i = 0; i < max; ++i) { var ev = this._events[i];' +
+      ' if (ev && ev.isStarting()) return true; } return false; }')) {
+    Game_Map.prototype.isAnyEventStartingQuick = anyEventStarting;
+    sharesAnswer = true;
+  }
+  if (sharesAnswer) {
+    forgetAfter(globalThis.Game_Event, 'start');
+    forgetAfter(globalThis.Game_Event, 'clearStartingFlag');
+    if (globalThis.SceneManager && typeof SceneManager.updateScene === 'function') {
+      var updateScene = SceneManager.updateScene;
+      SceneManager.updateScene = function () {
+        forgetStarting();
+        return updateScene.apply(this, arguments);
+      };
+    }
+  }
   if (left.length) return 'left as a plugin made them: ' + left.join(', ');
 };

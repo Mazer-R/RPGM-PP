@@ -3,6 +3,7 @@
   {"patch": "eventCulling", "file": "event-culling.js", "when": {"engine": "MV"}, "options": {"margin": 4, "lazyRefresh": true, "lightEvery": 3}},
   {"patch": "preloadOnce", "file": "preload-once.js", "when": {"engine": "MV"}},
   {"patch": "framePacing", "file": "frame-pacing.js", "when": {"engine": "MV"}, "options": {"maxStepsPerFrame": 2}},
+  {"patch": "eventLookup", "file": "event-lookup.js", "when": {"engine": "MV"}},
   {"patch": "leanState", "file": "lean-state.js", "when": {"engine": "MV"}},
   {"patch": "commonEventThrottle", "file": "common-event-throttle.js", "when": {"engine": "MV", "title": "Fear & Hunger"}, "options": {"names": ["Outfit change"], "every": 6}}
 ]

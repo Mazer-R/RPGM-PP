@@ -3,8 +3,8 @@
 //
 // The patch is loaded against a small stand-in for the parts of the engine
 // it touches, with the same behaviour as the engine's own code: every write
-// to a switch, variable or self switch asks the map to refresh, and the
-// lookups of events by position build a list of all the map's events first.
+// to a switch, variable or self switch asks the map to refresh, and "is any
+// event starting?" goes through every event of the map each time it is asked.
 'use strict';
 const assert = require('assert');
 const fs = require('fs');
@@ -65,7 +65,11 @@ function engine(before) {
     Game_Event.prototype.pos = function (x, y) { return this._x === x && this._y === y; };
     Game_Event.prototype.isThrough = function () { return this._through; };
     Game_Event.prototype.posNt = function (x, y) { return this.pos(x, y) && !this.isThrough(); };
-    Game_Event.prototype.isStarting = function () { return this._starting; };
+    Game_Event.prototype.isStarting = function () { startingAsked++; return this._starting; };
+    Game_Event.prototype.start = function () { this._starting = true; };
+    Game_Event.prototype.clearStartingFlag = function () { this._starting = false; };
+    var startingAsked = 0;
+    var SceneManager = { updateScene: function () {} };
     function ev(id, x, y, through) { return new Game_Event(id, x, y, through); }
     $gameMap = new Game_Map();
   `, sandbox);
@@ -126,58 +130,66 @@ const tests = {
     assert.strictEqual(e.refreshRequests, 0);
     assert.strictEqual(run(e, 's.value(99)'), false);
   },
-  'events at a position are found in map order, skipping empty slots'() {
-    const e = engine();
-    run(e, '$gameMap.setupEvents([null, ev(1, 3, 4), null, ev(3, 9, 9), ev(4, 3, 4)]);');
-    assert.strictEqual(ids(e, '$gameMap.eventsXy(3, 4)'), '1,4');
-    assert.strictEqual(run(e, '$gameMap.eventsXy(0, 0).length'), 0);
-    assert.strictEqual(run(e, 'Array.isArray($gameMap.eventsXy(3, 4))'), true);
-  },
-  'events that can be walked through are left out of the blocking lookup only'() {
-    const e = engine();
-    run(e, '$gameMap.setupEvents([null, ev(1, 3, 4, true), ev(2, 3, 4)]);');
-    assert.strictEqual(ids(e, '$gameMap.eventsXyNt(3, 4)'), '2');
-    assert.strictEqual(ids(e, '$gameMap.eventsXy(3, 4)'), '1,2');
-  },
-  'the lookups ask each event, so an event with its own idea of position is respected'() {
-    const e = engine();
-    run(e, 'var wide = ev(1, 3, 4); wide.pos = function (x, y) { return y === 4 && (x === 3 || x === 4); };' +
-           '$gameMap.setupEvents([null, wide]);');
-    assert.strictEqual(run(e, '$gameMap.eventsXy(4, 4).length'), 1);
-    assert.strictEqual(run(e, '$gameMap.eventsXyNt(4, 4).length'), 1);
-  },
   'an event that is starting is noticed, and none starting is reported as none'() {
     const e = engine();
     run(e, '$gameMap.setupEvents([null, ev(1, 0, 0), null, ev(3, 1, 1)]);');
     assert.strictEqual(run(e, '$gameMap.isAnyEventStarting()'), false);
-    run(e, '$gameMap._events[3]._starting = true;');
+    run(e, '$gameMap._events[3].start();');
     assert.strictEqual(run(e, '$gameMap.isAnyEventStarting()'), true);
   },
-  'the lookups build no list of all the events'() {
+  'asked many times in one step, the events are gone through once'() {
     const e = engine();
-    run(e, '$gameMap.setupEvents([null, ev(1, 3, 4), ev(2, 5, 5)]);');
-    run(e, '$gameMap.eventsXy(3, 4); $gameMap.eventsXyNt(3, 4); $gameMap.isAnyEventStarting();');
-    assert.strictEqual(e.listsBuilt, 0);
+    run(e, '$gameMap.setupEvents([null, ev(1, 0, 0), ev(2, 1, 1), ev(3, 2, 2)]);');
+    run(e, 'for (var i = 0; i < 50; i++) $gameMap.isAnyEventStarting();');
+    assert.strictEqual(run(e, 'startingAsked'), 3);
   },
-  'a lookup that a plugin already replaced is left as the plugin made it, and that is reported'() {
-    const e = engine('Game_Map.prototype.eventsXy = function (x, y) { pluginLookups++; return []; }; var pluginLookups = 0;');
-    run(e, '$gameMap.setupEvents([null, ev(1, 3, 4)]); $gameMap.eventsXy(3, 4);');
-    assert.strictEqual(run(e, 'pluginLookups'), 1);
-    assert.ok(/eventsXy/.test(String(e.installResult)), 'reported: ' + e.installResult);
-    // The lookups the plugin did not touch are still replaced.
-    run(e, '$gameMap.eventsXyNt(3, 4); $gameMap.isAnyEventStarting();');
-    assert.strictEqual(e.listsBuilt, 0);
+  'an event that starts, or stops starting, is noticed at once within the step'() {
+    const e = engine();
+    run(e, '$gameMap.setupEvents([null, ev(1, 0, 0), ev(2, 1, 1)]);');
+    assert.strictEqual(run(e, '$gameMap.isAnyEventStarting()'), false);
+    run(e, '$gameMap._events[2].start();');
+    assert.strictEqual(run(e, '$gameMap.isAnyEventStarting()'), true);
+    run(e, '$gameMap._events[2].clearStartingFlag();');
+    assert.strictEqual(run(e, '$gameMap.isAnyEventStarting()'), false);
+  },
+  'a change made behind the engine\'s back is seen from the next step on'() {
+    const e = engine();
+    run(e, '$gameMap.setupEvents([null, ev(1, 0, 0)]); $gameMap.isAnyEventStarting();');
+    run(e, '$gameMap._events[1]._starting = true; SceneManager.updateScene();');
+    assert.strictEqual(run(e, '$gameMap.isAnyEventStarting()'), true);
+  },
+  'the answer is the new map\'s after a change of map, and another map object\'s after a load'() {
+    const e = engine();
+    run(e, '$gameMap.setupEvents([null, ev(1, 0, 0)]); $gameMap._events[1].start(); $gameMap.isAnyEventStarting();');
+    run(e, '$gameMap.setupEvents([null, ev(2, 0, 0)]);');
+    assert.strictEqual(run(e, '$gameMap.isAnyEventStarting()'), false);
+    run(e, 'var loaded = new Game_Map(); loaded.setupEvents([null, ev(3, 0, 0)]); loaded._events[1]._starting = true;');
+    assert.strictEqual(run(e, 'loaded.isAnyEventStarting()'), true);
+  },
+  'a plugin\'s own copy of the question, when it is the well-known one, shares the answer'() {
+    const e = engine(`Game_Map.prototype.isAnyEventStartingQuick = function() {
+    var max = this._events.length;
+    for (var i = 0; i < max; ++i) {
+      var ev = this._events[i];
+      if (ev && ev.isStarting()) return true;
+    }
+    return false;
+};`);
+    run(e, '$gameMap.setupEvents([null, ev(1, 0, 0), ev(2, 1, 1)]);');
+    run(e, 'for (var i = 0; i < 20; i++) { $gameMap.isAnyEventStartingQuick(); $gameMap.isAnyEventStarting(); }');
+    assert.strictEqual(run(e, 'startingAsked'), 2);
+    run(e, '$gameMap._events[1].start();');
+    assert.strictEqual(run(e, '$gameMap.isAnyEventStartingQuick()'), true);
+  },
+  'the question, when a plugin already replaced it, is left as the plugin made it, and that is reported'() {
+    const e = engine('Game_Map.prototype.isAnyEventStarting = function () { pluginAsked++; return false; }; var pluginAsked = 0;');
+    run(e, '$gameMap.setupEvents([null, ev(1, 3, 4)]); $gameMap.isAnyEventStarting();');
+    assert.strictEqual(run(e, 'pluginAsked'), 1);
+    assert.ok(/isAnyEventStarting/.test(String(e.installResult)), 'reported: ' + e.installResult);
   },
   'with the engine as shipped, nothing is reported'() {
     const e = engine();
     assert.strictEqual(e.installResult, undefined);
-  },
-  'a map that follows another one is looked up, not the old one'() {
-    const e = engine();
-    run(e, '$gameMap.setupEvents([null, ev(1, 3, 4)]); $gameMap.eventsXy(3, 4);');
-    run(e, '$gameMap.setupEvents([null, ev(7, 8, 8)]);');
-    assert.strictEqual(run(e, '$gameMap.eventsXy(3, 4).length'), 0);
-    assert.strictEqual(ids(e, '$gameMap.eventsXy(8, 8)'), '7');
   },
 };
 
