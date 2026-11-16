@@ -7,6 +7,8 @@
 #        (run from the player/ folder; needs the mvp-player-headless image)
 # The game folder is not written to: the game runs on a copy of its save
 # folder that is thrown away. $PLAYER_OPTIONS is passed to the player.
+# $SAVES names a folder whose files are added to that copy, to run a game
+# from saves that are not in the game folder.
 set -eu
 GAME=$(cd "$1" && pwd)
 WATCH="${2:-}"
@@ -18,11 +20,14 @@ if [ -n "$WATCH" ]; then
   RUN="--run /watch/$(basename "$WATCH")"
 fi
 # shellcheck disable=SC2086
+if [ -n "${SAVES:-}" ]; then MOUNT="$MOUNT -v $(cd "$SAVES" && pwd):/saves:ro"; fi
+# shellcheck disable=SC2086
 docker run --rm -v "$PWD":/work/player:ro -v "$GAME":/game-ro:ro $MOUNT mvp-player-headless sh -c "
   # Everything of the game is linked from the read-only folder except save/.
   mkdir -p /game/save && cd /game-ro
   for ENTRY in *; do [ \"\$ENTRY\" = save ] || ln -s \"/game-ro/\$ENTRY\" \"/game/\$ENTRY\"; done
   cp -r /game-ro/save/. /game/save/ 2>/dev/null || true
+  [ -d /saves ] && cp -r /saves/. /game/save/
   rm -f /game/save/mvplayer.log
   mkdir /p && cp /work/player/build-device/mvplayer /p/ && cp -r /work/player/js /work/player/patches /p/
   cd /p

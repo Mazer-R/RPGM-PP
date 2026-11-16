@@ -17,6 +17,7 @@
   var SETTLE_MS = 8000, WALK_MS = 40000;
   // Arrow key codes, and the engine's direction number for each.
   var KEYS = [37, 38, 39, 40], DIRECTION_OF = { 37: 4, 38: 8, 39: 6, 40: 2 }, facing = 0, blocked = 0;
+  var stopProfile = null;
   var stage = 'boot', at = 0, held = 0, nextTurn = 0, turn = 0, steps = 0, t = {}, startX = 0, startY = 0, moved = 0, lastX = -1, lastY = -1;
 
   // Only steps on the map count: a battle the walk runs into is another matter.
@@ -68,6 +69,13 @@
       stage = 'settle'; at = now;
     } else if (stage === 'settle' && now - at > SETTLE_MS) {
       stage = 'walk'; at = now; startX = $gamePlayer.x; startY = $gamePlayer.y;
+      // With WALK_PROFILE set, the whole walk is sampled; the player's own
+      // profiling of slow periods is switched off so the two do not collide.
+      if (globalThis.WALK_PROFILE && player.startProfile) {
+        stopProfile = player.stopProfile;
+        player.startProfile();
+        player.startProfile = undefined;
+      }
       console.log('walk: starting on map ' + $gameMap.mapId() + ' at ' + startX + ',' + startY);
     } else if (stage === 'walk') {
       if ($gamePlayer.x !== lastX || $gamePlayer.y !== lastY) { moved++; lastX = $gamePlayer.x; lastY = $gamePlayer.y; }
@@ -95,6 +103,10 @@
           ', ' + steps + ' logic steps on the map; ms per step:');
         Object.keys(t).forEach(function (k) { console.log('walk: ' + (t[k] / Math.max(1, steps)).toFixed(2) + '  ' + k); });
         console.log('walk: patch counters ' + JSON.stringify(player.patchStats || {}));
+        if (stopProfile) {
+          console.log('walk: where the scripts spent their own time (share of samples):');
+          stopProfile.call(player, 40).forEach(function (line) { console.log('walk:   ' + line); });
+        }
         player.exit(0);
       }
     }
