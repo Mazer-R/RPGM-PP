@@ -565,6 +565,81 @@ adjustments where the game's own code is too expensive for this hardware.
         `tools/run-headless.sh`, which runs a game from saves kept outside
         the game folder.
 
+*   **Android build (experimental).** The player runs as an Android app
+    (arm64-v8a, Android 8.0+): `packaging/android/README.md` has the steps.
+    *   V8 12.4.254.21 built for Android with the NDK's clang and libc++
+        (`tools/v8/build-android.sh`, same options as the other builds);
+        Cairo, pixman, FreeType and libpng with `build-android-deps.sh`;
+        SDL2 from source; the package is assembled with the SDK's own tools,
+        without Gradle.
+    *   One process runs the game list, the game, and the list again
+        (`src/platform/android_start.cpp`). For that, V8 is started once per
+        process and never shut down, and per-run state (WebGL binding, file
+        caches) is reset when a run ends.
+    *   Games live in `RPGMV/` on the shared storage and need the "all files
+        access" permission. The first design, the app's own folder with no
+        permission, failed: on Android 17 not even `adb` can write there.
+    *   Touch controls (`platform/touch`): a direction pad and three buttons,
+        drawn as rings over the picture; hidden while a controller or
+        keyboard is used. Back is cancel; held for a second it leaves the
+        game. A press and release within one frame is now stretched to a
+        frame on every platform, since the engine only samples keys per frame.
+    *   **Checked** on the SDK emulator (Android 17, 16 KB pages, software
+        OpenGL ES): list, Fear & Hunger to its title and into the new-game
+        screens by simulated taps, back to the list and into the game again
+        in the same process, log copies kept. **Not checked**: a real phone,
+        real fingers, a controller, speed (the emulator's numbers mean
+        nothing), the permission screen itself (granted through `adb`).
+*   **Encrypted images and sounds (`.rpgmvp`, `.rpgmvo`).** Games deployed
+    with RPG Maker MV's encryption now load. The engine's own unscrambling
+    is used, so no key handling was added: the engine is given the start of
+    the file, and the true first bytes it works out are passed to native
+    code, which reads the rest from disk (`js/file-bytes.js`,
+    `platform/files`). Images keep their lazy decoding; an encrypted sound
+    is read whole into memory while it plays.
+    *   **Checked** with an encrypted copy of Fear & Hunger made by
+        `tools/encrypt-game.py`: the title picture is identical headless
+        (lit fraction 0.634), and on the Android emulator the title music
+        plays (mixer peak 0.34). Not checked with a game that was shipped
+        encrypted, nor `.rpgmvm` (m4a), which is not supported.
+*   **Wasted work removed after a review of the player's own code.**
+    *   A bug: `commonEventThrottle` counted the steps the engine asked
+        for, including those `framePacing` drops, so at about 20 frames per
+        second some throttled events never got their turn. Each event now
+        counts the steps it is offered (test added; it failed before).
+    *   Canvas uploads reuse one buffer and convert pixels without
+        branches; idle sound decoders are kept open (up to 16) instead of
+        reopening the file per effect; the decoded-image cache now drops
+        the least recently used; resolved file paths and parsed light
+        colours are remembered.
+    *   **Not measured**: the gain of these changes. The walk benchmark
+        varies too much between identical runs to show it (see below).
+        Still open: text drawn as paths, per-call overhead of the WebGL
+        binding.
+*   **Vertical sync cannot be relaxed on the RG35XX SP (2026-11-16).**
+    *   **Tried**: presenting a late frame with swap interval 0, only for
+        late frames and then for every frame. The driver accepts the
+        request (`SDL_GL_SetSwapInterval(0)` returns success and reads
+        back 0) and ignores it.
+    *   **Evidence**: frame durations in the 40-second walk of Fear &
+        Hunger fall in two peaks, 16-18 ms and 32-34 ms, in all three
+        modes; frames presented in 56 s were 1661-1909 with the wait and
+        1677-1942 without, inside the run-to-run spread.
+    *   **Where the wait is**: about half of the frames return from the
+        swap at once and wait inside the next frame's first drawing
+        calls, so the time the scripts appear to take includes it. Frames
+        whose scripts took about 12 ms still land on 33 ms: the GPU's own
+        work on the frame (lights, full-screen passes) pushes them past
+        the refresh. Less GPU work per frame is therefore the way to more
+        60 fps frames, not the swap interval.
+    *   **Outcome**: the option was removed again; no code changed.
+    *   **The walk benchmark is too noisy for small gains**: with the
+        same build and settings, a run spends between 649 and 2329 logic
+        steps on the map (the walk runs into a battle or not) and reports
+        11.8-13.1 ms per step. The `eventLookup` patch answered 140
+        lookups in such a run, none by scanning every event: correct, and
+        too little work on this map to show in the totals.
+
 ## Critical User Journeys (CUJs)
 
 ### CUJ 1: First launch
