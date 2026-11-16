@@ -755,6 +755,35 @@ adjustments where the game's own code is too expensive for this hardware.
         computer) no event reaches the limit, so nothing is slowed.
     *   **Not checked**: a full walk comparison (the walk benchmark is
         too noisy), other games, play by hand.
+*   **Short stops while playing: the player's own profiler was one cause (2026-11-16).**
+    *   **Reported**: a drop every seven to ten seconds on the RG35XX SP
+        in Fear & Hunger 2.
+    *   **Found**: whenever a ten-second period ran below 22 frames per
+        second, the player started the engine's sampling profiler for
+        the log, and starting it stopped the game for 1.5-1.7 s (four
+        runs, always at the same point), up to four times per run. It
+        is now done only with `--profile-slow`.
+    *   **Ruled out**: memory collection (57 pauses and 785 ms in a 74 s
+        run; three full ones of about 30 ms, the small ones about 13 ms
+        each); reading files, decoding pictures or sound and sending
+        textures outside map changes; the game's events in the slow
+        frames of an automatic walk. Counted with the new
+        `player.memoryPauses()`.
+    *   **The ten-second log line now explains itself**: it counts the
+        frames over 60 ms and divides the slowest into logic, drawing,
+        memory collection and the rest. A played session showed, in
+        settled periods, single logic steps of 110-160 ms as the worst
+        frame on maps 4, 114 and 15; map changes cost 0.4-1.2 s of
+        drawing (textures of 1024x1024 sent to the GPU) and opening the
+        menu about 0.5 s.
+    *   **After the change**: an automatic walk of 78 s had no frame over
+        95 ms in its last 46 s; by hand it was reported as clearly more
+        stable.
+    *   **Open**: what the 110-160 ms logic steps of real play are (not
+        reproduced by the automatic walk; `tests/device/hitch_watch.js`
+        names the slowest step, command and event of a slow frame), and
+        one or two stops of 110-130 ms per run outside scripts and
+        memory.
 
 ## Critical User Journeys (CUJs)
 

@@ -25,6 +25,9 @@
 // --no-patches runs the game without the per-game patches in patches/.
 // --fps starts with the frame-rate display on (also MVPLAYER_FPS=1). It can
 // be switched while playing: F2, or the console's menu button plus Select.
+// --profile-slow samples where the scripts spend their time after a slow
+// stretch of play and logs it; starting the sampler stops the game for
+// more than a second on a handheld, so it is for looking into a game.
 // --run adds a script that is run after the first one; tests use it to
 // watch a running game.
 //
@@ -106,6 +109,7 @@ int PlayerMain(int argc, char** argv) {
   std::string script, game_dir, player_dir, log_path;
   std::vector<std::string> extra_scripts;
   bool no_patches = false;
+  bool profile_slow = false;
   bool pick = false;
   std::vector<std::string> library_dirs, library_games;
   std::string game_path, games_file, resolve_path;
@@ -117,6 +121,7 @@ int PlayerMain(int argc, char** argv) {
     if (arg == "--log" && i + 1 < argc) log_path = argv[++i];
     else if (arg == "--run" && i + 1 < argc) extra_scripts.push_back(argv[++i]);
     else if (arg == "--no-patches") no_patches = true;
+    else if (arg == "--profile-slow") profile_slow = true;
     else if (arg == "--pick") {
       pick = true;
       while (i + 1 < argc && argv[i + 1][0] != '-') library_dirs.push_back(WithoutTrailingSlash(argv[++i]));
@@ -217,6 +222,7 @@ int PlayerMain(int argc, char** argv) {
     host.InstallBindings(window.width(), window.height(), audio.get(), video.available() ? &video : nullptr);
     host.SetDirectories(game_dir, player_dir);
     host.SetFlag("noPatches", no_patches);
+    host.SetFlag("profileSlow", profile_slow);
     host.SetStringList("libraryDirs", library_dirs);
     host.SetStringList("libraryGames", library_games);
     host.SetFlag("canAddGame", can_add);

@@ -53,6 +53,32 @@ void StartV8Once() {
 }
 }  // namespace
 
+// The pauses in which the engine collects memory no longer in use: while one
+// lasts, no script runs. Counted since the start, the full collections (of
+// the whole heap, the long ones) also apart. One engine per program.
+namespace {
+struct MemoryPauses {
+  int count = 0, full_count = 0;
+  double ms = 0, full_ms = 0;
+  std::chrono::steady_clock::time_point began;
+};
+MemoryPauses g_memory_pauses;
+
+void MemoryPauseBegan(v8::Isolate*, v8::GCType, v8::GCCallbackFlags, void*) {
+  g_memory_pauses.began = std::chrono::steady_clock::now();
+}
+
+void MemoryPauseEnded(v8::Isolate*, v8::GCType type, v8::GCCallbackFlags, void*) {
+  double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - g_memory_pauses.began).count();
+  g_memory_pauses.count++;
+  g_memory_pauses.ms += ms;
+  if (type & v8::kGCTypeMarkSweepCompact) {
+    g_memory_pauses.full_count++;
+    g_memory_pauses.full_ms += ms;
+  }
+}
+}  // namespace
+
 Host::Host(Log& log, const Clock& clock) : log_(log), clock_(clock) {
   StartV8Once();
 
@@ -63,6 +89,8 @@ Host::Host(Log& log, const Clock& clock) : log_(log), clock_(clock) {
   // Promise callbacks run only when the host says so: after each script and
   // after each callback, as a browser does.
   isolate_->SetMicrotasksPolicy(v8::MicrotasksPolicy::kExplicit);
+  isolate_->AddGCPrologueCallback(MemoryPauseBegan);
+  isolate_->AddGCEpilogueCallback(MemoryPauseEnded);
 
   v8::Isolate::Scope isolate_scope(isolate_);
   v8::HandleScope handle_scope(isolate_);
@@ -223,6 +251,18 @@ void Host::PrintCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
   std::string text = ToStdString(args.GetIsolate(), args[0]);
   std::fprintf(stdout, "%s\n", text.c_str());
   std::fflush(stdout);
+}
+
+// player.memoryPauses(): [pauses, their milliseconds, full collections among
+// them, their milliseconds], all since the start.
+void Host::MemoryPausesCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::Isolate* isolate = args.GetIsolate();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  const double values[] = {static_cast<double>(g_memory_pauses.count), g_memory_pauses.ms,
+                           static_cast<double>(g_memory_pauses.full_count), g_memory_pauses.full_ms};
+  v8::Local<v8::Array> result = v8::Array::New(isolate, 4);
+  for (uint32_t i = 0; i < 4; i++) result->Set(context, i, v8::Number::New(isolate, values[i])).Check();
+  args.GetReturnValue().Set(result);
 }
 
 // player.startProfile(): starts sampling where the scripts spend their time.
@@ -413,6 +453,7 @@ void Host::InstallGlobals(v8::Local<v8::Context> context) {
   set(player, "fileHead", make_function(FileHeadCallback, "fileHead"));
   set(player, "startProfile", make_function(StartProfileCallback, "startProfile"));
   set(player, "stopProfile", make_function(StopProfileCallback, "stopProfile"));
+  set(player, "memoryPauses", make_function(MemoryPausesCallback, "memoryPauses"));
   set(player, "v8Version", ToV8String(isolate_, v8::V8::GetVersion()));
   set(global, "player", player);
 }

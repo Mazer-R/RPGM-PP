@@ -24,49 +24,73 @@
   // finished booting, just before the first real scene.
   // Every ten seconds of play, one log line says how the game ran: where
   // (scene and map), frames shown, logic steps per frame, and the average
-  // time of a logic step and of a drawing step, with the slowest frame. It
-  // costs two clock readings per step, and lets a slow stretch of real play
-  // be understood afterwards from the log alone.
+  // time of a logic step and of a drawing step. It costs two clock readings
+  // per step, and lets a slow stretch of real play be understood afterwards
+  // from the log alone.
   //
-  // When a period ran below SLOW_FPS, the next period is also sampled with
-  // the engine's profiler, and the functions where the scripts spent most
-  // time are logged. This happens at most MAX_PROFILES times per run.
+  // The line also explains the short stops a player feels while the average
+  // looks fine: how many frames took over LONG_FRAME_MS, and for the slowest
+  // frame how its time divides into logic steps, drawing, the engine
+  // collecting memory, and the rest (waiting for the screen, the player's
+  // own work, other programs).
+  //
+  // When the player was started with --profile-slow and a period ran below
+  // SLOW_FPS, the next period is also sampled with the engine's profiler,
+  // and the functions where the scripts spent most time are logged. This
+  // happens at most MAX_PROFILES times per run. It is not done otherwise:
+  // starting the sampler stops a handheld for over a second.
   function installPerformanceLog() {
     if (!globalThis.SceneManager || !SceneManager.updateScene || !SceneManager.renderScene) return;
-    var PERIOD_MS = 10000, SLOW_FPS = 22, MAX_PROFILES = 4;
+    var PERIOD_MS = 10000, SLOW_FPS = 22, MAX_PROFILES = 4, LONG_FRAME_MS = 60;
     var profiling = false, profiles = 0;
-    var since = performance.now(), frames = 0, steps = 0, logic = 0, draw = 0, worst = 0, frameStart = 0, lastFrameEnd = 0;
+    var since = performance.now(), frames = 0, steps = 0, logic = 0, draw = 0, worst = 0, lastFrameEnd = 0;
+    // The frame going on (logic and drawing so far, memory pauses when it
+    // began), the slowest one of the period, and how many were long.
+    var frameLogic = 0, frameDraw = 0, frameSteps = 0, frameMemory = 0, longFrames = 0, worstParts = '';
+    function memoryMs() { return player.memoryPauses ? player.memoryPauses()[1] : 0; }
     var updateScene = SceneManager.updateScene, renderScene = SceneManager.renderScene, updateMain = SceneManager.updateMain;
     SceneManager.updateScene = function () {
       var before = performance.now();
       try { return updateScene.apply(this, arguments); }
-      finally { logic += performance.now() - before; steps++; }
+      finally { var took = performance.now() - before; logic += took; frameLogic += took; steps++; frameSteps++; }
     };
     SceneManager.renderScene = function () {
       var before = performance.now();
       try { return renderScene.apply(this, arguments); }
-      finally { draw += performance.now() - before; }
+      finally { var took = performance.now() - before; draw += took; frameDraw += took; }
     };
     SceneManager.updateMain = function () {
       var now = performance.now();
-      if (lastFrameEnd) worst = Math.max(worst, now - lastFrameEnd);
-      lastFrameEnd = now;
+      // This runs at the start of a frame: the numbers are the frame before's.
+      var memoryNow = memoryMs();
+      if (lastFrameEnd) {
+        var frame = now - lastFrameEnd;
+        if (frame > LONG_FRAME_MS) longFrames++;
+        if (frame > worst) {
+          worst = frame;
+          var memory = memoryNow - frameMemory;
+          worstParts = 'logic ' + frameLogic.toFixed(0) + ' ms in ' + frameSteps + ' steps, drawing ' + frameDraw.toFixed(0) +
+            ' ms, memory ' + memory.toFixed(0) + ' ms, the rest ' + Math.max(0, frame - frameLogic - frameDraw - memory).toFixed(0) + ' ms';
+        }
+      }
+      lastFrameEnd = now; frameLogic = 0; frameDraw = 0; frameSteps = 0; frameMemory = memoryNow;
       frames++;
       if (now - since >= PERIOD_MS) {
         var scene = this._scene ? this._scene.constructor.name : 'none';
         var where = scene + (globalThis.$gameMap && /Map/.test(scene) ? ' map ' + $gameMap.mapId() + ' (' + $gameMap.events().length + ' events)' : '');
         console.info('perf: ' + where + ': ' + (frames * 1000 / (now - since)).toFixed(0) + ' frames per second, ' +
           (steps / frames).toFixed(1) + ' steps per frame, logic ' + (logic / Math.max(1, steps)).toFixed(1) + ' ms per step, draw ' +
-          (draw / frames).toFixed(1) + ' ms per frame, slowest frame ' + worst.toFixed(0) + ' ms');
+          (draw / frames).toFixed(1) + ' ms per frame, ' + longFrames + ' frames over ' + LONG_FRAME_MS + ' ms, slowest frame ' +
+          worst.toFixed(0) + ' ms (' + worstParts + ')');
         if (profiling) {
           profiling = false;
           console.info('perf: where the scripts spent their own time in that period (share of samples):');
           player.stopProfile(28).forEach(function (line) { console.info('perf:   ' + line); });
-        } else if (player.startProfile && profiles < MAX_PROFILES && frames * 1000 / (now - since) < SLOW_FPS && /Map|Battle/.test(scene)) {
+        } else if (player.profileSlow && player.startProfile && profiles < MAX_PROFILES && frames * 1000 / (now - since) < SLOW_FPS && /Map|Battle/.test(scene)) {
           profiling = true; profiles++;
           player.startProfile();
         }
-        since = now; frames = 0; steps = 0; logic = 0; draw = 0; worst = 0;
+        since = now; frames = 0; steps = 0; logic = 0; draw = 0; worst = 0; longFrames = 0; worstParts = '';
       }
       return updateMain.apply(this, arguments);
     };
