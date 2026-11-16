@@ -656,6 +656,28 @@ void Host::SetFlag(const std::string& name, bool value) {
   player.As<v8::Object>()->Set(context, ToV8String(isolate_, name), v8::Boolean::New(isolate_, value)).Check();
 }
 
+void Host::DispatchPointer(int phase, float x, float y) {
+  v8::Isolate::Scope isolate_scope(isolate_);
+  v8::HandleScope handle_scope(isolate_);
+  v8::Local<v8::Context> context = context_.Get(isolate_);
+  v8::Context::Scope context_scope(context);
+  v8::TryCatch try_catch(isolate_);
+  v8::Local<v8::Value> player, handler;
+  if (!context->Global()->Get(context, ToV8String(isolate_, "player")).ToLocal(&player) ||
+      !player->IsObject() ||
+      !player.As<v8::Object>()->Get(context, ToV8String(isolate_, "onPointer")).ToLocal(&handler) ||
+      !handler->IsFunction()) {
+    return;
+  }
+  v8::Local<v8::Value> arguments[3] = {v8::Integer::New(isolate_, phase), v8::Number::New(isolate_, x),
+                                       v8::Number::New(isolate_, y)};
+  v8::Local<v8::Value> result;
+  if (!handler.As<v8::Function>()->Call(context, player, 3, arguments).ToLocal(&result)) {
+    ReportException(&try_catch);
+  }
+  isolate_->PerformMicrotaskCheckpoint();
+}
+
 void Host::DispatchKey(int key_code, bool down) {
   v8::Isolate::Scope isolate_scope(isolate_);
   v8::HandleScope handle_scope(isolate_);

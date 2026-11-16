@@ -35,7 +35,8 @@ one folder per game, each holding the game's `www` folder; any file manager
 or a USB cable can put them there. A game kept anywhere else in the shared
 storage can be added from the list's "Add a game" line, which shows the
 folders: go into the game's own folder and choose its `.exe`. The list
-shows the games played last first. Saves and the log stay in each game's
+shows the games played last first; touch a game to play it, and drag the
+list to move it. Saves and the log stay in each game's
 `www/save`.
 
 The first time it starts, the app opens the system screen for "all files

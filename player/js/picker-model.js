@@ -61,5 +61,31 @@
     return roots.map(function (root) { return { kind: 'folder', label: root, path: root }; });
   }
 
-  globalThis.__pickerModel = { order: order, browse: browse, places: places };
+  // --- Fingers and the mouse ------------------------------------------------
+  // layout: { top, row, first, count, visible, left, width }: where the
+  // lines are drawn (from `top` down, each `row` high, between `left` and
+  // `left + width`), which line is on top, how many there are and how many
+  // fit.
+  // The line under the point x, y, or -1.
+  function lineAt(x, y, layout) {
+    if (x < layout.left || x >= layout.left + layout.width || y < layout.top) return -1;
+    var shown = Math.floor((y - layout.top) / layout.row);
+    var line = layout.first + shown;
+    return shown < layout.visible && line < layout.count ? line : -1;
+  }
+  // The line on top after the finger has moved `pixels` down (negative: up)
+  // since it was put down, when `layout.first` was on top.
+  function dragged(layout, pixels) {
+    var last = Math.max(0, layout.count - layout.visible);
+    return Math.min(last, Math.max(0, layout.first - Math.round(pixels / layout.row)));
+  }
+  var TAP_SLACK = 12;
+  function isTap(x0, y0, x1, y1) { return Math.abs(x1 - x0) <= TAP_SLACK && Math.abs(y1 - y0) <= TAP_SLACK; }
+
+  // Whether lifting a finger from a line opens it. A game in the list (a line
+  // with a www folder) opens only when it was already the chosen one: the
+  // first touch chooses it, which puts its title picture behind the list.
+  function tapOpens(entry, wasChosen) { return !entry.www || wasChosen; }
+
+  globalThis.__pickerModel = { order: order, browse: browse, places: places, lineAt: lineAt, dragged: dragged, isTap: isTap, tapOpens: tapOpens };
 })();

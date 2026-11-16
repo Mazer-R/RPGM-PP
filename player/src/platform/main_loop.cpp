@@ -59,6 +59,7 @@ int RunMainLoop(Window& window, Input& input, Host& host, const Clock& clock, Lo
     // Key changes reach the game before this frame's work, as a browser
     // delivers key events between frames.
     for (const KeyChange& change : input.TakeChanges()) host.DispatchKey(change.key_code, change.down);
+    for (const PointerChange& change : input.TakePointerChanges()) host.DispatchPointer(change.phase, change.x, change.y);
     // Frame callbacks are the only source of work so far. When none is
     // waiting, nothing can run again, so the loop ends instead of presenting
     // empty frames for ever (for example after a script failed while loading).

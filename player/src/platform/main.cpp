@@ -188,6 +188,8 @@ int PlayerMain(int argc, char** argv) {
   mvp::Input input(log);
   input.Open();
   input.SetScreenSize(window.width(), window.height());
+  // The game list is touched directly; games get the on-screen controls.
+  input.SetPointerMode(pick);
   // Each game keeps its own controls, next to its saves.
   if (!game_dir.empty()) {
     mkdir((game_dir + "/save").c_str(), 0755);

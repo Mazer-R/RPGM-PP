@@ -77,6 +77,43 @@ const tests = {
     assert.strictEqual(rows[0].path, '/');
     assert.strictEqual(model.browse('/', ['mnt/'], null, ['/'])[0].path, '/mnt');
   },
+
+  'a finger on the list is on the line drawn there, or on none'() {
+    // Lines 62 high from 92 down, the list scrolled so that line 3 is on top, 7 lines in all.
+    const layout = { top: 92, row: 62, first: 3, count: 7, visible: 5, left: 20, width: 560 };
+    assert.strictEqual(model.lineAt(100, 93, layout), 3);
+    assert.strictEqual(model.lineAt(100, 92 + 62 * 2 + 10, layout), 5);
+    assert.strictEqual(model.lineAt(100, 80, layout), -1, 'above the list');
+    assert.strictEqual(model.lineAt(100, 92 + 62 * 4 + 1, layout), -1, 'below the last line there is');
+    assert.strictEqual(model.lineAt(10, 100, layout), -1, 'left of the list');
+    assert.strictEqual(model.lineAt(600, 100, layout), -1, 'right of the list');
+  },
+
+  'dragging the list moves it by whole lines and stops at its ends'() {
+    const layout = { top: 92, row: 62, first: 3, count: 12, visible: 5, left: 20, width: 560 };
+    assert.strictEqual(model.dragged(layout, -62 * 2 - 5), 5, 'a finger moving up shows later lines');
+    assert.strictEqual(model.dragged(layout, 62), 2);
+    assert.strictEqual(model.dragged(layout, 62 * 20), 0);
+    assert.strictEqual(model.dragged(layout, -62 * 20), 7, 'the last line stays at the bottom');
+    assert.strictEqual(model.dragged({ top: 92, row: 62, first: 0, count: 3, visible: 5, left: 0, width: 9 }, -500), 0, 'a short list does not move');
+  },
+
+  'a touch that hardly moved is a tap; one that moved is a drag'() {
+    assert.strictEqual(model.isTap(100, 200, 104, 195), true);
+    assert.strictEqual(model.isTap(100, 200, 100, 230), false);
+  },
+
+  'touching a game chooses it, so that its picture shows; touching it again plays it'() {
+    assert.strictEqual(model.tapOpens({ www: '/g/www', title: 'Game' }, false), false, 'the first touch only chooses');
+    assert.strictEqual(model.tapOpens({ www: '/g/www', title: 'Game' }, true), true, 'a touch on the chosen game plays it');
+  },
+
+  'everything that is not a game opens at the first touch'() {
+    assert.strictEqual(model.tapOpens({ add: true }, false), true);
+    assert.strictEqual(model.tapOpens({ setting: true }, false), true);
+    assert.strictEqual(model.tapOpens({ kind: 'folder', label: 'Games/', path: '/Games' }, false), true);
+    assert.strictEqual(model.tapOpens({ kind: 'game', label: 'Add this game: X', path: '/g/www' }, false), true);
+  },
 };
 
 let failed = 0;

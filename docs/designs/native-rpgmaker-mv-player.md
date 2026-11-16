@@ -826,6 +826,34 @@ adjustments where the game's own code is too expensive for this hardware.
     *   **Not checked**: on Android and desktop Linux (builds not yet
         made), a folder with hundreds of entries, touch-only use beyond
         the on-screen pad.
+*   **A better-looking game list, touched directly (2026-11-16).**
+    *   **Why**: on a phone the list was plain text lines worked through
+        the on-screen pad ("extremely shabby", from a first try).
+    *   **Look**: the chosen game's title picture (`img/titles1` or
+        `titles2`, named in the game's `System.json`) fills the
+        background under a dark veil; each game is a rounded line with
+        its icon (`www/icon/icon.png`), title and folder; "Add a game"
+        and the frame-rate switch are lines of the same kind; the
+        browser's lines carry folder and file signs and its explanation
+        sits in a panel. The system's font is preferred over a game's.
+        The title picture is decoded only once the choice has rested on
+        a game for eight frames. All of it is drawn on the native canvas
+        (paths, gradients, clipped pictures); nothing was added to it.
+    *   **Touch and mouse**: in the list the first finger and the left
+        mouse button go to the script as they are (`player.onPointer`),
+        and the on-screen controls are not shown. Touching a line
+        chooses it, lifting there opens it, dragging moves the list. A
+        game opens only at a second touch: the first one chooses it, so
+        that its title picture is seen.
+        Which line is under a point and how far a drag moves are in
+        `js/picker-model.js`, with tests.
+    *   **Checked**: pictures taken without a screen at a phone's
+        proportions (1200x540) and on the RG35XX SP (640x480), list and
+        browser, with keys.
+    *   **Not checked**: touching and dragging on a real phone or with a
+        mouse (no way to send pointer events in the screenless run);
+        games with encrypted pictures show no icon or background. On a
+        phone it was reported as working, by hand.
 
 ## Critical User Journeys (CUJs)
 

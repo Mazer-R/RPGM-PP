@@ -27,6 +27,14 @@ struct KeyChange {
   bool down;
 };
 
+// A finger or the mouse on the screen, for a script that asked for them:
+// phase 0 = put down, 1 = moved while down, 2 = lifted; x, y in screen
+// pixels from the top left.
+struct PointerChange {
+  int phase;
+  float x, y;
+};
+
 class Input {
  public:
   explicit Input(Log& log);
@@ -53,6 +61,12 @@ class Input {
   // and no key reaches it.
   bool menu_open() const;
   void MenuPicture(std::vector<MenuBox>* boxes, std::vector<MenuText>* texts) const;
+  // In pointer mode the first finger on the screen, and the mouse's left
+  // button, are passed on as they are (TakePointerChanges) instead of
+  // working the on-screen touch controls, which are then not shown. The
+  // game list uses it: its lines are touched directly.
+  void SetPointerMode(bool on) { pointer_mode_ = on; }
+  std::vector<PointerChange> TakePointerChanges();
   // Looks at one SDL event; key changes are queued.
   void HandleEvent(const SDL_Event& event);
   // Returns the queued key changes, oldest first, and empties the queue.
@@ -92,6 +106,12 @@ class Input {
   std::vector<int> keys_down_;  // keys the game has been told are down
   bool trigger_[2] = {false, false};  // left, right
   bool touch_visible_ = false;
+  bool pointer_mode_ = false;
+  bool pointer_down_ = false;      // the finger or mouse button being followed is down
+  bool pointer_is_finger_ = false;
+  long long pointer_finger_ = 0;   // which finger, while one is followed
+  std::vector<PointerChange> pointer_changes_;
+  bool HandlePointerEvent(const SDL_Event& event);
   int screen_width_ = 0, screen_height_ = 0;
 };
 

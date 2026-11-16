@@ -117,7 +117,6 @@
     backToList(www);
   }
   function lines() { return browsing ? browsing.rows : games; }
-  function labelOf(line) { return browsing ? line.label : line.title; }
   // Leaves the list, always saying how the setting stands.
   function leave(code, answer) {
     player.print('MVPLAYER_FPS=' + (showFps ? 1 : 0));
@@ -127,70 +126,242 @@
   console.info('picker: ' + games.length + ' lines; folders: ' + (player.libraryDirs || []).join(', '));
 
   // --- A font ---------------------------------------------------------------
-  // The player ships no font of its own. Every RPG Maker MV game carries
-  // this one, so the first game that has it lends it to the list. With no
-  // game yet, a desktop system's own font is used.
+  // The player ships no font of its own. A phone's or a desktop's own font
+  // is used when there is one; otherwise the font every RPG Maker MV game
+  // carries, lent by the first game that has it.
   var SYSTEM_FONTS = ['/system/fonts/Roboto-Regular.ttf', '/system/fonts/NotoSans-Regular.ttf',
     '/system/fonts/DroidSans.ttf', '/usr/share/fonts/TTF/DejaVuSans.ttf', '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
     '/usr/share/fonts/dejavu/DejaVuSans.ttf', '/usr/share/fonts/noto/NotoSans-Regular.ttf',
     '/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf', '/usr/share/fonts/liberation/LiberationSans-Regular.ttf',
     '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf'];
-  var fontFiles = found
-    .map(function (game) { return game.www + '/fonts/mplus-1m-regular.ttf'; }).concat(SYSTEM_FONTS);
+  var fontFiles = SYSTEM_FONTS.concat(found.map(function (game) { return game.www + '/fonts/mplus-1m-regular.ttf'; }));
   var hasFont = fontFiles.some(function (file) { return player.fileExists(file) && c2d.registerFont('Picker', file); });
+
+  // --- The games' own pictures ------------------------------------------------
+  // A game's icon (www/icon/icon.png) is shown on its line, and the picture
+  // of its title screen fills the background while the game is the chosen
+  // one. A game that has neither, or keeps them encrypted, does without.
+  var art = {};
+  function picture(file) {
+    var size = player.fileExists(file) ? c2d.imageSize(file) : null;
+    var handle = size ? c2d.loadImage(file) : 0;
+    return handle ? { handle: handle, width: size[0], height: size[1] } : null;
+  }
+  function artOf(game) {
+    return art[game.www] || (art[game.www] = { icon: picture(game.www + '/icon/icon.png'), cover: null, looked: false });
+  }
+  // Decoding a title picture takes a moment on a handheld, so it is looked
+  // for only once the choice has rested on a game (see frame()).
+  function lookForCover(game) {
+    var mine = artOf(game);
+    mine.looked = true;
+    try {
+      var system = JSON.parse(player.readTextFile(game.www + '/data/System.json') || '{}');
+      [['titles1', system.title1Name], ['titles2', system.title2Name]].some(function (place) {
+        if (place[1]) mine.cover = picture(game.www + '/img/' + place[0] + '/' + place[1] + '.png');
+        return !!mine.cover;
+      });
+    } catch (error) { /* the game's data cannot be read: no picture */ }
+  }
 
   // --- Drawing ----------------------------------------------------------------
   var canvas = c2d.create(W, H);
-  // The browser's two lines of explanation take the place of one row.
-  var ROW = 44, LIST_TOP = 96, BROWSE_TOP = 140;
-  function top() { return browsing ? BROWSE_TOP : LIST_TOP; }
-  function visible() { return Math.max(1, Math.floor((H - top() - 56) / ROW)); }
+  // The lines are in a column on the left; the rest of a wide screen shows
+  // the background. The browser's lines are lower, under its explanation,
+  // and smaller, so that a small screen still shows several.
+  var MARGIN = 28, COLUMN = Math.min(W - 2 * MARGIN, Math.max(520, Math.round(W * 0.5)));
+  var LIST = { top: 98, row: 62 }, BROWSE = { top: 166, row: 46 };
+  function metrics() { return browsing ? BROWSE : LIST; }
+  function visible() { return Math.max(1, Math.floor((H - metrics().top - 40) / metrics().row)); }
+  function layout() {
+    return { top: metrics().top, row: metrics().row, first: first, count: lines().length, visible: visible(),
+      left: MARGIN - 8, width: COLUMN + 16 };
+  }
   var selected = 0, first = 0;
-  var WHITE = [1, 1, 1, 1], GREY = [0.62, 0.62, 0.66, 1], DARK = [0.07, 0.07, 0.09, 1], BAR = [0.55, 0.16, 0.16, 1];
+  // Fingers or a mouse have been used (or it is a phone): the hints speak of
+  // touching, and nothing is said about buttons.
+  var touching = !!player.needsFileAccess;
+  var INK = [0.96, 0.96, 0.98, 1], MUTED = [0.66, 0.67, 0.74, 1], NIGHT = [0.043, 0.045, 0.063, 1];
+  var PANEL = [1, 1, 1, 0.07], PANEL_EDGE = [1, 1, 1, 0.16], ACCENT = [0.80, 0.23, 0.25, 1], ACCENT_DEEP = [0.52, 0.12, 0.16, 1];
+  var PI = Math.PI;
 
+  function gradient(x0, y0, x1, y1, stops) {
+    var made = c2d.createLinearGradient(x0, y0, x1, y1);
+    stops.forEach(function (stop) { c2d.addColorStop(made, stop[0], stop[1][0], stop[1][1], stop[1][2], stop[1][3]); });
+    return made;
+  }
+  // Over the background picture: dark where the lines are, clearer to the
+  // right, and dark again along the bottom, under the hints.
+  var VEIL = gradient(0, 0, W, 0, [[0, [0.043, 0.045, 0.063, 0.97]], [0.5, [0.043, 0.045, 0.063, 0.84]], [1, [0.043, 0.045, 0.063, 0.30]]]);
+  var FLOOR = gradient(0, H - 110, 0, H, [[0, [0.043, 0.045, 0.063, 0]], [1, [0.043, 0.045, 0.063, 0.92]]]);
+  var PLAIN = gradient(0, 0, 0, H, [[0, [0.085, 0.09, 0.13, 1]], [1, NIGHT]]);
+  var CHOSEN = gradient(MARGIN, 0, MARGIN + COLUMN, 0, [[0, ACCENT], [1, ACCENT_DEEP]]);
+
+  function rounded(x, y, w, h, r) {
+    c2d.beginPath(canvas);
+    c2d.moveTo(canvas, x + r, y);
+    c2d.lineTo(canvas, x + w - r, y);
+    c2d.arc(canvas, x + w - r, y + r, r, -PI / 2, 0, false);
+    c2d.lineTo(canvas, x + w, y + h - r);
+    c2d.arc(canvas, x + w - r, y + h - r, r, 0, PI / 2, false);
+    c2d.lineTo(canvas, x + r, y + h);
+    c2d.arc(canvas, x + r, y + h - r, r, PI / 2, PI, false);
+    c2d.lineTo(canvas, x, y + r);
+    c2d.arc(canvas, x + r, y + r, r, PI, PI * 1.5, false);
+    c2d.closePath(canvas);
+  }
+  function box(x, y, w, h, r, paint) { rounded(x, y, w, h, r); c2d.fill(canvas, paint, 1); }
+  function line(points, colour, thickness) {
+    c2d.beginPath(canvas);
+    points.forEach(function (point, i) { (i ? c2d.lineTo : c2d.moveTo)(canvas, point[0], point[1]); });
+    c2d.stroke(canvas, colour, 1, thickness, true);
+  }
   function text(string, x, y, size, colour) {
     if (!hasFont) return;
     c2d.setFont(canvas, 'Picker', size);
     c2d.fillText(canvas, string, x, y, colour, 1);
   }
-  // Shortens a title that would not fit in `width`.
-  function fitted(string, size, width) {
-    if (!hasFont) return string;
+  function widthOf(string, size) {
+    if (!hasFont) return 0;
     c2d.setFont(canvas, 'Picker', size);
-    if (c2d.measureText(canvas, string)[0] <= width) return string;
-    while (string.length > 1 && c2d.measureText(canvas, string + '...')[0] > width) string = string.slice(0, -1);
+    return c2d.measureText(canvas, string)[0];
+  }
+  // Shortens a text that would not fit in `width`.
+  function fitted(string, size, width) {
+    if (!hasFont || widthOf(string, size) <= width) return string;
+    while (string.length > 1 && widthOf(string + '...', size) > width) string = string.slice(0, -1);
     return string + '...';
   }
-  function paint() {
+  // A picture filling the rectangle, cut where its shape differs.
+  function fill(image, x, y, w, h, alpha) {
+    var scale = Math.max(w / image.width, h / image.height), sw = w / scale, sh = h / scale;
+    c2d.drawImage(canvas, image.handle, (image.width - sw) / 2, (image.height - sh) / 2, sw, sh, x, y, w, h, alpha);
+  }
+
+  // --- The small pictures on the lines ---
+  function plus(cx, cy, colour) {
+    line([[cx - 8, cy], [cx + 8, cy]], colour, 2.5);
+    line([[cx, cy - 8], [cx, cy + 8]], colour, 2.5);
+  }
+  function folderSign(x, y, colour) {
+    box(x, y + 4, 26, 18, 3, colour);
+    box(x, y, 12, 8, 3, colour);
+  }
+  function fileSign(x, y, colour) {
+    line([[x + 4, y], [x + 16, y], [x + 22, y + 6], [x + 22, y + 22], [x + 4, y + 22], [x + 4, y]], colour, 2);
+    line([[x + 16, y], [x + 16, y + 6], [x + 22, y + 6]], colour, 2);
+  }
+  function upSign(x, y, colour) { line([[x + 4, y + 14], [x + 13, y + 5], [x + 22, y + 14]], colour, 2.5); }
+  function gameIcon(game, x, y, size, chosen) {
+    var mine = artOf(game);
+    c2d.save(canvas);
+    rounded(x, y, size, size, 9);
+    c2d.clip(canvas);
+    if (mine.icon) fill(mine.icon, x, y, size, size, 1);
+    else c2d.fillRect(canvas, x, y, size, size, chosen ? [1, 1, 1, 0.22] : PANEL_EDGE, 1);
+    c2d.restore(canvas);
     c2d.setOperator(canvas, 'source-over');
-    c2d.fillRect(canvas, 0, 0, W, H, DARK, 1);
-    var all = lines(), TOP = top(), VISIBLE = visible();
+    if (!mine.icon) {
+      var letter = game.title.charAt(0).toUpperCase();
+      text(letter, x + (size - widthOf(letter, 22)) / 2, y + size / 2 + 8, 22, INK);
+    }
+  }
+  function switchSign(x, y, on) {
+    box(x, y, 44, 24, 12, on ? ACCENT : PANEL_EDGE);
+    c2d.beginPath(canvas);
+    c2d.arc(canvas, on ? x + 32 : x + 12, y + 12, 9, 0, PI * 2, false);
+    c2d.fill(canvas, INK, 1);
+  }
+  // A button's letter in a small box, then what the button does. Returns
+  // where the next one can start.
+  function hint(x, y, button, what) {
+    var w = Math.max(22, widthOf(button, 13) + 12);
+    box(x, y - 16, w, 22, 6, PANEL_EDGE);
+    text(button, x + (w - widthOf(button, 13)) / 2, y, 13, INK);
+    text(what, x + w + 8, y, 15, MUTED);
+    return x + w + 8 + widthOf(what, 15) + 22;
+  }
+
+  // The game whose title picture is behind the list: the chosen one.
+  function gameBehind() {
+    var chosen = browsing ? null : games[selected];
+    return chosen && chosen.www ? chosen : null;
+  }
+  function paintBackground() {
+    c2d.setOperator(canvas, 'source-over');
+    var behind = gameBehind(), cover = behind && artOf(behind).cover;
+    c2d.fillRect(canvas, 0, 0, W, H, cover ? NIGHT : PLAIN, 1);
+    if (cover) {
+      fill(cover, 0, 0, W, H, 1);
+      c2d.fillRect(canvas, 0, 0, W, H, VEIL, 1);
+    }
+    c2d.fillRect(canvas, 0, H - 110, W, 110, FLOOR, 1);
+  }
+  function paintGameLine(game, x, y, h, chosen) {
+    gameIcon(game, x + 10, y + (h - 44) / 2, 44, chosen);
+    var under = game.recent && game === games[0] ? 'Played last' : folderName(game.www);
+    text(fitted(game.title, 21, COLUMN - 86), x + 68, y + 26, 21, INK);
+    text(fitted(under, 13, COLUMN - 86), x + 68, y + 45, 13, chosen ? [1, 1, 1, 0.78] : MUTED);
+  }
+  function paintListLine(entry, x, y, h, chosen) {
+    if (entry.www) return paintGameLine(entry, x, y, h, chosen);
+    if (entry.add) {
+      box(x + 10, y + (h - 44) / 2, 44, 44, 9, chosen ? [1, 1, 1, 0.22] : PANEL_EDGE);
+      plus(x + 32, y + h / 2, INK);
+      text('Add a game', x + 68, y + 26, 21, INK);
+      text(fitted('Look through your folders for it', 13, COLUMN - 86), x + 68, y + 45, 13, chosen ? [1, 1, 1, 0.78] : MUTED);
+      return;
+    }
+    text('Show frames per second', x + 20, y + h / 2 + 7, 19, INK);
+    switchSign(x + COLUMN - 60, y + (h - 24) / 2, showFps);
+  }
+  function paintBrowseLine(entry, x, y, h, chosen) {
+    var colour = chosen ? INK : MUTED, top = y + (h - 24) / 2;
+    if (entry.kind === 'game') plus(x + 23, y + h / 2, INK);
+    else if (entry.kind === 'file') fileSign(x + 10, top, colour);
+    else if (entry.kind === 'folder') folderSign(x + 10, top, colour);
+    else upSign(x + 10, top, colour);
+    text(fitted(entry.label, 19, COLUMN - 64), x + 50, y + h / 2 + 7, 19, chosen || entry.kind === 'game' ? INK : MUTED);
+  }
+  function paint() {
+    var all = lines(), m = metrics(), VISIBLE = visible(), x = MARGIN;
+    paintBackground();
+    text('RPG MAKER MV PLAYER', x, 34, 12, MUTED);
+    text(browsing ? 'Add a game' : 'Games', x, 72, 32, INK);
     if (browsing) {
-      text('Add a game', 32, 56, 30, WHITE);
-      text(fitted('Go into the game\'s own folder and choose its .exe (often Game.exe).', 16, W - 64), 32, 84, 16, GREY);
-      text(fitted('No .exe? Choose index.html, inside the game\'s www folder.', 16, W - 64), 32, 106, 16, GREY);
-      text(fitted(browsing.dir || 'Places', 16, W - 64), 32, 128, 16, WHITE);
-      if (!all.length) text('Nothing here.', 36, TOP + 28, 20, GREY);
+      box(x, 86, COLUMN, 50, 10, PANEL);
+      text(fitted('Go into the game\'s own folder and choose its .exe (often Game.exe).', 14, COLUMN - 28), x + 14, 107, 14, INK);
+      text(fitted('No .exe? Choose index.html, inside the game\'s www folder.', 14, COLUMN - 28), x + 14, 126, 14, MUTED);
+      text(fitted(browsing.dir || 'Places', 14, COLUMN), x, 156, 14, MUTED);
+      if (!all.length) text('Nothing here.', x + 10, m.top + 28, 18, MUTED);
+    } else if (!games.some(function (entry) { return entry.www; })) {
+      var words = player.canAddGame
+        ? ['No games yet. Choose "Add a game" and point at the game\'s .exe.']
+        : ['No games yet. A game is a folder holding its "www" folder, in:'].concat((player.libraryDirs || []).slice(0, 1));
+      if (player.needsFileAccess) words.push('Allow "all files access" for this app, then open it again.');
+      words.forEach(function (each, i) { text(fitted(each, 15, W - 2 * x), x, m.top + m.row * 2 + 34 + i * 22, 15, MUTED); });
+    }
+    for (var shown = 0; shown < VISIBLE && first + shown < all.length; shown++) {
+      var index = first + shown, y = m.top + shown * m.row, h = m.row - 8, chosen = index === selected;
+      box(x, y, COLUMN, h, 12, chosen ? CHOSEN : PANEL);
+      (browsing ? paintBrowseLine : paintListLine)(all[index], x, y, h, chosen);
+    }
+    if (all.length > VISIBLE) {
+      // Where the lines shown are among all of them.
+      var track = VISIBLE * m.row - 8, piece = Math.max(24, track * VISIBLE / all.length);
+      box(x + COLUMN + 8, m.top, 4, track, 2, PANEL);
+      box(x + COLUMN + 8, m.top + (track - piece) * first / (all.length - VISIBLE), 4, piece, 2, PANEL_EDGE);
+    }
+    var at = x;
+    if (touching) {
+      var how = browsing ? 'Touch a line to open it' : 'Touch a game to choose it, again to play';
+      text(how, at, H - 18, 15, MUTED);
+      at += widthOf(how, 15) + 22;
     } else {
-      text('RPG Maker MV games', 32, 56, 30, WHITE);
-      if (games.some(function (line) { return line.recent; })) text('Played last, first', 32, 80, 16, GREY);
-      if (!games.some(function (line) { return line.www; })) {
-        // Shown in the middle, clear of the touch controls in the corners.
-        var hint = player.canAddGame
-          ? ['No games yet. Choose "+ Add a game..." and point at the game\'s .exe.']
-          : ['No games yet. A game is a folder holding its "www" folder, in:'].concat((player.libraryDirs || []).slice(0, 1));
-        if (player.needsFileAccess) hint.push('Allow "all files access" for this app, then open it again.');
-        hint.forEach(function (line, i) { text(fitted(line, 16, W - 64), 32, TOP + ROW * 3 + i * 22, 16, GREY); });
-      }
+      at = hint(at, H - 18, 'A', browsing ? 'Open' : 'Choose');
+      at = hint(at, H - 18, 'B', browsing ? 'Back' : 'Leave');
     }
-    for (var row = 0; row < VISIBLE && first + row < all.length; row++) {
-      var index = first + row, y = TOP + row * ROW;
-      if (index === selected) c2d.fillRect(canvas, 20, y, W - 40, ROW - 6, BAR, 1);
-      text(fitted(labelOf(all[index]), 24, W - 80), 36, y + 28, 24, index === selected ? WHITE : GREY);
-    }
-    if (all.length > VISIBLE) text((selected + 1) + ' / ' + all.length, W - 110, 56, 18, GREY);
-    if (note) text(fitted(note, 16, W - 300), 280, H - 24, 16, WHITE);
-    text(browsing ? 'A: choose     B: back' : 'A: choose     B: leave', 32, H - 24, 18, GREY);
+    if (note) text(fitted(note, 15, W - at - x), at, H - 18, 15, INK);
   }
 
   // --- Showing the canvas -------------------------------------------------------
@@ -228,8 +399,17 @@
   gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
 
   var changed = true;
+  // Frames since the choice last moved, for the title picture.
+  var rested = 0, restedOn = null;
   function frame() {
     requestAnimationFrame(frame);
+    var behind = gameBehind();
+    rested = behind === restedOn ? rested + 1 : 0;
+    restedOn = behind;
+    if (behind && rested === 8 && !artOf(behind).looked) {
+      lookForCover(behind);
+      changed = true;
+    }
     if (changed) {
       changed = false;
       paint();
@@ -258,28 +438,59 @@
     else if (line.kind === 'places') show('');
     else show(line.path);
   }
+  function choose() {
+    if (browsing) return chooseInBrowser();
+    var entry = games[selected];
+    note = '';
+    if (entry.setting) {
+      showFps = !showFps;
+      nameFpsLine();
+      changed = true;
+    } else if (entry.add) {
+      startBrowsing();
+    } else {
+      console.info('picker: chose ' + entry.www);
+      remember(entry.www);
+      leave(0, 'MVPLAYER_GAME=' + entry.www);
+    }
+  }
+  // A finger or the mouse: putting it on a line chooses the line, lifting
+  // it there without having moved opens it (a game only if it was already
+  // the chosen one: see tapOpens), and moving it up or down moves the list.
+  // Positions come in screen pixels.
+  var press = null;
+  player.onPointer = function (phase, px, py) {
+    var x = px / ZOOM, y = py / ZOOM;
+    if (!touching) { touching = true; changed = true; }
+    if (phase === 0) {
+      press = { x: x, y: y, layout: layout(), line: model.lineAt(x, y, layout()), moved: false };
+      press.wasChosen = press.line === selected;
+      if (press.line >= 0) { selected = press.line; changed = true; }
+    } else if (press && phase === 1) {
+      if (!model.isTap(press.x, press.y, x, y)) press.moved = true;
+      var top = model.dragged(press.layout, y - press.y);
+      if (press.moved && top !== first) {
+        first = top;
+        // The chosen line stays among the ones shown.
+        selected = Math.min(first + visible() - 1, Math.max(first, selected));
+        changed = true;
+      }
+    } else if (press && phase === 2) {
+      var opened = !press.moved && press.line >= 0 && model.lineAt(x, y, layout()) === press.line &&
+        model.tapOpens(lines()[press.line], press.wasChosen);
+      press = null;
+      if (opened) choose();
+    }
+  };
   player.onKey = function (keyCode, down) {
     if (!down) return;
+    if (touching && keyCode !== 27) { touching = false; changed = true; }
     if (keyCode === KEY.up) move(-1);
     else if (keyCode === KEY.down) move(1);
     else if (keyCode === KEY.pageUp) move(-visible());
     else if (keyCode === KEY.pageDown) move(visible());
-    else if (KEY.ok.indexOf(keyCode) >= 0) {
-      if (browsing) return chooseInBrowser();
-      var line = games[selected];
-      note = '';
-      if (line.setting) {
-        showFps = !showFps;
-        nameFpsLine();
-        changed = true;
-      } else if (line.add) {
-        startBrowsing();
-      } else {
-        console.info('picker: chose ' + line.www);
-        remember(line.www);
-        leave(0, 'MVPLAYER_GAME=' + line.www);
-      }
-    } else if (KEY.back.indexOf(keyCode) >= 0) {
+    else if (KEY.ok.indexOf(keyCode) >= 0) choose();
+    else if (KEY.back.indexOf(keyCode) >= 0) {
       if (browsing) { note = ''; backToList(''); }
       else leave(EXIT_NOTHING_CHOSEN);
     }

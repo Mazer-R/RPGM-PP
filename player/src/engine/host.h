@@ -63,6 +63,9 @@ class Host {
   // Tells the scripts that a key went down or up, by calling player.onKey
   // (keyCode, down) if a script has set it. `key_code` is a browser key code.
   void DispatchKey(int key_code, bool down);
+  // Calls player.onPointer(phase, x, y), if the script set one: a finger or
+  // the mouse put down (0), moved (1) or lifted (2), in screen pixels.
+  void DispatchPointer(int phase, float x, float y);
 
   // True while at least one frame callback is waiting. With none, and no
   // other source of work, no script code can ever run again.

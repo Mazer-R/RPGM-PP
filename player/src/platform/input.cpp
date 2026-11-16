@@ -125,7 +125,7 @@ void Input::SetSettingsDir(const std::string& dir) {
 }
 
 std::vector<TouchShape> Input::TouchShapes() const {
-  return touch_visible_ && !menu_->open() ? touch_->Shapes() : std::vector<TouchShape>();
+  return touch_visible_ && !pointer_mode_ && !menu_->open() ? touch_->Shapes() : std::vector<TouchShape>();
 }
 
 bool Input::menu_open() const { return menu_->open(); }
@@ -278,7 +278,58 @@ void Input::SetStickDirection(int index, bool down) {
   Queue(keys[index], down);
 }
 
+std::vector<PointerChange> Input::TakePointerChanges() {
+  std::vector<PointerChange> taken;
+  taken.swap(pointer_changes_);
+  return taken;
+}
+
+// Pointer mode: follows one finger, or the mouse's left button, from going
+// down to coming up. Returns whether the event was a finger or mouse event,
+// which then goes no further. The mouse events SDL makes up for a finger
+// are left out: the finger itself is followed.
+bool Input::HandlePointerEvent(const SDL_Event& event) {
+  switch (event.type) {
+    case SDL_FINGERDOWN:
+    case SDL_FINGERMOTION:
+    case SDL_FINGERUP: {
+      long long finger = static_cast<long long>(event.tfinger.fingerId);
+      bool down = event.type == SDL_FINGERDOWN;
+      if (down ? pointer_down_ : !(pointer_down_ && pointer_is_finger_ && pointer_finger_ == finger)) return true;
+      if (down) {
+        pointer_down_ = true;
+        pointer_is_finger_ = true;
+        pointer_finger_ = finger;
+      }
+      if (event.type == SDL_FINGERUP) pointer_down_ = false;
+      // Finger positions come as fractions of the screen.
+      pointer_changes_.push_back({down ? 0 : event.type == SDL_FINGERMOTION ? 1 : 2,
+                                  event.tfinger.x * static_cast<float>(screen_width_),
+                                  event.tfinger.y * static_cast<float>(screen_height_)});
+      return true;
+    }
+    case SDL_MOUSEBUTTONDOWN:
+    case SDL_MOUSEBUTTONUP: {
+      if (event.button.which == SDL_TOUCH_MOUSEID || event.button.button != SDL_BUTTON_LEFT) return true;
+      bool down = event.type == SDL_MOUSEBUTTONDOWN;
+      if (down ? pointer_down_ : !(pointer_down_ && !pointer_is_finger_)) return true;
+      pointer_down_ = down;
+      pointer_is_finger_ = false;
+      pointer_changes_.push_back({down ? 0 : 2, static_cast<float>(event.button.x), static_cast<float>(event.button.y)});
+      return true;
+    }
+    case SDL_MOUSEMOTION:
+      if (event.motion.which != SDL_TOUCH_MOUSEID && pointer_down_ && !pointer_is_finger_) {
+        pointer_changes_.push_back({1, static_cast<float>(event.motion.x), static_cast<float>(event.motion.y)});
+      }
+      return true;
+    default:
+      return false;
+  }
+}
+
 void Input::HandleEvent(const SDL_Event& event) {
+  if (pointer_mode_ && HandlePointerEvent(event)) return;
   // The menu button is followed even while the menu is open, so that menu
   // button + Start still leaves the game from there.
   bool guide_event = (event.type == SDL_CONTROLLERBUTTONDOWN || event.type == SDL_CONTROLLERBUTTONUP) &&
