@@ -705,6 +705,56 @@ adjustments where the game's own code is too expensive for this hardware.
         triggers) and with a real controller; the frame counter row
         does not show whether it is on, and the choice lasts for the
         run only.
+*   **Drawing the lights at half size gives nothing on the RG35XX SP (2026-11-16).**
+    *   **Tried**: a "LIGHTS: LOW / HIGH" row in the settings menu; low
+        made the `gpuLights` patch render the darkness mask into a
+        texture of half the size each way (a quarter of the pixels),
+        shown stretched.
+    *   **Measured**: character standing still, four periods of 12 s
+        alternating low, high, low, high. Fear & Hunger, map 37: 37.7 and
+        39.0 frames per second low, 39.7 and 39.7 high. Fear & Hunger 2,
+        map 19: 19.0 and 23.7 low, 22.7 and 22.5 high. The first period
+        of each run is still warming up; drawing took 8.3-8.5 ms per
+        frame either way.
+    *   **Why**: the mask already has the game's size (816x624), not the
+        screen's, and holds a few lights: filling it is cheap. The frames
+        are held back by the scripts (10-18 ms per logic step, 1.5-2
+        steps per frame), not by these pixels.
+    *   **Outcome**: the option was removed again; no code changed.
+*   **Parallel common events cost less, in any MV game (2026-11-16).**
+    *   **Found**: in Fear & Hunger 2 a logic step takes 13.2 ms walking
+        (maps 19 and 14), 6.3 ms of it in the game's 51 parallel common
+        events; the throttle patch only knew Fear & Hunger by title. One
+        event that never waits, "SKILLSdemonSeedAVAILABLE", took 1.3 ms
+        alone, and questions about actors' equipment were about a tenth
+        of the profile's samples. Measured with the new
+        `tests/device/common_event_watch.js`.
+    *   **`commonEventThrottle` now chooses by itself**: an event that
+        is a pure check (conditions on the game's state, switches,
+        variables set, skills learnt, calls of events that are pure
+        checks too, a variable counted afresh on every run) and is seen
+        to cost at least 0.05 ms per step over 120 steps runs once every
+        six steps. Events that wait, count, read buttons or the timer,
+        show or play anything, or run scripts or plugin commands are
+        never chosen. No per-game analysis: lists are read when the game
+        starts, time is measured where it runs. Names by game title stay
+        for events that are checks in effect only (Fear & Hunger's
+        "Outfit change").
+    *   **New `equipCache`**: an actor's equipment list is rebuilt only
+        after a slot changed (every change goes through three functions
+        of the slot); callers still get their own copy, save files are
+        unchanged.
+    *   **Measured on the RG35XX SP**, Fear & Hunger 2, map 19, standing,
+        third ten-second period of each run: logic step 15.7 ms with the
+        two switched off, 11.4 ms with them; parallel common events 5.93
+        ms against 3.89; the costly check 1.34 ms against 0.22. Eight of
+        twelve pure checks were slowed; the equipment list was rebuilt
+        336 times for 276,669 questions.
+    *   **Checked**: Fear & Hunger still slows its seven named events
+        and walks as before; on a fast machine (headless, on the build
+        computer) no event reaches the limit, so nothing is slowed.
+    *   **Not checked**: a full walk comparison (the walk benchmark is
+        too noisy), other games, play by hand.
 
 ## Critical User Journeys (CUJs)
 

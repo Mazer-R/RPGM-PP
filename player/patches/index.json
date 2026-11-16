@@ -5,5 +5,6 @@
   {"patch": "framePacing", "file": "frame-pacing.js", "when": {"engine": "MV"}, "options": {"maxStepsPerFrame": 2}},
   {"patch": "eventLookup", "file": "event-lookup.js", "when": {"engine": "MV"}},
   {"patch": "leanState", "file": "lean-state.js", "when": {"engine": "MV"}},
-  {"patch": "commonEventThrottle", "file": "common-event-throttle.js", "when": {"engine": "MV", "title": "Fear & Hunger"}, "options": {"names": ["Outfit change"], "every": 6}}
+  {"patch": "commonEventThrottle", "file": "common-event-throttle.js", "when": {"engine": "MV"}, "options": {"every": 6, "minMs": 0.05, "names": {"Fear & Hunger": ["Outfit change"]}}},
+  {"patch": "equipCache", "file": "equip-cache.js", "when": {"engine": "MV"}}
 ]
