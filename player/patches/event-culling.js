@@ -3,7 +3,11 @@
 // rest.
 //
 //   1. Events and their sprites further than `margin` tiles from the screen
-//      are not updated, except those that must run anywhere.
+//      are not updated, except those that must run anywhere: an event whose
+//      page runs by itself (parallel or autorun), one that is starting,
+//      locked or on a forced route, and one that moves by itself, for as
+//      far as the engine lets such an event move (half a screen beyond the
+//      screen's edges).
 //   2. Lazy page refresh. Whenever a switch or variable changes, the engine
 //      re-evaluates the page conditions of every event on the map. Here,
 //      far-away events only note that they are stale and are re-evaluated
@@ -14,6 +18,10 @@
 //      Nth step.
 //
 // Options: { margin: tiles, lazyRefresh: true|false, lightEvery: 1|2|3... }
+//
+// What the patch knows of an event is kept beside the event, not in it: the
+// engine saves everything an event holds, and a save file must be what the
+// game alone would write.
 //
 // It never edits game files. To turn it off for one game, name it
 // under "off" in that game's save/mvplayer-patches.json; for every game,
@@ -53,9 +61,20 @@ player.patches.eventCulling = function (options) {
            y >= -margin && y <= tilesHigh + margin;
   }
 
+  // The engine starts an autorun event (trigger 3) and runs a parallel one
+  // (4) from the event's own update, wherever the event is.
   function mustAlwaysRun(event) {
-    return event._trigger === 4 || event._starting || event._locked ||
-           event.isMoveRouteForcing();
+    return event._trigger === 3 || event._trigger === 4 || event._starting || event._locked ||
+           event.isMoveRouteForcing() || (event._moveType !== 0 && event.isNearTheScreen());
+  }
+
+  // Per event: `far` (not visited now), `stale` (a page re-evaluation was
+  // put off), `selfStarting` (some page runs by itself; worked out once).
+  var notes = new WeakMap();
+  function noteOf(event) {
+    var note = notes.get(event);
+    if (!note) notes.set(event, note = { far: false, stale: false, selfStarting: undefined });
+    return note;
   }
 
   function refreshSprites() {
@@ -82,20 +101,21 @@ player.patches.eventCulling = function (options) {
 
   // True when any page of the event runs by itself (autorun or parallel).
   function hasSelfStartingPage(event) {
-    if (event._labSelfStarting === undefined) {
+    var note = noteOf(event);
+    if (note.selfStarting === undefined) {
       var data = event.event();
-      event._labSelfStarting = !!data && data.pages.some(function (page) {
+      note.selfStarting = !!data && data.pages.some(function (page) {
         return page.trigger === 3 || page.trigger === 4;
       });
     }
-    return event._labSelfStarting;
+    return note.selfStarting;
   }
 
   var refreshPage = Game_Event.prototype.refresh;
   if (lazyRefresh) {
     Game_Event.prototype.refresh = function () {
-      if (this._labFar && !hasSelfStartingPage(this)) {
-        this._labStale = true;
+      if (noteOf(this).far && !hasSelfStartingPage(this)) {
+        noteOf(this).stale = true;
         stats.pageRefreshesDeferred++;
         return;
       }
@@ -127,18 +147,18 @@ player.patches.eventCulling = function (options) {
     var events = map.events();
     activeEvents = [];
     for (var i = 0; i < events.length; i++) {
-      var event = events[i];
+      var event = events[i], note = noteOf(event);
       if (mustAlwaysRun(event) || isNearScreen(event)) {
         activeEvents.push(event);
-        event._labFar = false;
-        if (event._labStale) {
+        note.far = false;
+        if (note.stale) {
           // Catch up on the page re-evaluation it skipped while far away.
-          event._labStale = false;
+          note.stale = false;
           refreshPage.call(event);
           stats.pageRefreshesRun++;
         }
       } else {
-        event._labFar = true;
+        note.far = true;
       }
     }
     refreshSprites();

@@ -5,15 +5,16 @@
 set -eu
 cd /work/player
 mkdir -p build-device/tests
-g++ -std=c++17 -Wall -Wextra -Werror -Isrc tests/native/files_test.cpp src/platform/files.cpp -o build-device/tests/files_test
-g++ -std=c++17 -Wall -Wextra -Werror -Isrc tests/native/library_test.cpp src/platform/game_library.cpp -o build-device/tests/library_test
-build-device/tests/library_test
-build-device/tests/files_test
-g++ -std=c++17 -Wall -Wextra -Werror -Isrc tests/native/touch_test.cpp src/platform/touch.cpp src/platform/touch_layout.cpp -o build-device/tests/touch_test
-g++ -std=c++17 -Wall -Wextra -Werror -Isrc tests/native/menu_test.cpp src/platform/button_map.cpp src/platform/settings_menu.cpp src/platform/touch_layout.cpp -o build-device/tests/menu_test
-build-device/tests/menu_test
-build-device/tests/touch_test
-g++ -std=c++17 -Wall -Wextra -Werror -Isrc tests/native/menu_test.cpp src/platform/button_map.cpp src/platform/settings_menu.cpp src/platform/touch_layout.cpp -o build-device/tests/menu_test
-build-device/tests/menu_test
-g++ -std=c++17 -Wall -Wextra -Werror -pthread -Isrc tests/native/video_test.cpp src/platform/video.cpp -o build-device/tests/video_test
-build-device/tests/video_test
+# run <name> <sources...>: builds tests/native/<name>.cpp with the sources it
+# tests, and runs it. A test that fails stops the script.
+run() {
+  NAME=$1; shift
+  g++ -std=c++17 -Wall -Wextra -Werror -pthread -Isrc "tests/native/$NAME.cpp" "$@" -o "build-device/tests/$NAME"
+  "build-device/tests/$NAME"
+}
+run files_test src/platform/files.cpp
+run gl_limits_test src/bindings/gl_limits.cpp
+run library_test src/platform/game_library.cpp
+run touch_test src/platform/touch.cpp src/platform/touch_layout.cpp
+run menu_test src/platform/button_map.cpp src/platform/settings_menu.cpp src/platform/touch_layout.cpp
+run video_test src/platform/video.cpp

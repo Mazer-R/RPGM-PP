@@ -884,6 +884,39 @@ adjustments where the game's own code is too expensive for this hardware.
         its proportions. The RG35XX SP still opens 640x480 full screen.
     *   **Not checked**: on a real desktop with a window manager, F11,
         Wayland, a high-density display.
+*   **Defects found by a review of the repository, fixed (2026-11-16).**
+    *   **Far autorun events never started.** `eventCulling` visited far
+        events only when their page was a parallel one; the engine starts
+        an autorun event from the event's own update, wherever it is, so a
+        scene set to run on entering a map did not run if its event was
+        far from the player. Events that move by themselves also stood
+        still beyond the patch's 4 tiles, where the engine moves them up
+        to half a screen beyond the screen's edges. Both are now visited.
+        Cost on the RG35XX SP, walking in Fear & Hunger 2: 67 events
+        visited of 219 (65 before), 12.3-12.8 ms per logic step (12.5-12.6
+        before): none that can be measured.
+    *   **The patch's marks went into save files.** It kept `_labFar`,
+        `_labStale` and `_labSelfStarting` in the events, which the engine
+        saves. They are now kept beside the events (a WeakMap).
+    *   **A state query could write past its memory.** `gl.getParameter`
+        asked the driver for any name into one integer; names with
+        several values wrote beyond it. Only names whose number and kind
+        of values are known are asked for now; others give null.
+    *   **Pixel buffers went to the driver unmeasured.** `readPixels` and
+        the long forms of `texImage2D` and `texSubImage2D` passed a
+        script's bytes on without checking that they hold the image. The
+        bytes needed are worked out from size, format, type and row
+        alignment, and a shorter buffer is refused.
+    *   **Android ran arguments from shared storage.** The test file
+        `args.txt` was read from `RPGMV/mvplayer`, where any app with file
+        access could put one and name a script to run. It is read only
+        from the app's own folder now.
+    *   **Tests**: `tests/patches/event_culling.test.js` (the patch had
+        none) and `tests/native/gl_limits_test.cpp`, over the new
+        `bindings/gl_limits`. `tools/build/test.sh` ran the menu test
+        twice; each test now runs once.
+    *   **Not checked**: an autorun event far from the player in a real
+        game (none at hand), a save file compared before and after.
 
 ## Critical User Journeys (CUJs)
 

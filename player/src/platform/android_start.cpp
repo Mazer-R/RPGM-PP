@@ -13,8 +13,10 @@
 //       user can reach them (<external files> until access is allowed):
 //         logs/      a copy of the log of every run
 //         games.txt  the games played or added, the last one first
-//         args.txt   for tests: if present, one run with these arguments,
-//                    one per line, instead of the list
+//   <external files>/args.txt           for tests: if present, one run with
+//       these arguments, one per line, instead of the list. Read only from
+//       the app's own folder, which other apps cannot write to: the
+//       arguments can name a script to run.
 //   <internal files>/player             js/ and patches/, unpacked from the
 //       app's assets when the app's build stamp changes
 #include <SDL.h>
@@ -145,6 +147,7 @@ int main(int, char**) {
     return 1;
   }
   std::string base = external, player_dir = std::string(internal) + "/player";
+  const std::string test_arguments_file = base + "/args.txt";
   std::string games = base + "/games", logs = base + "/logs";
   // The shared storage's top folder is the part of the app's own folder
   // before "/Android/data/".
@@ -166,7 +169,7 @@ int main(int, char**) {
     return 1;
   }
 
-  std::vector<std::string> test_arguments = Lines(ReadText(base + "/args.txt"));
+  std::vector<std::string> test_arguments = Lines(ReadText(test_arguments_file));
   if (!test_arguments.empty()) {
     test_arguments.insert(test_arguments.end(), {"--player", player_dir});
     int code = Run(test_arguments);

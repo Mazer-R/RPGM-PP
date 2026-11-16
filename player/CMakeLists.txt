@@ -65,6 +65,7 @@ set(MVP_SOURCES
   src/bindings/video_binding.cpp
   src/bindings/canvas_binding.cpp
   src/bindings/webgl_binding.cpp
+  src/bindings/gl_limits.cpp
   src/platform/main.cpp
   src/platform/audio_mixer.cpp
   src/platform/clock.cpp

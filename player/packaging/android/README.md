@@ -50,7 +50,7 @@ that one cannot be where games are copied.
 | `RPGMV/<Game>/www` | The games. |
 | `RPGMV/mvplayer/logs/` | A copy of the log of every run (newest 30) and `picker.log`. |
 | `RPGMV/mvplayer/games.txt` | The games played or added, the last one first. |
-| `RPGMV/mvplayer/args.txt` | For tests: if present, the app runs once with these arguments (one per line) instead of showing the list. |
+| `Android/data/org.mvplayer/files/args.txt` | For tests: if present, the app runs once with these arguments (one per line) instead of showing the list. Kept in the app's own folder, which other apps cannot write to, because the arguments can name a script to run. |
 
 Until access is allowed, the `mvplayer` folder is kept in
 `Android/data/org.mvplayer/files` instead.

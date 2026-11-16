@@ -1,4 +1,6 @@
 #include "bindings/webgl_binding.h"
+
+#include "bindings/gl_limits.h"
 #include "bindings/control_font.h"
 
 #include <GLES2/gl2.h>
@@ -113,6 +115,16 @@ Bytes BytesOf(v8::Local<v8::Value> value) {
     bytes.size = buffer->ByteLength();
   }
   return bytes;
+}
+
+// Whether a script's bytes are enough for an image of this size, format
+// and type, with rows aligned as the driver's setting `alignment_name`
+// (GL_UNPACK_ALIGNMENT or GL_PACK_ALIGNMENT) says now.
+bool HoldsImage(const Bytes& bytes, int width, int height, GLenum format, GLenum type, GLenum alignment_name) {
+  GLint alignment = 4;
+  glGetIntegerv(alignment_name, &alignment);
+  size_t needed = 0;
+  return PixelBytes(width, height, format, type, alignment, &needed) && bytes.size >= needed;
 }
 
 // Numbers from a Float32Array or a plain array, as floats.
@@ -324,19 +336,27 @@ void InstallFunctions(v8::Isolate* isolate, v8::Local<v8::Object> gl) {
         RET(Str(ISO, text ? reinterpret_cast<const char*>(text) : ""));
         break;
       }
-      case GL_VIEWPORT:
-      case GL_SCISSOR_BOX: {
-        GLint box[4] = {0, 0, 0, 0};
-        glGetIntegerv(name, box);
-        v8::Local<v8::Array> array = v8::Array::New(ISO, 4);
-        for (uint32_t i = 0; i < 4; i++) array->Set(CTX, i, v8::Integer::New(ISO, box[i])).Check();
-        RET(array);
-        break;
-      }
       default: {
-        GLint value = 0;
-        glGetIntegerv(name, &value);
-        RET(value);
+        // The driver writes as many values as the name has; only names
+        // whose number of values is known are asked for (gl_limits.h).
+        // Anything else gives null, as WebGL does for an unknown name.
+        GlParameterShape shape = ShapeOfGlParameter(name);
+        GLint ints[4] = {0, 0, 0, 0};
+        GLfloat floats[4] = {0, 0, 0, 0};
+        GLboolean bools[4] = {GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE};
+        if (shape.kind == GlValueKind::kInt) glGetIntegerv(name, ints);
+        else if (shape.kind == GlValueKind::kFloat) glGetFloatv(name, floats);
+        else if (shape.kind == GlValueKind::kBool) glGetBooleanv(name, bools);
+        else { RET(v8::Null(ISO)); break; }
+        auto value = [&](int i) -> v8::Local<v8::Value> {
+          if (shape.kind == GlValueKind::kInt) return v8::Integer::New(ISO, ints[i]);
+          if (shape.kind == GlValueKind::kFloat) return v8::Number::New(ISO, floats[i]);
+          return v8::Boolean::New(ISO, bools[i] != GL_FALSE);
+        };
+        if (shape.count == 1) { RET(value(0)); break; }
+        v8::Local<v8::Array> array = v8::Array::New(ISO, shape.count);
+        for (int i = 0; i < shape.count; i++) array->Set(CTX, static_cast<uint32_t>(i), value(i)).Check();
+        RET(array);
       }
     }
   });
@@ -398,6 +418,9 @@ void InstallFunctions(v8::Isolate* isolate, v8::Local<v8::Object> gl) {
     GLenum format = U(6), type = U(7);
     int width = I(3), height = I(4);
     Bytes bytes = BytesOf(args[8]);
+    // Without pixels the texture is only given its size. With pixels, the
+    // driver reads as many as the size says: there must be that many.
+    if (bytes.data && !HoldsImage(bytes, width, height, format, type, GL_UNPACK_ALIGNMENT)) return;
     if (bytes.data && format == GL_RGBA && type == GL_UNSIGNED_BYTE &&
         (g_state.flip_y || g_state.premultiply) &&
         bytes.size >= static_cast<size_t>(width) * static_cast<size_t>(height) * 4) {
@@ -422,7 +445,7 @@ void InstallFunctions(v8::Isolate* isolate, v8::Local<v8::Object> gl) {
     GLenum format = U(6), type = U(7);
     int width = I(4), height = I(5);
     Bytes bytes = BytesOf(args[8]);
-    if (!bytes.data) return;
+    if (!bytes.data || !HoldsImage(bytes, width, height, format, type, GL_UNPACK_ALIGNMENT)) return;
     if (format == GL_RGBA && type == GL_UNSIGNED_BYTE && (g_state.flip_y || g_state.premultiply) &&
         bytes.size >= static_cast<size_t>(width) * static_cast<size_t>(height) * 4) {
       std::vector<uint8_t> pixels = PreparePixels(bytes.data, width, height);
@@ -477,8 +500,11 @@ void InstallFunctions(v8::Isolate* isolate, v8::Local<v8::Object> gl) {
     }
   });
   FN(readPixels, {
+    // The driver writes width x height pixels: there must be room for them.
     Bytes bytes = BytesOf(args[6]);
-    if (bytes.data) glReadPixels(I(0), I(1), I(2), I(3), U(4), U(5), bytes.data);
+    if (bytes.data && HoldsImage(bytes, I(2), I(3), U(4), U(5), GL_PACK_ALIGNMENT)) {
+      glReadPixels(I(0), I(1), I(2), I(3), U(4), U(5), bytes.data);
+    }
   });
 
   // --- Shaders and programs ------------------------------------------------
