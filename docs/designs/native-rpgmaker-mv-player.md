@@ -537,6 +537,34 @@ adjustments where the game's own code is too expensive for this hardware.
         game misbehaves with an engine-wide patch remains; the two switches
         are the way out.
 
+*   **Logs folder (launch scripts).** A game that fails on a device nobody
+    is watching left its only trace in that game's `save/mvplayer.log`,
+    overwritten by the next run. Both launch scripts now copy the log of
+    every run to one folder, named after the time and the game, with the
+    player's exit code as the last line, and keep the newest 30.
+    *   muOS: `MUOS/emulator/mvplayer/logs/` on the card. Linux: `logs/`
+        next to `mvplayer.sh`, or `~/.config/mvplayer/logs` when that cannot
+        be written.
+    *   **Checked**: the copying and pruning function run on its own in a
+        scratch folder (a game name with spaces and `&`, 35 copies pruned
+        to 30, a game with no log skipped). On the console the folder
+        exists and the launcher is installed; a full run through the menu
+        has not been observed.
+*   **Linux package on a real desktop (owner, Manjaro).** The owner played
+    Fear & Hunger and "two or three" other games with the x86-64 package and
+    reported that all of them work. Which games, and whether that package
+    was the one with sound and the file chooser, is not recorded.
+*   **What the event interpreter costs, measured.** The assumption that the
+    engine interprets thousands of event commands per step, with scripts
+    compiled again each time, was wrong for the reference game. A census
+    (`tests/device/interpreter_census.js`, from the owner's save on the
+    heaviest map) counted about 77 commands per step and no script
+    commands, so "prepare the commands once" was dropped.
+    *   Tools added for this: the census script; `WALK_PROFILE` in
+        `tests/device/walk_watch.js`, which samples a whole walk; `SAVES` in
+        `tools/run-headless.sh`, which runs a game from saves kept outside
+        the game folder.
+
 ## Critical User Journeys (CUJs)
 
 ### CUJ 1: First launch

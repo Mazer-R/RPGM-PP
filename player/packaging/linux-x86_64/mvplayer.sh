@@ -13,6 +13,10 @@
 # that holds it, or the game's .exe. The games added through the list are
 # remembered in ~/.config/mvplayer/games.txt, one folder per line.
 #
+# A copy of the log of every run is kept in the logs/ folder next to this
+# script (or in ~/.config/mvplayer/logs if that cannot be written), named
+# after the game and the time: the place to look when a game misbehaves.
+#
 # Set MVPLAYER_SYSTEM_LIBS=1 to ignore the lib/ folder and use the system's
 # own SDL2, Cairo and FreeType instead.
 HERE=$(dirname -- "$(readlink -f -- "$0")")
@@ -26,6 +30,30 @@ LIBRARY="${XDG_CONFIG_HOME:-$HOME/.config}/mvplayer/games.txt"
 SETTINGS="${XDG_CONFIG_HOME:-$HOME/.config}/mvplayer/show-fps"
 FPS=""
 [ "$(cat "$SETTINGS" 2>/dev/null)" = 1 ] && FPS="--fps"
+
+# Keeps a copy of the log of the game that has just run in the logs folder,
+# named after the game and the time, with the way the player ended as its
+# last line; only the newest 30 copies are kept. The game's own
+# save/mvplayer.log is left where it is.
+keep_log() {
+  [ -f "$1/save/mvplayer.log" ] || return 0
+  mkdir -p "$LOGS" || return 0
+  NAME=$(printf '%s' "$(basename "$(dirname "$1")")" | tr -c 'A-Za-z0-9._-' '_')
+  COPY="$LOGS/$(date +%Y%m%d-%H%M%S)-$NAME.log"
+  cp "$1/save/mvplayer.log" "$COPY" && echo "launcher: the player ended with exit code $2" >>"$COPY"
+  ls -1t "$LOGS"/*.log 2>/dev/null | tail -n +31 | while IFS= read -r OLD; do rm -f "$OLD"; done
+}
+LOGS="$HERE/logs"
+mkdir -p "$LOGS" 2>/dev/null && [ -w "$LOGS" ] || LOGS="${XDG_CONFIG_HOME:-$HOME/.config}/mvplayer/logs"
+
+# Runs one game and keeps its log. Returns the player's exit code.
+play() {
+  WWW=$("$PLAYER" --resolve "$1")
+  "$PLAYER" --game "$@"
+  CODE=$?
+  [ -n "$WWW" ] && keep_log "$WWW" "$CODE"
+  return "$CODE"
+}
 
 # Shows a message in a window when there is a dialog program, else in the terminal.
 say() {
@@ -80,7 +108,7 @@ case "${1:-}" in
     echo "Added $APPS/mvplayer.desktop"
     exit 0 ;;
   -*) exec "$PLAYER" "$@" ;;
-  ?*) exec "$PLAYER" --game "$@" ;;
+  ?*) play "$@"; exit $? ;;
 esac
 
 # No arguments: the list of games, then the chosen game, then the list again.
@@ -101,5 +129,5 @@ while :; do
       *) exit 0 ;;
     esac
   fi
-  "$PLAYER" --game "$GAME" $FPS
+  play "$GAME" $FPS
 done

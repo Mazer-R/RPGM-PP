@@ -25,8 +25,9 @@ adds "RPG Maker MV Player" to the desktop's application menu.
 While playing, F2 shows or hides the frames per second.
 
 Saves and the player's log (mvplayer.log) are written to the game's
-www/save folder; if something goes wrong, that log is the first thing to
-look at. The file dialog needs zenity or kdialog, which desktops normally
+www/save folder. A copy of the log of every run is also kept in the logs/
+folder next to mvplayer.sh, named after the game and the time; if something
+goes wrong, that is the first thing to look at (and to send along). The file dialog needs zenity or kdialog, which desktops normally
 have.
 
 Always start the player through mvplayer.sh: it makes the player use the
