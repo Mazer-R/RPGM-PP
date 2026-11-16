@@ -37,10 +37,23 @@ v8::Local<v8::String> ToV8String(v8::Isolate* isolate, const std::string& text) 
 
 }  // namespace
 
+namespace {
+// V8 is started once per process and never shut down: after V8::Dispose it
+// cannot be started again, and on Android one process runs the game list and
+// then the game, each with a Host of its own. The system reclaims it at exit.
+void StartV8Once() {
+  static v8::Platform* platform = [] {
+    v8::Platform* created = v8::platform::NewDefaultPlatform().release();
+    v8::V8::InitializePlatform(created);
+    v8::V8::Initialize();
+    return created;
+  }();
+  (void)platform;
+}
+}  // namespace
+
 Host::Host(Log& log, const Clock& clock) : log_(log), clock_(clock) {
-  platform_ = v8::platform::NewDefaultPlatform();
-  v8::V8::InitializePlatform(platform_.get());
-  v8::V8::Initialize();
+  StartV8Once();
 
   v8::Isolate::CreateParams params;
   allocator_ = v8::ArrayBuffer::Allocator::NewDefaultAllocator();
@@ -68,8 +81,9 @@ Host::~Host() {
   ReleaseCanvasBinding();
   context_.Reset();
   if (isolate_) isolate_->Dispose();
-  v8::V8::Dispose();
-  v8::V8::DisposePlatform();
+  // What was learnt about this game's files does not hold for the next one.
+  ForgetFileNames();
+  ForgetFileHeads();
   delete allocator_;
 }
 
@@ -169,6 +183,18 @@ void Host::ReadFileBytesCallback(const v8::FunctionCallbackInfo<v8::Value>& args
   file.seekg(0);
   file.read(static_cast<char*>(buffer->Data()), size);
   args.GetReturnValue().Set(buffer);
+}
+
+// player.fileHead(path, skip, bytes): tells native code that the file is to
+// be read from byte `skip` on, with `bytes` (an ArrayBuffer) in place of the
+// bytes found there. See platform/files.h.
+void Host::FileHeadCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::Isolate* isolate = args.GetIsolate();
+  if (args.Length() < 3 || !args[2]->IsArrayBuffer()) return;
+  v8::Local<v8::ArrayBuffer> bytes = args[2].As<v8::ArrayBuffer>();
+  double skip = args[1]->NumberValue(isolate->GetCurrentContext()).FromMaybe(0);
+  SetFileHead(ToStdString(isolate, args[0]), skip > 0 ? static_cast<size_t>(skip) : 0,
+              std::string(static_cast<const char*>(bytes->Data()), bytes->ByteLength()));
 }
 
 // player.listDir(path): the names in a folder, sorted, without "." and "..";
@@ -383,6 +409,7 @@ void Host::InstallGlobals(v8::Local<v8::Context> context) {
   set(player, "listDir", make_function(ListDirCallback, "listDir"));
   set(player, "print", make_function(PrintCallback, "print"));
   set(player, "readFileBytes", make_function(ReadFileBytesCallback, "readFileBytes"));
+  set(player, "fileHead", make_function(FileHeadCallback, "fileHead"));
   set(player, "startProfile", make_function(StartProfileCallback, "startProfile"));
   set(player, "stopProfile", make_function(StopProfileCallback, "stopProfile"));
   set(player, "v8Version", ToV8String(isolate_, v8::V8::GetVersion()));

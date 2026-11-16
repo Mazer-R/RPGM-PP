@@ -30,6 +30,8 @@ void ReleaseCanvasBinding();
 // `value` is a surface handle, or an object whose `__native` property is
 // one. Colour is premultiplied by alpha when `premultiply` is set, and rows
 // are reversed when `flip_y` is set. Returns false if `value` is no surface.
+// `pixels` is made larger if it is too small and never smaller: only its
+// first width * height * 4 bytes are the picture.
 bool SurfacePixelsForUpload(v8::Isolate* isolate, v8::Local<v8::Value> value, bool premultiply,
                             bool flip_y, std::vector<uint8_t>* pixels, int* width, int* height);
 

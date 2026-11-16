@@ -6,7 +6,7 @@
 // what starts the engine.
 (function () {
   'use strict';
-  var layers = ['css.js', 'dom.js', 'canvas2d.js', 'desktop.js', 'patch-select.js'];
+  var layers = ['file-bytes.js', 'css.js', 'dom.js', 'canvas2d.js', 'desktop.js', 'patch-select.js'];
   if (player.audio) layers.push('audio.js');
   for (var i = 0; i < layers.length; i++) {
     if (!player.loadScript(player.playerDir + '/js/' + layers[i])) {

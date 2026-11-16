@@ -17,11 +17,31 @@ if(NOT EXISTS "${MVP_V8_DIR}/lib/libv8_monolith.a")
   message(FATAL_ERROR "V8 not found in ${MVP_V8_DIR}. Run tools/v8/build.sh first.")
 endif()
 
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(SDL2 REQUIRED IMPORTED_TARGET sdl2)
-pkg_check_modules(GLES2 REQUIRED IMPORTED_TARGET glesv2)
-pkg_check_modules(CAIRO REQUIRED IMPORTED_TARGET cairo cairo-ft cairo-png)
-pkg_check_modules(FREETYPE REQUIRED IMPORTED_TARGET freetype2)
+if(ANDROID)
+  # Android ships OpenGL ES and zlib but neither SDL nor Cairo. SDL is built
+  # here from its source (MVP_SDL_DIR) as libSDL2.so, which its Java side
+  # loads by that name; Cairo, pixman, FreeType and libpng are the static
+  # libraries made by tools/build/build-android-deps.sh (MVP_DEPS_DIR).
+  set(MVP_SDL_DIR "" CACHE PATH "SDL2 source folder")
+  set(MVP_DEPS_DIR "${CMAKE_SOURCE_DIR}/third_party/android-deps" CACHE PATH "Cairo and friends for Android")
+  set(SDL_STATIC OFF CACHE BOOL "" FORCE)
+  set(SDL_TEST OFF CACHE BOOL "" FORCE)
+  add_subdirectory("${MVP_SDL_DIR}" sdl2 EXCLUDE_FROM_ALL)
+  set(MVP_PLATFORM_LIBS
+    SDL2::SDL2
+    "${MVP_DEPS_DIR}/lib/libcairo.a" "${MVP_DEPS_DIR}/lib/libpixman-1.a"
+    "${MVP_DEPS_DIR}/lib/libfreetype.a" "${MVP_DEPS_DIR}/lib/libpng16.a"
+    GLESv2 z log android)
+  set(MVP_PLATFORM_INCLUDES "${MVP_DEPS_DIR}/include/cairo" "${MVP_DEPS_DIR}/include/freetype2")
+else()
+  find_package(PkgConfig REQUIRED)
+  pkg_check_modules(SDL2 REQUIRED IMPORTED_TARGET sdl2)
+  pkg_check_modules(GLES2 REQUIRED IMPORTED_TARGET glesv2)
+  pkg_check_modules(CAIRO REQUIRED IMPORTED_TARGET cairo cairo-ft cairo-png)
+  pkg_check_modules(FREETYPE REQUIRED IMPORTED_TARGET freetype2)
+  set(MVP_PLATFORM_LIBS PkgConfig::SDL2 PkgConfig::GLES2 PkgConfig::CAIRO PkgConfig::FREETYPE pthread dl)
+  set(MVP_PLATFORM_INCLUDES "")
+endif()
 
 # The WebGL constant table is generated from the OpenGL ES 2 header.
 find_file(MVP_GLES2_HEADER GLES2/gl2.h REQUIRED)
@@ -39,7 +59,7 @@ add_custom_command(
 add_library(stb_vorbis STATIC third_party/stb/stb_vorbis.c)
 target_compile_options(stb_vorbis PRIVATE -w)
 
-add_executable(mvplayer
+set(MVP_SOURCES
   "${MVP_GL_CONSTANTS}"
   src/bindings/audio_binding.cpp
   src/bindings/canvas_binding.cpp
@@ -50,15 +70,22 @@ add_executable(mvplayer
   src/platform/input.cpp
   src/platform/files.cpp
   src/platform/log.cpp
+  src/platform/touch.cpp
   src/platform/window.cpp
   src/platform/main_loop.cpp
   src/engine/host.cpp
 )
-target_include_directories(mvplayer PRIVATE src third_party/stb "${CMAKE_BINARY_DIR}/generated" "${MVP_V8_DIR}/include")
+if(ANDROID)
+  # SDL's Java side loads the program as libmain.so and calls its SDL_main.
+  add_library(mvplayer SHARED ${MVP_SOURCES} src/platform/android_start.cpp)
+  set_target_properties(mvplayer PROPERTIES OUTPUT_NAME main)
+else()
+  add_executable(mvplayer ${MVP_SOURCES})
+endif()
+target_include_directories(mvplayer PRIVATE src third_party/stb ${MVP_PLATFORM_INCLUDES} "${CMAKE_BINARY_DIR}/generated" "${MVP_V8_DIR}/include")
 target_compile_options(mvplayer PRIVATE -Wall -Wextra -Werror -Wno-unused-parameter)
 target_link_libraries(mvplayer PRIVATE
   "${MVP_V8_DIR}/lib/libv8_monolith.a"
   stb_vorbis
-  PkgConfig::SDL2 PkgConfig::GLES2 PkgConfig::CAIRO PkgConfig::FREETYPE
-  pthread dl
+  ${MVP_PLATFORM_LIBS}
 )

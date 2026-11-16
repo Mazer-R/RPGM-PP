@@ -6,6 +6,7 @@
 #include <string>
 
 #include "platform/log.h"
+#include "platform/touch.h"
 
 namespace mvp {
 namespace {
@@ -23,6 +24,9 @@ constexpr int kStickThreshold = 16000;
 
 // Start must follow the menu button within this time to count as "quit".
 constexpr unsigned kQuitWindowMs = 3000;
+
+// A phone's Back button held this long leaves the game.
+constexpr unsigned kBackHoldMs = 1000;
 
 // The layout follows the engine's own gamepad defaults: A confirms, B
 // cancels, X dashes, Y opens the menu, the shoulders page.
@@ -52,6 +56,7 @@ int KeyForKeyboard(SDL_Keycode key) {
   switch (key) {
     case SDLK_RETURN: case SDLK_KP_ENTER: return kKeyEnter;
     case SDLK_ESCAPE: return kKeyEscape;
+    case SDLK_AC_BACK: return kKeyEscape;  // a phone's Back button
     case SDLK_SPACE: return kKeySpace;
     case SDLK_LSHIFT: case SDLK_RSHIFT: return kKeyShift;
     case SDLK_LCTRL: case SDLK_RCTRL: return 17;
@@ -71,7 +76,23 @@ int KeyForKeyboard(SDL_Keycode key) {
 
 }  // namespace
 
-Input::Input(Log& log) : log_(log) {}
+Input::Input(Log& log) : log_(log), touch_(new TouchControls) {
+#ifdef __ANDROID__
+  // A phone has no other controls until a controller or keyboard shows up.
+  touch_visible_ = true;
+#endif
+}
+
+void Input::SetScreenSize(int width, int height) {
+  screen_width_ = width;
+  screen_height_ = height;
+  touch_->SetScreen(width, height);
+}
+
+const std::vector<TouchCircle>& Input::VisibleTouchControls() const {
+  static const std::vector<TouchCircle> none;
+  return touch_visible_ ? touch_->circles() : none;
+}
 
 Input::~Input() {
   for (SDL_GameController* controller : controllers_) SDL_GameControllerClose(controller);
@@ -134,9 +155,22 @@ void Input::HandleEvent(const SDL_Event& event) {
         OpenController(event.cdevice.which);
       }
       break;
+    case SDL_FINGERDOWN:
+    case SDL_FINGERMOTION:
+      // Finger positions come as fractions of the screen.
+      touch_visible_ = true;
+      touch_->Place(event.tfinger.fingerId, event.tfinger.x * static_cast<float>(screen_width_),
+                    event.tfinger.y * static_cast<float>(screen_height_));
+      for (const KeyChange& change : touch_->TakeChanges()) Queue(change.key_code, change.down);
+      break;
+    case SDL_FINGERUP:
+      touch_->Lift(event.tfinger.fingerId);
+      for (const KeyChange& change : touch_->TakeChanges()) Queue(change.key_code, change.down);
+      break;
     case SDL_CONTROLLERBUTTONDOWN:
     case SDL_CONTROLLERBUTTONUP: {
       bool down = event.type == SDL_CONTROLLERBUTTONDOWN;
+      touch_visible_ = false;
       if (event.cbutton.button == SDL_CONTROLLER_BUTTON_GUIDE) {
         guide_down_ = down;
         if (down) guide_down_at_ms_ = event.cbutton.timestamp;
@@ -168,6 +202,15 @@ void Input::HandleEvent(const SDL_Event& event) {
     }
     case SDL_KEYDOWN:
     case SDL_KEYUP:
+      // A phone's Back button is a key too, and is used along with the touch
+      // controls; any other key means a keyboard is in use.
+      if (event.key.keysym.sym != SDLK_AC_BACK) touch_visible_ = false;
+      // Back held for a second leaves the game, as menu + Start does on a
+      // console; a short press is cancel.
+      if (event.key.keysym.sym == SDLK_AC_BACK && !event.key.repeat) {
+        if (event.type == SDL_KEYDOWN) back_down_at_ms_ = event.key.timestamp;
+        else if (event.key.timestamp - back_down_at_ms_ >= kBackHoldMs) quit_requested_ = true;
+      }
       if (!event.key.repeat) Queue(KeyForKeyboard(event.key.keysym.sym), event.type == SDL_KEYDOWN);
       break;
     default:
@@ -176,8 +219,12 @@ void Input::HandleEvent(const SDL_Event& event) {
 }
 
 std::vector<KeyChange> Input::TakeChanges() {
+  // What was held back last time comes first; see HoldQuickReleases.
   std::vector<KeyChange> taken;
-  taken.swap(changes_);
+  taken.swap(held_back_);
+  taken.insert(taken.end(), changes_.begin(), changes_.end());
+  changes_.clear();
+  HoldQuickReleases(&taken, &held_back_);
   return taken;
 }
 

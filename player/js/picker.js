@@ -19,7 +19,12 @@
 (function () {
   'use strict';
   var gl = player.gl, c2d = player.canvas;
-  var W = gl.drawingBufferWidth, H = gl.drawingBufferHeight;
+  // The list is laid out for a screen about 480 pixels high and shown
+  // enlarged by a whole factor on denser screens (a phone), so the text
+  // stays readable.
+  var SCREEN_W = gl.drawingBufferWidth, SCREEN_H = gl.drawingBufferHeight;
+  var ZOOM = Math.max(1, Math.floor(SCREEN_H / 480));
+  var W = Math.round(SCREEN_W / ZOOM), H = Math.round(SCREEN_H / ZOOM);
   var KEY = { up: 38, down: 40, pageUp: 33, pageDown: 34, ok: [90, 13, 32], back: [88, 27] };
   var EXIT_NOTHING_CHOSEN = 10;
 
@@ -64,7 +69,8 @@
   // The player ships no font of its own. Every RPG Maker MV game carries
   // this one, so the first game that has it lends it to the list. With no
   // game yet, a desktop system's own font is used.
-  var SYSTEM_FONTS = ['/usr/share/fonts/TTF/DejaVuSans.ttf', '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+  var SYSTEM_FONTS = ['/system/fonts/Roboto-Regular.ttf', '/system/fonts/NotoSans-Regular.ttf',
+    '/system/fonts/DroidSans.ttf', '/usr/share/fonts/TTF/DejaVuSans.ttf', '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
     '/usr/share/fonts/dejavu/DejaVuSans.ttf', '/usr/share/fonts/noto/NotoSans-Regular.ttf',
     '/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf', '/usr/share/fonts/liberation/LiberationSans-Regular.ttf',
     '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf'];
@@ -96,8 +102,11 @@
     c2d.fillRect(canvas, 0, 0, W, H, DARK, 1);
     text('RPG Maker MV games', 32, 56, 30, WHITE);
     if (!games.some(function (line) { return line.www; })) {
-      text('No games yet. A game is a folder holding its "www" folder, in:', 32, H - 120, 16, GREY);
-      (player.libraryDirs || []).forEach(function (dir, i) { text(fitted(dir, 16, W - 64), 32, H - 96 + i * 22, 16, GREY); });
+      // Shown in the middle, clear of the touch controls in the corners.
+      var hint = ['No games yet. A game is a folder holding its "www" folder, in:']
+        .concat((player.libraryDirs || []).slice(0, 1));
+      if (player.needsFileAccess) hint.push('Allow "all files access" for this app, then open it again.');
+      hint.forEach(function (line, i) { text(fitted(line, 16, W - 64), 32, TOP + ROW * 2 + i * 22, 16, GREY); });
     }
     for (var row = 0; row < VISIBLE && first + row < games.length; row++) {
       var index = first + row, y = TOP + row * ROW;
@@ -150,7 +159,7 @@
       paint();
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
     }
-    gl.viewport(0, 0, W, H);
+    gl.viewport(0, 0, SCREEN_W, SCREEN_H);
     gl.clearColor(0, 0, 0, 1);
     gl.clear(gl.COLOR_BUFFER_BIT);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);

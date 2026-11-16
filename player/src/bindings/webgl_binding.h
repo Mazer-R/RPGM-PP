@@ -15,6 +15,8 @@
 // that context current.
 #pragma once
 
+#include <vector>
+
 #include "v8.h"
 
 namespace mvp {
@@ -30,7 +32,13 @@ v8::Local<v8::Object> CreateWebGLContext(v8::Isolate* isolate, v8::Local<v8::Con
 // call copies it to the real screen, scaled to fit with its proportions
 // kept, and leaves the OpenGL state exactly as the game had it. It does
 // nothing until a drawing buffer size has been set.
-void PresentDrawingBuffer(int screen_width, int screen_height);
+//
+// `circles` are drawn last, over everything, as faint see-through rings: the
+// on-screen touch controls. Positions are screen pixels from the top left.
+struct ScreenCircle {
+  float x, y, radius;
+};
+void PresentDrawingBuffer(int screen_width, int screen_height, const std::vector<ScreenCircle>& circles);
 
 // True once the game has its own drawing buffer; the main loop then leaves
 // clearing to the game.

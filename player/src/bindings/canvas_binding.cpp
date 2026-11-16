@@ -13,6 +13,7 @@
 #include <map>
 #include <set>
 #include <string>
+#include <vector>
 
 namespace mvp {
 
@@ -257,8 +258,30 @@ void InstallFunctions(v8::Isolate* isolate, v8::Local<v8::Object> canvas) {
   });
   // Decodes a PNG file. Returns a surface handle, or null if it cannot be read.
   FN(loadImage, {
-    std::string path = mvp::FindFile(ToStd(ISO, args[0]));
-    cairo_surface_t* image = cairo_image_surface_create_from_png(path.c_str());
+    std::string written = ToStd(ISO, args[0]);
+    cairo_surface_t* image;
+    if (mvp::HasFileHead(written)) {
+      // An image whose beginning is disguised on disk is decoded from memory.
+      struct Source {
+        std::vector<unsigned char> bytes;
+        size_t at = 0;
+      } source;
+      if (!mvp::ReadFileContents(written, &source.bytes)) {
+        RET(v8::Null(ISO));
+        return;
+      }
+      image = cairo_image_surface_create_from_png_stream(
+          [](void* closure, unsigned char* data, unsigned int length) {
+            Source* from = static_cast<Source*>(closure);
+            if (from->bytes.size() - from->at < length) return CAIRO_STATUS_READ_ERROR;
+            std::memcpy(data, from->bytes.data() + from->at, length);
+            from->at += length;
+            return CAIRO_STATUS_SUCCESS;
+          },
+          &source);
+    } else {
+      image = cairo_image_surface_create_from_png(mvp::FindFile(written).c_str());
+    }
     if (cairo_surface_status(image) != CAIRO_STATUS_SUCCESS) {
       cairo_surface_destroy(image);
       RET(v8::Null(ISO));
@@ -551,14 +574,29 @@ bool SurfacePixelsForUpload(v8::Isolate* isolate, v8::Local<v8::Value> value, bo
   int stride = cairo_image_surface_get_stride(s->surface);
   *width = s->width;
   *height = s->height;
-  pixels->resize(static_cast<size_t>(s->width) * s->height * 4);
+  // The buffer only ever grows here: callers reuse one, and making it the
+  // exact size each time would clear it for nothing.
+  size_t needed = static_cast<size_t>(s->width) * s->height * 4;
+  if (pixels->size() < needed) pixels->resize(needed);
   for (int y = 0; y < s->height; y++) {
     const uint8_t* row = data + static_cast<size_t>(flip_y ? s->height - 1 - y : y) * stride;
     uint8_t* out = pixels->data() + static_cast<size_t>(y) * s->width * 4;
+    if (premultiply) {
+      // The usual case: the colours are wanted as Cairo holds them, with
+      // red and blue changing places. One whole pixel at a time, no
+      // decisions, so the compiler can do several per instruction.
+      for (int x = 0; x < s->width; x++) {
+        uint32_t p;
+        std::memcpy(&p, row + x * 4, 4);
+        p = (p & 0xFF00FF00u) | ((p >> 16) & 0xFFu) | ((p & 0xFFu) << 16);
+        std::memcpy(out + x * 4, &p, 4);
+      }
+      continue;
+    }
     for (int x = 0; x < s->width; x++) {
       const uint8_t* q = row + x * 4;  // blue, green, red, alpha; colour already times alpha
       unsigned a = q[3];
-      if (premultiply || a == 255) {
+      if (a == 255) {
         out[x * 4 + 0] = q[2];
         out[x * 4 + 1] = q[1];
         out[x * 4 + 2] = q[0];

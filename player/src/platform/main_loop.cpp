@@ -8,6 +8,7 @@
 #include "platform/clock.h"
 #include "platform/input.h"
 #include "platform/log.h"
+#include "platform/touch.h"
 #include "platform/window.h"
 
 namespace mvp {
@@ -29,7 +30,7 @@ int RunMainLoop(Window& window, Input& input, Host& host, const Clock& clock, Lo
     host.Heartbeat();
     if (!window.PumpEvents(input)) break;
     if (input.quit_requested()) {
-      log.Write(LogLevel::kInfo, "loop", "quit combination pressed (menu button + Start)");
+      log.Write(LogLevel::kInfo, "loop", "quit combination pressed (menu button + Start, or Back held)");
       break;
     }
     // Key changes reach the game before this frame's work, as a browser
@@ -50,7 +51,10 @@ int RunMainLoop(Window& window, Input& input, Host& host, const Clock& clock, Lo
       window.Clear(colour[0], colour[1], colour[2]);
     }
     host.RunFrameCallbacks(clock.NowMs());
-    PresentDrawingBuffer(window.width(), window.height());
+    const std::vector<TouchCircle>& controls = input.VisibleTouchControls();
+    std::vector<ScreenCircle> circles;
+    for (const TouchCircle& control : controls) circles.push_back({control.x, control.y, control.radius});
+    PresentDrawingBuffer(window.width(), window.height(), circles);
     window.Swap();
     frames++;
   }

@@ -21,11 +21,9 @@
   // stored in its header. It is given the start of the file only, and that
   // block of bytes is remembered as standing for the file.
   var HEADER_BYTES = 256 * 1024;
-  var fileOfBytes = new WeakMap();
   browser.readSoundFile = function (path) {
     var bytes = player.readFileBytes(path, HEADER_BYTES);
-    if (bytes) fileOfBytes.set(bytes, path);
-    return bytes;
+    return bytes && browser.bytesStandFor(bytes, path);
   };
 
   function AudioBuffer(path, info) {
@@ -167,7 +165,7 @@
   AudioContext.prototype.suspend = function () { return Promise.resolve(); };
   AudioContext.prototype.close = function () { return Promise.resolve(); };
   AudioContext.prototype.decodeAudioData = function (bytes, onDecoded, onError) {
-    var path = fileOfBytes.get(bytes);
+    var path = browser.fileBehind(bytes);
     var info = path ? native.info(path) : null;
     var result = info ? new AudioBuffer(path, info) : null;
     if (!result) {

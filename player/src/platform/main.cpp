@@ -31,6 +31,8 @@
 // <player-dir> defaults to the folder that holds this executable.
 // Exit codes: 0 clean exit, 1 the screen could not be opened or bad
 // arguments, 2 a script error, otherwise the code passed to player.exit().
+#include "platform/main.h"
+
 #include <malloc.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -89,12 +91,17 @@ std::string WithoutTrailingSlash(std::string path) {
 
 }  // namespace
 
-int main(int argc, char** argv) {
+namespace mvp {
+
+int PlayerMain(int argc, char** argv) {
+#ifdef __GLIBC__
   // Pixel buffers are large and short-lived. By default the C library starts
   // keeping freed large blocks for reuse instead of returning them to the
   // system, and the process only ever grows. A fixed threshold makes every
   // block of 64 KB or more its own mapping, returned as soon as it is freed.
+  // Android's C library has no such setting and returns large blocks itself.
   mallopt(M_MMAP_THRESHOLD, 64 * 1024);
+#endif
   std::string script, game_dir, player_dir, log_path;
   std::vector<std::string> extra_scripts;
   bool no_patches = false;
@@ -187,6 +194,7 @@ int main(int argc, char** argv) {
 
   mvp::Input input(log);
   input.Open();
+  input.SetScreenSize(window.width(), window.height());
 
   // Declared before the engine, so it outlives it.
   std::unique_ptr<mvp::AudioOutput> audio = mvp::CreateAudioOutput(log);
@@ -202,6 +210,10 @@ int main(int argc, char** argv) {
     host.SetStringList("libraryDirs", library_dirs);
     host.SetStringList("libraryGames", library_games);
     host.SetFlag("canAddGame", can_add);
+#ifdef __ANDROID__
+    // The game list then explains the permission the games folder needs.
+    host.SetFlag("needsFileAccess", true);
+#endif
     host.SetFlag("showFps", show_fps);
     bool started = host.RunFile(script);
     for (const std::string& extra : extra_scripts) {
@@ -213,3 +225,10 @@ int main(int argc, char** argv) {
   log.Write(mvp::LogLevel::kInfo, "main", "exit code " + std::to_string(exit_code));
   return exit_code;
 }
+
+}  // namespace mvp
+
+// On Android the program is started by platform/android_start.cpp instead.
+#ifndef __ANDROID__
+int main(int argc, char** argv) { return mvp::PlayerMain(argc, argv); }
+#endif

@@ -7,3 +7,5 @@ cd /work/player
 mkdir -p build-device/tests
 g++ -std=c++17 -Wall -Wextra -Werror -Isrc tests/native/files_test.cpp src/platform/files.cpp -o build-device/tests/files_test
 build-device/tests/files_test
+g++ -std=c++17 -Wall -Wextra -Werror -Isrc tests/native/touch_test.cpp src/platform/touch.cpp -o build-device/tests/touch_test
+build-device/tests/touch_test

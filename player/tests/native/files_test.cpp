@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <string>
+#include <vector>
 
 #include "platform/files.h"
 
@@ -58,6 +59,40 @@ int main() {
   mvp::ForgetFileNames();
   Expect("a file created later is found after forgetting the listings",
          FindFile(root + "/data/map002.json"), root + "/data/Map002.json");
+
+  // An answer is remembered, and forgotten when told that files changed.
+  Touch(root + "/data/Old.json");
+  FindFile(root + "/data/old.json");
+  std::remove((root + "/data/Old.json").c_str());
+  Touch(root + "/data/OLD.json");
+  mvp::ForgetFileNames();
+  Expect("after forgetting, a file renamed in the meantime is found under its new name",
+         FindFile(root + "/data/old.json"), root + "/data/OLD.json");
+  Expect("asking twice gives the same answer",
+         FindFile(root + "/data/old.json"), root + "/data/OLD.json");
+
+  // Files with a disguised beginning.
+  auto Contents = [](const std::string& path) {
+    std::vector<unsigned char> bytes;
+    if (!mvp::ReadFileContents(path, &bytes)) return std::string("<unreadable>");
+    return std::string(bytes.begin(), bytes.end());
+  };
+  std::ofstream(root + "/img/Hidden.rpgmvp") << "MARKERMARKER....????rest of the file";
+  Expect("a file without a registered head is read as it is on disk",
+         Contents(root + "/data/Map001.json"), "x");
+  Expect("no head is known before one is registered",
+         mvp::HasFileHead(root + "/img/hidden.rpgmvp") ? "yes" : "no", "no");
+  mvp::SetFileHead(root + "/img/hidden.rpgmvp", 16, "TRUE");
+  Expect("a registered head is known under the name the scripts use",
+         mvp::HasFileHead(root + "/img/hidden.rpgmvp") ? "yes" : "no", "yes");
+  Expect("a file with a head is read from the skip on, with the head in place of its first bytes",
+         Contents(root + "/img/hidden.rpgmvp"), "TRUErest of the file");
+  mvp::SetFileHead(root + "/data/Map001.json", 16, "TRUE");
+  Expect("a file shorter than its head says is unreadable", Contents(root + "/data/Map001.json"), "<unreadable>");
+  Expect("a missing file is unreadable", Contents(root + "/img/none.png"), "<unreadable>");
+  mvp::ForgetFileHeads();
+  Expect("forgetting the heads gives the file on disk again",
+         Contents(root + "/img/hidden.rpgmvp"), "MARKERMARKER....????rest of the file");
 
   // A relative path is resolved from the current folder and stays relative.
   if (chdir(root.c_str()) == 0) {

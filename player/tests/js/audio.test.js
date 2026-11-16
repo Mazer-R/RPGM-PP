@@ -38,8 +38,10 @@ function setup() {
   };
   sandbox.globalThis = sandbox;
   vm.createContext(sandbox);
-  const file = path.join(__dirname, '..', '..', 'js', 'audio.js');
-  vm.runInContext(fs.readFileSync(file, 'utf8'), sandbox, { filename: file });
+  for (const name of ['file-bytes.js', 'audio.js']) {
+    const file = path.join(__dirname, '..', '..', 'js', name);
+    vm.runInContext(fs.readFileSync(file, 'utf8'), sandbox, { filename: file });
+  }
   const browser = sandbox.__browser;
   const runTasks = () => { while (browser.tasks.length) browser.tasks.shift()(); };
   return { sandbox, calls, mixer, browser, runTasks };

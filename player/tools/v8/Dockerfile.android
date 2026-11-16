@@ -1,0 +1,64 @@
+# Build environment for V8 targeting 64-bit ARM Android, built on a 64-bit
+# ARM Linux host.
+#
+# The first steps are the same as Dockerfile.x64 on purpose, word for word,
+# so the image builder reuses those layers (and the same `gn`) instead of
+# building them again. The x86-64 cross compiler they install is not used
+# here; the x86-64 C runtime is, see below.
+#
+# What this image adds is the Android NDK, the same release the player is
+# compiled with (r27b, package revision 27.1.12297006). V8 for Android is
+# compiled with the NDK's own clang against the NDK's own C++ standard
+# library, so that the library fits code compiled the ordinary NDK way.
+# Google publishes the NDK for Linux only as x86-64 programs, so the machine
+# that runs the container must be able to execute x86-64 programs (Rosetta
+# or qemu-user registered with binfmt_misc; podman machine on Apple Silicon
+# has Rosetta by default). The programs V8 runs during its own build
+# (torque, mksnapshot) are compiled natively with the system GCC.
+FROM debian:bookworm
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      build-essential ca-certificates curl git ninja-build pkg-config python3 \
+      python3-httplib2 xz-utils \
+      g++-x86-64-linux-gnu binutils-x86-64-linux-gnu \
+    && rm -rf /var/lib/apt/lists/*
+
+# gn, built from source with the system compiler.
+RUN git clone https://gn.googlesource.com/gn /opt/gn-src \
+    && cd /opt/gn-src \
+    && CXX=g++ CC=gcc AR=ar /usr/bin/python3 build/gen.py --allow-warnings \
+    && ninja -C out gn \
+    && install -m 0755 out/gn /usr/local/bin/gn \
+    && rm -rf /opt/gn-src
+
+# gclient, used only to fetch V8 and its dependencies. It is run with the
+# system Python (see build-android.sh); depot_tools ships its own `python3`
+# wrapper that needs a bootstrap step, so the folder is deliberately not put
+# first on PATH. Auto-update is disabled so the image stays as built.
+ENV DEPOT_TOOLS_UPDATE=0
+RUN git clone --depth 1 https://chromium.googlesource.com/chromium/tools/depot_tools.git /opt/depot_tools
+ENV PATH="${PATH}:/opt/depot_tools"
+
+# The x86-64 runtime libraries the emulated NDK compiler loads.
+RUN dpkg --add-architecture amd64 \
+    && apt-get update && apt-get install -y --no-install-recommends \
+      libc6:amd64 libstdc++6:amd64 \
+    && rm -rf /var/lib/apt/lists/*
+
+# The Android NDK. Only the compiler, its sysroot and the version file are
+# kept; the rest of the archive (other build systems, debuggers, shader
+# tools) is not used. Its clang also loads the x86-64 zlib.
+ARG NDK_RELEASE=r27b
+ARG NDK_SHA1=6fc476b2e57d7c01ac0c95817746b927035b9749
+RUN apt-get update && apt-get install -y --no-install-recommends unzip zlib1g:amd64 \
+    && rm -rf /var/lib/apt/lists/* \
+    && curl -fL -o /tmp/ndk.zip "https://dl.google.com/android/repository/android-ndk-${NDK_RELEASE}-linux.zip" \
+    && echo "${NDK_SHA1}  /tmp/ndk.zip" | sha1sum -c - \
+    && unzip -q /tmp/ndk.zip -d /opt \
+        "android-ndk-${NDK_RELEASE}/source.properties" \
+        "android-ndk-${NDK_RELEASE}/toolchains/llvm/prebuilt/linux-x86_64/*" \
+    && mv "/opt/android-ndk-${NDK_RELEASE}" /opt/android-ndk \
+    && rm /tmp/ndk.zip
+ENV ANDROID_NDK_ROOT=/opt/android-ndk
+
+WORKDIR /work

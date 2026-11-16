@@ -45,6 +45,7 @@ struct State {
   int buffer_width = 0;
   int buffer_height = 0;
   GLuint present_program = 0;
+  GLuint ring_program = 0;  // draws the touch controls
   // A small picture drawn over the game when it is shown on the screen (the
   // frame-rate display). Pixels are RGBA rows, top row first.
   std::vector<uint8_t> overlay_pixels;
@@ -156,6 +157,16 @@ std::string RewritePrecision(std::string source) {
     }
   }
   return source;
+}
+
+// One buffer for the pixels of every canvas upload, kept between uploads: a
+// new one each time would be megabytes of fresh memory for the system to
+// clear on every frame in which a canvas changed. An unusually large upload
+// does not keep its memory.
+std::vector<uint8_t>& UploadBuffer() {
+  static std::vector<uint8_t> buffer;
+  if (buffer.size() > 8u * 1024 * 1024) std::vector<uint8_t>().swap(buffer);
+  return buffer;
 }
 
 // Applies the WebGL flip and premultiply flags to RGBA byte pixels.
@@ -369,7 +380,7 @@ void InstallFunctions(v8::Isolate* isolate, v8::Local<v8::Object> gl) {
     // Short form: texImage2D(target, level, internalformat, format, type,
     // source), where the source is a canvas or an image.
     if (args.Length() < 9) {
-      std::vector<uint8_t> pixels;
+      std::vector<uint8_t>& pixels = UploadBuffer();
       int width = 0, height = 0;
       if (args.Length() >= 6 && SurfacePixelsForUpload(ISO, args[5], g_state.premultiply,
                                                         g_state.flip_y, &pixels, &width, &height)) {
@@ -394,7 +405,7 @@ void InstallFunctions(v8::Isolate* isolate, v8::Local<v8::Object> gl) {
   FN(texSubImage2D, {
     // Short form: texSubImage2D(target, level, x, y, format, type, source).
     if (args.Length() < 9) {
-      std::vector<uint8_t> pixels;
+      std::vector<uint8_t>& pixels = UploadBuffer();
       int width = 0, height = 0;
       if (args.Length() >= 7 && SurfacePixelsForUpload(ISO, args[6], g_state.premultiply,
                                                         g_state.flip_y, &pixels, &width, &height)) {
@@ -584,8 +595,11 @@ v8::Local<v8::Object> CreateWebGLContext(v8::Isolate* isolate, v8::Local<v8::Con
 
 bool HasDrawingBuffer() { return g_state.buffer_framebuffer != 0; }
 
-void PresentDrawingBuffer(int screen_width, int screen_height) {
-  if (!g_state.buffer_framebuffer) return;
+void PresentDrawingBuffer(int screen_width, int screen_height, const std::vector<ScreenCircle>& circles) {
+  // Without a drawing buffer the scripts drew straight to the screen (the
+  // game list does); only the touch controls are then added on top.
+  bool has_buffer = g_state.buffer_framebuffer != 0;
+  if (!has_buffer && circles.empty()) return;
 
   // Remember every piece of OpenGL state touched below. PIXI keeps its own
   // record of the state it set, so it must find things exactly as it left them.
@@ -603,6 +617,11 @@ void PresentDrawingBuffer(int screen_width, int screen_height) {
   const GLenum switches[] = {GL_BLEND, GL_SCISSOR_TEST, GL_STENCIL_TEST, GL_DEPTH_TEST, GL_CULL_FACE};
   GLboolean was_enabled[5];
   for (int i = 0; i < 5; i++) was_enabled[i] = glIsEnabled(switches[i]);
+  GLint blend_function[4] = {GL_ONE, GL_ZERO, GL_ONE, GL_ZERO};  // source and destination, colour then alpha
+  glGetIntegerv(GL_BLEND_SRC_RGB, &blend_function[0]);
+  glGetIntegerv(GL_BLEND_DST_RGB, &blend_function[1]);
+  glGetIntegerv(GL_BLEND_SRC_ALPHA, &blend_function[2]);
+  glGetIntegerv(GL_BLEND_DST_ALPHA, &blend_function[3]);
   struct Attribute {
     GLint enabled, size, type, normalized, stride, buffer;
     void* pointer;
@@ -632,54 +651,99 @@ void PresentDrawingBuffer(int screen_width, int screen_height) {
     glLinkProgram(g_state.present_program);
   }
 
-  // Fit the game's picture inside the screen, keeping its proportions.
-  float scale_x = static_cast<float>(screen_width) / static_cast<float>(g_state.buffer_width);
-  float scale_y = static_cast<float>(screen_height) / static_cast<float>(g_state.buffer_height);
-  float scale = scale_x < scale_y ? scale_x : scale_y;
-  float x = static_cast<float>(g_state.buffer_width) * scale / static_cast<float>(screen_width);
-  float y = static_cast<float>(g_state.buffer_height) * scale / static_cast<float>(screen_height);
-  const GLfloat quad[16] = {-x, -y, 0, 0, x, -y, 1, 0, -x, y, 0, 1, x, y, 1, 1};
+  if (has_buffer) {
+    // Fit the game's picture inside the screen, keeping its proportions.
+    float scale_x = static_cast<float>(screen_width) / static_cast<float>(g_state.buffer_width);
+    float scale_y = static_cast<float>(screen_height) / static_cast<float>(g_state.buffer_height);
+    float scale = scale_x < scale_y ? scale_x : scale_y;
+    float x = static_cast<float>(g_state.buffer_width) * scale / static_cast<float>(screen_width);
+    float y = static_cast<float>(g_state.buffer_height) * scale / static_cast<float>(screen_height);
+    const GLfloat quad[16] = {-x, -y, 0, 0, x, -y, 1, 0, -x, y, 0, 1, x, y, 1, 1};
 
-  glBindFramebuffer(GL_FRAMEBUFFER, 0);
-  glViewport(0, 0, screen_width, screen_height);
-  for (GLenum name : switches) glDisable(name);
-  glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-  glClearColor(0, 0, 0, 1);
-  glClear(GL_COLOR_BUFFER_BIT);
-  glUseProgram(g_state.present_program);
-  glBindTexture(GL_TEXTURE_2D, g_state.buffer_texture);
-  glBindBuffer(GL_ARRAY_BUFFER, 0);
-  glEnableVertexAttribArray(0);
-  glEnableVertexAttribArray(1);
-  glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), quad);
-  glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), quad + 2);
-  glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-
-  // The overlay, if any, in screen pixels over the scaled picture.
-  if (!g_state.overlay_pixels.empty() && g_state.overlay_width > 0 && g_state.overlay_height > 0) {
-    if (!g_state.overlay_texture) {
-      glGenTextures(1, &g_state.overlay_texture);
-      glBindTexture(GL_TEXTURE_2D, g_state.overlay_texture);
-      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    }
-    glBindTexture(GL_TEXTURE_2D, g_state.overlay_texture);
-    if (g_state.overlay_changed) {
-      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, g_state.overlay_width, g_state.overlay_height, 0, GL_RGBA,
-                   GL_UNSIGNED_BYTE, g_state.overlay_pixels.data());
-      g_state.overlay_changed = false;
-    }
-    float left = -1.0f + 2.0f * static_cast<float>(g_state.overlay_x) / static_cast<float>(screen_width);
-    float right = left + 2.0f * static_cast<float>(g_state.overlay_width) / static_cast<float>(screen_width);
-    float top = 1.0f - 2.0f * static_cast<float>(g_state.overlay_y) / static_cast<float>(screen_height);
-    float bottom = top - 2.0f * static_cast<float>(g_state.overlay_height) / static_cast<float>(screen_height);
-    // The first row of the pixels is the top of the picture.
-    const GLfloat box[16] = {left, bottom, 0, 1, right, bottom, 1, 1, left, top, 0, 0, right, top, 1, 0};
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), box);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), box + 2);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glViewport(0, 0, screen_width, screen_height);
+    for (GLenum name : switches) glDisable(name);
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+    glClearColor(0, 0, 0, 1);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glUseProgram(g_state.present_program);
+    glBindTexture(GL_TEXTURE_2D, g_state.buffer_texture);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), quad);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), quad + 2);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+    // The overlay, if any, in screen pixels over the scaled picture.
+    if (!g_state.overlay_pixels.empty() && g_state.overlay_width > 0 && g_state.overlay_height > 0) {
+      if (!g_state.overlay_texture) {
+        glGenTextures(1, &g_state.overlay_texture);
+        glBindTexture(GL_TEXTURE_2D, g_state.overlay_texture);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+      }
+      glBindTexture(GL_TEXTURE_2D, g_state.overlay_texture);
+      if (g_state.overlay_changed) {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, g_state.overlay_width, g_state.overlay_height, 0, GL_RGBA,
+                     GL_UNSIGNED_BYTE, g_state.overlay_pixels.data());
+        g_state.overlay_changed = false;
+      }
+      float left = -1.0f + 2.0f * static_cast<float>(g_state.overlay_x) / static_cast<float>(screen_width);
+      float right = left + 2.0f * static_cast<float>(g_state.overlay_width) / static_cast<float>(screen_width);
+      float top = 1.0f - 2.0f * static_cast<float>(g_state.overlay_y) / static_cast<float>(screen_height);
+      float bottom = top - 2.0f * static_cast<float>(g_state.overlay_height) / static_cast<float>(screen_height);
+      // The first row of the pixels is the top of the picture.
+      const GLfloat box[16] = {left, bottom, 0, 1, right, bottom, 1, 1, left, top, 0, 0, right, top, 1, 0};
+      glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), box);
+      glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), box + 2);
+      glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    }
+  } else {
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glViewport(0, 0, screen_width, screen_height);
+    for (GLenum name : switches) glDisable(name);
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
+  }
+
+  // The touch controls: each a square whose shader paints a ring with a
+  // fainter inside, blended over the picture.
+  if (!circles.empty()) {
+    if (!g_state.ring_program) {
+      g_state.ring_program = glCreateProgram();
+      glAttachShader(g_state.ring_program, CompileInternal(GL_VERTEX_SHADER,
+          "attribute vec2 p; attribute vec2 t; varying vec2 v;"
+          "void main(){ v = t; gl_Position = vec4(p, 0.0, 1.0); }"));
+      glAttachShader(g_state.ring_program, CompileInternal(GL_FRAGMENT_SHADER,
+          "precision mediump float; varying vec2 v;"
+          "void main(){ float d = length(v);"
+          "  float a = d > 1.0 ? 0.0 : (d > 0.88 ? 0.5 : 0.13);"
+          "  gl_FragColor = vec4(1.0, 1.0, 1.0, a); }"));
+      glBindAttribLocation(g_state.ring_program, 0, "p");
+      glBindAttribLocation(g_state.ring_program, 1, "t");
+      glLinkProgram(g_state.ring_program);
+    }
+    glUseProgram(g_state.ring_program);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    for (const ScreenCircle& circle : circles) {
+      float cx = -1.0f + 2.0f * circle.x / static_cast<float>(screen_width);
+      float cy = 1.0f - 2.0f * circle.y / static_cast<float>(screen_height);
+      float rx = 2.0f * circle.radius / static_cast<float>(screen_width);
+      float ry = 2.0f * circle.radius / static_cast<float>(screen_height);
+      const GLfloat box[16] = {cx - rx, cy - ry, -1, -1, cx + rx, cy - ry, 1, -1,
+                               cx - rx, cy + ry, -1, 1,  cx + rx, cy + ry, 1, 1};
+      glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), box);
+      glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), box + 2);
+      glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    }
+    glBlendFuncSeparate(static_cast<GLenum>(blend_function[0]), static_cast<GLenum>(blend_function[1]),
+                        static_cast<GLenum>(blend_function[2]), static_cast<GLenum>(blend_function[3]));
   }
 
   // Put everything back.
@@ -703,7 +767,12 @@ void PresentDrawingBuffer(int screen_width, int screen_height) {
   glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(framebuffer));
 }
 
-void ReleaseWebGLBinding() { g_state.name_key.Reset(); }
+// The OpenGL objects named in the state belong to a screen that is closed
+// after this; a later run in the same process starts from nothing.
+void ReleaseWebGLBinding() {
+  g_state.name_key.Reset();
+  g_state = State();
+}
 
 long TakeWebGLCallCount() {
   long count = g_state.calls;

@@ -92,6 +92,7 @@ class Host {
   static void RemoveSaveFileCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void MakeSaveDirCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ListDirCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void FileHeadCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ReadFileBytesCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void PrintCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void StartProfileCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -105,7 +106,6 @@ class Host {
 
   Log& log_;
   const Clock& clock_;
-  std::unique_ptr<v8::Platform> platform_;
   v8::ArrayBuffer::Allocator* allocator_ = nullptr;
   v8::Isolate* isolate_ = nullptr;
   v8::Global<v8::Context> context_;

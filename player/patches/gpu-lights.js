@@ -34,7 +34,14 @@ player.patches.gpuLights = function (options) {
 
   // --- Colour parsing: the plugin passes CSS colour strings ---------------
   var NAMED = { black: 0x000000, white: 0xffffff };
+  // The plugin passes the same few colour strings on every update.
+  var parsed = {};
   function colourOf(text) {
+    var known = parsed[text];
+    if (known === undefined) known = parsed[text] = parseColour(text);
+    return known;
+  }
+  function parseColour(text) {
     var value = String(text).trim().toLowerCase();
     if (value in NAMED) return NAMED[value];
     var hex = /^#([0-9a-f]{6})/.exec(value);

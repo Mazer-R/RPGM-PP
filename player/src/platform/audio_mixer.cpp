@@ -23,9 +23,34 @@ constexpr int kOutputRate = 44100;
 constexpr int kChunkFrames = 2048;  // decoded frames kept per voice
 constexpr size_t kMaxVoices = 32;
 
+// Opens a sound file for decoding. A file whose beginning is disguised on
+// disk (see platform/files.h) is read whole into `memory`, which must then
+// live as long as the decoder; any other file is decoded straight from disk.
+stb_vorbis* OpenDecoder(const std::string& written_path, std::vector<unsigned char>* memory) {
+  int error = 0;
+  if (!HasFileHead(written_path)) {
+    return stb_vorbis_open_filename(FindFile(written_path).c_str(), &error, nullptr);
+  }
+  if (!ReadFileContents(written_path, memory)) return nullptr;
+  return stb_vorbis_open_memory(memory->data(), static_cast<int>(memory->size()), &error, nullptr);
+}
+
+// A decoder that is not playing, kept open for the next time its file is
+// played. Opening one reads the file's header and builds the decoding tables,
+// milliseconds of work on a small processor, and games play the same few
+// sounds (cursor, steps, hits) over and over.
+struct IdleDecoder {
+  std::string path;
+  stb_vorbis* decoder;
+  std::vector<unsigned char> file_in_memory;
+};
+constexpr size_t kMaxIdleDecoders = 16;
+
 struct Voice {
   int id = 0;
+  std::string path;
   stb_vorbis* decoder = nullptr;
+  std::vector<unsigned char> file_in_memory;  // only for a disguised file
   unsigned total_samples = 0;
   // Decoded sound waiting to be played: stereo frames, and how far into
   // them playing has got (a fraction, because pitch resamples).
@@ -73,6 +98,7 @@ class Mixer : public AudioOutput {
   ~Mixer() override {
     if (device_) SDL_CloseAudioDevice(device_);
     for (Voice* voice : voices_) Destroy(voice);
+    for (IdleDecoder& idle : idle_) stb_vorbis_close(idle.decoder);
     if (device_) SDL_QuitSubSystem(SDL_INIT_AUDIO);
   }
 
@@ -85,8 +111,8 @@ class Mixer : public AudioOutput {
       return info->sample_rate > 0;
     }
     SoundInfo result;
-    int error = 0;
-    if (stb_vorbis* decoder = stb_vorbis_open_filename(FindFile(written_path).c_str(), &error, nullptr)) {
+    std::vector<unsigned char> memory;
+    if (stb_vorbis* decoder = OpenDecoder(written_path, &memory)) {
       stb_vorbis_info format = stb_vorbis_get_info(decoder);
       result.sample_rate = static_cast<int>(format.sample_rate);
       result.channels = format.channels;
@@ -100,13 +126,25 @@ class Mixer : public AudioOutput {
 
   int Play(const std::string& written_path, const PlayOptions& options) override {
     Reap();
-    int error = 0;
-    stb_vorbis* decoder = stb_vorbis_open_filename(FindFile(written_path).c_str(), &error, nullptr);
-    if (!decoder) return 0;
+    // The voice is made first: the decoder may read from memory it owns.
+    Voice* voice = new Voice();
+    voice->path = written_path;
+    stb_vorbis* decoder = nullptr;
+    for (auto idle = idle_.begin(); idle != idle_.end(); ++idle) {
+      if (idle->path != written_path) continue;
+      decoder = idle->decoder;
+      voice->file_in_memory = std::move(idle->file_in_memory);
+      idle_.erase(idle);
+      break;
+    }
+    if (!decoder) decoder = OpenDecoder(written_path, &voice->file_in_memory);
+    if (!decoder) {
+      delete voice;
+      return 0;
+    }
     stb_vorbis_info format = stb_vorbis_get_info(decoder);
     double rate = static_cast<double>(format.sample_rate);
 
-    Voice* voice = new Voice();
     voice->id = next_id_++;
     voice->decoder = decoder;
     voice->total_samples = stb_vorbis_stream_length_in_samples(decoder);
@@ -195,7 +233,19 @@ class Mixer : public AudioOutput {
     done.assign(finished, voices_.end());
     voices_.erase(finished, voices_.end());
     SDL_UnlockAudioDevice(device_);
-    for (Voice* voice : done) Destroy(voice);
+    for (Voice* voice : done) {
+      // The decoder goes back to the start of its file and waits for the
+      // next play; the one that has waited longest makes room.
+      if (voice->decoder && stb_vorbis_seek_start(voice->decoder)) {
+        if (idle_.size() >= kMaxIdleDecoders) {
+          stb_vorbis_close(idle_.front().decoder);
+          idle_.erase(idle_.begin());
+        }
+        idle_.push_back({voice->path, voice->decoder, std::move(voice->file_in_memory)});
+        voice->decoder = nullptr;
+      }
+      Destroy(voice);
+    }
   }
 
   // Decodes the next stretch of a voice's file after the frame it kept.
@@ -284,6 +334,7 @@ class Mixer : public AudioOutput {
   SDL_AudioDeviceID device_ = 0;
   std::string description_;
   std::vector<Voice*> voices_;  // guarded by the audio device's lock
+  std::vector<IdleDecoder> idle_;  // longest-waiting first; caller's thread only
   std::vector<float> mix_;      // used by the audio callback only
   std::map<std::string, SoundInfo> infos_;
   std::atomic<float> peak_{0};

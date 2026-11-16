@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdio>
 #include <unordered_map>
 
 namespace mvp {
@@ -42,7 +43,26 @@ const Listing& ListingOf(const std::string& folder) {
 
 }  // namespace
 
+namespace {
+// Answers already worked out, for paths that led to an existing file. Games
+// ask for the same few hundred files again and again (every sound effect,
+// every image decoded anew), and each answer costs at least one question to
+// the system.
+std::unordered_map<std::string, std::string> g_found;
+
+std::string Search(const std::string& path);
+}  // namespace
+
 std::string FindFile(const std::string& path) {
+  auto known = g_found.find(path);
+  if (known != g_found.end()) return known->second;
+  std::string found = Search(path);
+  if (!path.empty() && Exists(found)) g_found[path] = found;
+  return found;
+}
+
+namespace {
+std::string Search(const std::string& path) {
   if (path.empty() || Exists(path)) return path;
 
   // Walk the path part by part, taking each part as written when it exists
@@ -68,7 +88,41 @@ std::string FindFile(const std::string& path) {
   }
   return absolute || found.size() < 2 ? found : found.substr(2);
 }
+}  // namespace
 
-void ForgetFileNames() { g_listings.clear(); }
+void ForgetFileNames() {
+  g_listings.clear();
+  g_found.clear();
+}
+
+namespace {
+struct Head {
+  size_t skip;
+  std::string bytes;
+};
+std::unordered_map<std::string, Head> g_heads;
+}  // namespace
+
+void SetFileHead(const std::string& path, size_t skip, const std::string& head) { g_heads[path] = {skip, head}; }
+bool HasFileHead(const std::string& path) { return g_heads.count(path) > 0; }
+void ForgetFileHeads() { g_heads.clear(); }
+
+bool ReadFileContents(const std::string& path, std::vector<unsigned char>* contents) {
+  std::FILE* file = std::fopen(FindFile(path).c_str(), "rb");
+  if (!file) return false;
+  contents->clear();
+  unsigned char block[65536];
+  for (size_t got; (got = std::fread(block, 1, sizeof block, file)) > 0;) {
+    contents->insert(contents->end(), block, block + got);
+  }
+  std::fclose(file);
+  auto head = g_heads.find(path);
+  if (head == g_heads.end()) return true;
+  const Head& known = head->second;
+  if (contents->size() < known.skip + known.bytes.size()) return false;
+  contents->erase(contents->begin(), contents->begin() + static_cast<std::ptrdiff_t>(known.skip));
+  std::copy(known.bytes.begin(), known.bytes.end(), contents->begin());
+  return true;
+}
 
 }  // namespace mvp

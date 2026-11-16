@@ -1,0 +1,76 @@
+# V8 build options for the Android (64-bit ARM) build of the player, built
+# on a 64-bit ARM Linux host. Everything that affects V8's object layout or
+# feature set is identical to args.gn (the ARM Linux build); only the target
+# and the toolchains differ. Keep the files in step.
+
+target_cpu = "arm64"
+target_os = "android"
+is_debug = false
+symbol_level = 0
+
+# The Android NDK the player itself is compiled with (see Dockerfile.android)
+# and the lowest Android version the library may run on (API 26, Android 8).
+android_ndk_root = "/opt/android-ndk"
+android_ndk_version = "r27b"
+android64_ndk_api_level = 26
+
+# V8 itself is compiled with the NDK's clang instead of the clang V8's
+# tooling would download; the checks that only that clang knows are off.
+is_clang = true
+clang_base_path = "/opt/android-ndk/toolchains/llvm/prebuilt/linux-x86_64"
+clang_use_chrome_plugins = false
+
+# The shared build configuration only knows where the NDK keeps its compiler
+# for an x86-64 host, and stops with an error on any other. The NDK programs
+# are x86-64 here too (they run through the host's emulation), so the build
+# is told the host is x86-64. The value is used for nothing else, because
+# the two toolchains that would follow from it are named below.
+host_cpu = "x64"
+
+# The programs V8 runs during its own build (torque, mksnapshot) are
+# compiled natively with the system GCC, as in the ARM Linux build. Host and
+# target are the same processor family, so the startup snapshot mksnapshot
+# writes is generated natively and nothing in it is translated.
+host_toolchain = "//build/toolchain/linux:arm64"
+v8_snapshot_toolchain = "//build/toolchain/linux:arm64"
+
+# One static library holding V8, its platform helpers and its base library.
+is_component_build = false
+v8_monolithic = true
+v8_use_external_startup_data = false
+
+# Use the C++ standard library that comes with the compiler, not the libc++
+# that V8's tooling would otherwise build into the library: for V8 itself
+# that is the NDK's libc++ (namespace std::__ndk1, the one the player links),
+# for the build-time programs the system libstdc++.
+use_custom_libcxx = false
+use_sysroot = false
+use_lld = false
+use_gold = false
+treat_warnings_as_errors = false
+
+# The shared Chromium build configuration looks for desktop libraries that
+# V8 itself does not use. Turn those lookups off instead of installing them.
+use_glib = false
+
+# Same object layout as the ARM Linux build: full 64-bit pointers and no
+# sandbox.
+v8_enable_pointer_compression = false
+v8_enable_sandbox = false
+
+# Not needed by the player; leaving them out makes the library smaller.
+v8_enable_i18n_support = false
+v8_enable_webassembly = false
+v8_enable_test_features = false
+v8_enable_gdbjit = false
+
+# Options whose defaults depend on the target or on the compiler, pinned to
+# the values the other builds end up with, so that all builds behave alike:
+# the full BigInt algorithms (off by default on Android), an uncompressed
+# startup snapshot (compressed by default on Android), V8's own portable
+# sin/cos instead of the libm port that clang builds default to (so the same
+# script computes the same numbers on every build), and no fuzz-test hooks.
+v8_advanced_bigint_algorithms = true
+v8_enable_snapshot_compression = false
+v8_use_libm_trig_functions = false
+v8_enable_fuzztest = false

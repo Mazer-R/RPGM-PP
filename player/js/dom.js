@@ -11,7 +11,7 @@
   'use strict';
   var c2d = player.canvas;
   var gl = player.gl;
-  var browser = globalThis.__browser = {};
+  var browser = globalThis.__browser = globalThis.__browser || {};
 
   // --- Features the player does not provide ---------------------------------
   // Each one is reported once, so the log lists what a game reached for.
@@ -427,9 +427,54 @@
   Object.defineProperty(HTMLImageElement.prototype, '__native', {
     get: function () {
       if (!this.complete || this._decodeFailed) return null;
-      return this._surface || decode(this);
+      if (!this._surface) return decode(this);
+      // Used again: it goes to the back of the queue of copies to drop.
+      // Nearly always it is there already or the queue is short.
+      var last = decoded.length - 1;
+      if (decoded[last] !== this) {
+        var at = decoded.lastIndexOf(this);
+        if (at >= 0) { decoded.splice(at, 1); decoded.push(this); }
+      }
+      return this._surface;
     },
   });
+  // --- Bytes as addresses (Blob, URL.createObjectURL) -----------------------
+  // Only what the engine's handling of encrypted images needs: a Blob keeps
+  // the blocks of bytes it was made from, and an address made for it leads
+  // back to them.
+  function Blob(parts, options) {
+    this._parts = parts ? Array.prototype.slice.call(parts) : [];
+    this.type = (options && options.type) || '';
+    this.size = this._parts.reduce(function (sum, part) { return sum + (part.byteLength || part.length || 0); }, 0);
+  }
+  var blobs = {};
+  var nextBlob = 1;
+  function URL() { browser.missing('the URL class'); }
+  URL.createObjectURL = function (blob) {
+    var url = 'blob:mvplayer/' + nextBlob++;
+    blobs[url] = blob;
+    return url;
+  };
+  URL.revokeObjectURL = function (url) { delete blobs[url]; };
+  globalThis.Blob = Blob;
+  globalThis.URL = globalThis.webkitURL = URL;
+
+  // The image file behind a blob: address and its size, read from the PNG
+  // header in the blob's own bytes; null if the bytes are not the start of a
+  // PNG file that came from a file.
+  function blobFile(url) {
+    var blob = blobs[url];
+    var part = blob && blob._parts.length === 1 ? blob._parts[0] : null;
+    var path = part ? browser.fileBehind(part) : null;
+    if (!path) return null;
+    var head = new Uint8Array(ArrayBuffer.isView(part) ? part.buffer : part);
+    var signature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52];
+    if (head.length < 24) return null;
+    for (var i = 0; i < signature.length; i++) if (head[i] !== signature[i]) return null;
+    var view = new DataView(head.buffer);
+    return { path: path, size: [view.getUint32(16), view.getUint32(20)] };
+  }
+
   Object.defineProperty(HTMLImageElement.prototype, 'src', {
     get: function () { return this._src; },
     set: function (url) {
@@ -440,10 +485,13 @@
       var image = this;
       later(function () {
         if (image._src !== url) return; // replaced before it loaded
-        var file = gamePath(url);
-        var size = /^(data|blob):/.test(url) ? null : c2d.imageSize(file);
+        // A blob: address made from bytes that stand for a file (an encrypted
+        // image the engine has unscrambled) shows that file.
+        var blob = /^blob:/.test(url) ? blobFile(url) : null;
+        var file = blob ? blob.path : gamePath(url);
+        var size = blob ? blob.size : /^(data|blob):/.test(url) ? null : c2d.imageSize(file);
         if (!size) {
-          if (/^(data|blob):/.test(url)) browser.missing('images from data: or blob: addresses');
+          if (/^(data|blob):/.test(url)) browser.missing('images from data: addresses or from bytes made in script');
           // Reported once per address: the engine asks again and again.
           if (!failedImages[url]) console.warn('image: cannot load ' + url.slice(0, 120));
           failedImages[url] = true;
@@ -461,6 +509,10 @@
   });
 
   // --- File requests --------------------------------------------------------
+  function startOfFile(file, count) {
+    var bytes = player.readFileBytes(file, count);
+    return bytes && browser.bytesStandFor(bytes, file);
+  }
   function XMLHttpRequest() {
     this.readyState = 0;
     this.status = 0;
@@ -484,8 +536,12 @@
         var file = gamePath(request._url);
         if (request.responseType === 'arraybuffer') {
           // Sound files are not handed over whole: see audio.js.
+          // Nor are encrypted images: the engine only unscrambles their
+          // start, so the start is all it gets (see file-bytes.js).
           var isSound = browser.readSoundFile && /\.(ogg|m4a|rpgmvo)$/i.test(file);
-          var bytes = isSound ? browser.readSoundFile(file) : player.readFileBytes(file);
+          var bytes = isSound ? browser.readSoundFile(file)
+            : /\.rpgmvp$/i.test(file) ? startOfFile(file, 80)
+            : player.readFileBytes(file);
           request.readyState = 4;
           if (bytes) {
             request.status = 200;
