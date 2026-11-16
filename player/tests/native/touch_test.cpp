@@ -104,7 +104,25 @@ int main() {
   controls.Lift(9);
   Expect("lifting an unknown finger does nothing", Text(controls.TakeChanges()), "");
 
-  // Presses shorter than a frame.
+  // What each control should light up, so the player sees the touch land.
+  Expect("an untouched button is not lit", std::to_string(controls.Lit(confirm)), "0");
+  controls.Place(1, confirm.x, confirm.y);
+  Expect("a touched button is lit", std::to_string(controls.Lit(confirm)), "1");
+  Expect("the other buttons are not", std::to_string(controls.Lit(cancel) + controls.Lit(dash)), "0");
+  Expect("nor is the pad", std::to_string(controls.Lit(pad)), "0");
+  controls.Place(2, pad.x - reach, pad.y);
+  Expect("the pad lights its left arm", std::to_string(controls.Lit(pad)), std::to_string(mvp::kLitLeft));
+  controls.Place(2, pad.x + reach * 0.7f, pad.y - reach * 0.7f);
+  Expect("between up and right it lights both arms", std::to_string(controls.Lit(pad)),
+         std::to_string(mvp::kLitUp | mvp::kLitRight));
+  controls.Place(2, pad.x, pad.y + reach);
+  Expect("the pad lights its bottom arm", std::to_string(controls.Lit(pad)), std::to_string(mvp::kLitDown));
+  controls.Lift(1);
+  controls.Lift(2);
+  Expect("nothing is lit once the fingers are gone",
+         std::to_string(controls.Lit(pad) + controls.Lit(confirm)), "0");
+  controls.TakeChanges();
+
   auto Split = [](std::vector<mvp::KeyChange> batch) {
     std::vector<mvp::KeyChange> later;
     mvp::HoldQuickReleases(&batch, &later);

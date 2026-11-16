@@ -36,6 +36,8 @@ class Input {
   // The touch controls to draw: empty unless a finger was the last thing
   // used (on Android also at the start, before anything has been used).
   const std::vector<TouchCircle>& VisibleTouchControls() const;
+  // What of a control a finger is on right now (see TouchControls::Lit).
+  int TouchLit(const TouchCircle& control) const;
   // Looks at one SDL event; key changes are queued.
   void HandleEvent(const SDL_Event& event);
   // Returns the queued key changes, oldest first, and empties the queue.

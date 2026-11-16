@@ -667,6 +667,18 @@ adjustments where the game's own code is too expensive for this hardware.
         first in the search path; the decoder is started with the path as
         it was before, so the system's ffmpeg loads the system's
         libraries.
+*   **Touch controls drawn as what they do (2026-11-16).**
+    *   **Why**: plain rings did not say which was the pad and which
+        button did what (feedback from a first try on a phone).
+    *   **Now**: the direction pad is a cross with an arrowhead on each
+        arm; the buttons are rings around a tick (confirm), a cross
+        (cancel or menu) and two chevrons (dash). What a finger is on
+        lights up. All of it is one fragment shader; no textures or font.
+    *   **Checked**: on the Android emulator, idle and with a finger
+        held on the pad. Positions and sizes are unchanged.
+    *   **Open**: no way yet to move, resize or hide the controls; the
+        game list's "A: choose, B: leave" hint sits under the pad and
+        names buttons a touch screen does not have.
 
 ## Critical User Journeys (CUJs)
 

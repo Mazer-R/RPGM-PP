@@ -33,10 +33,17 @@ v8::Local<v8::Object> CreateWebGLContext(v8::Isolate* isolate, v8::Local<v8::Con
 // kept, and leaves the OpenGL state exactly as the game had it. It does
 // nothing until a drawing buffer size has been set.
 //
-// `circles` are drawn last, over everything, as faint see-through rings: the
-// on-screen touch controls. Positions are screen pixels from the top left.
+// `circles` are drawn last, over everything, see-through: the on-screen
+// touch controls. Positions are screen pixels from the top left. Each is
+// drawn as what it does, so it can be read without trying it: the direction
+// pad as a cross with an arrowhead on each arm, a button as a ring around a
+// symbol. `lit` brightens what a finger is on: any value for a button; for
+// the pad, 1 left + 2 up + 4 right + 8 down.
+enum class ControlSymbol { kDirections = 0, kConfirm = 1, kCancel = 2, kDash = 3 };
 struct ScreenCircle {
   float x, y, radius;
+  ControlSymbol symbol = ControlSymbol::kConfirm;
+  int lit = 0;
 };
 //
 // `video`, when given, is shown in place of the game's picture, fitted to

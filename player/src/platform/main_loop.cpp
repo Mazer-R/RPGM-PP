@@ -17,6 +17,17 @@ namespace mvp {
 namespace {
 volatile std::sig_atomic_t g_terminate = 0;
 void OnTerminate(int) { g_terminate = 1; }
+
+// How an on-screen control is drawn, from the key it presses (browser key
+// codes; 0 is the direction pad).
+ControlSymbol SymbolFor(int key_code) {
+  switch (key_code) {
+    case 0: return ControlSymbol::kDirections;
+    case 88: return ControlSymbol::kCancel;
+    case 16: return ControlSymbol::kDash;
+    default: return ControlSymbol::kConfirm;
+  }
+}
 }  // namespace
 
 int RunMainLoop(Window& window, Input& input, Host& host, const Clock& clock, Log& log, VideoPlayer& video) {
@@ -54,7 +65,9 @@ int RunMainLoop(Window& window, Input& input, Host& host, const Clock& clock, Lo
     host.RunFrameCallbacks(clock.NowMs());
     const std::vector<TouchCircle>& controls = input.VisibleTouchControls();
     std::vector<ScreenCircle> circles;
-    for (const TouchCircle& control : controls) circles.push_back({control.x, control.y, control.radius});
+    for (const TouchCircle& control : controls) {
+      circles.push_back({control.x, control.y, control.radius, SymbolFor(control.key_code), input.TouchLit(control)});
+    }
     VideoPicture picture;
     ScreenVideo screen_video;
     bool has_video = video.Picture(&picture);

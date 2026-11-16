@@ -1,5 +1,5 @@
 // On-screen controls for a touch screen: a direction pad on the left and
-// three buttons on the right. Fingers go in, the same key presses a keyboard
+// three buttons on the right (confirm, cancel or menu, and dash). Fingers go in, the same key presses a keyboard
 // or controller produces come out. This file knows nothing about SDL or
 // drawing: it only places the controls for a screen size and decides which
 // keys the fingers currently hold.
@@ -21,6 +21,9 @@ struct TouchCircle {
   int key_code;
 };
 
+// What Lit() answers for the direction pad: one bit per arm being held.
+constexpr int kLitLeft = 1, kLitUp = 2, kLitRight = 4, kLitDown = 8;
+
 // The game looks at which keys are down once per frame. A key pressed and
 // let go within one frame (a quick tap on a touch screen) would never be seen
 // as down. This moves such a release, and whatever follows it for that key,
@@ -40,6 +43,10 @@ class TouchControls {
   // lets go of the first and presses the second.
   void Place(long long finger, float x, float y);
   void Lift(long long finger);
+
+  // Whether a finger is on a control right now, for drawing it lit: 1 for a
+  // button; for the direction pad, the kLit bits of the arms being held.
+  int Lit(const TouchCircle& circle) const;
 
   // Key changes since the last call, releases first.
   std::vector<KeyChange> TakeChanges();

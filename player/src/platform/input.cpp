@@ -94,6 +94,8 @@ const std::vector<TouchCircle>& Input::VisibleTouchControls() const {
   return touch_visible_ ? touch_->circles() : none;
 }
 
+int Input::TouchLit(const TouchCircle& control) const { return touch_->Lit(control); }
+
 Input::~Input() {
   for (SDL_GameController* controller : controllers_) SDL_GameControllerClose(controller);
   SDL_QuitSubSystem(SDL_INIT_GAMECONTROLLER);

@@ -75,6 +75,18 @@ void TouchControls::Place(long long finger, float x, float y) { held_by_finger_[
 
 void TouchControls::Lift(long long finger) { held_by_finger_.erase(finger); }
 
+int TouchControls::Lit(const TouchCircle& circle) const {
+  auto held = [this](int key) {
+    for (const auto& finger : held_by_finger_) {
+      if (finger.second.count(key)) return true;
+    }
+    return false;
+  };
+  if (circle.key_code) return held(circle.key_code) ? 1 : 0;
+  return (held(kKeyLeft) ? kLitLeft : 0) | (held(kKeyUp) ? kLitUp : 0) | (held(kKeyRight) ? kLitRight : 0) |
+         (held(kKeyDown) ? kLitDown : 0);
+}
+
 std::vector<KeyChange> TouchControls::TakeChanges() {
   std::set<int> held;
   for (const auto& finger : held_by_finger_) held.insert(finger.second.begin(), finger.second.end());
