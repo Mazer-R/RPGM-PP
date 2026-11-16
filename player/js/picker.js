@@ -23,12 +23,11 @@
 (function () {
   'use strict';
   var gl = player.gl, c2d = player.canvas;
-  // The list is laid out for a screen about 480 pixels high and shown
-  // enlarged by a whole factor on denser screens (a phone), so the text
-  // stays readable.
-  var SCREEN_W = gl.drawingBufferWidth, SCREEN_H = gl.drawingBufferHeight;
-  var ZOOM = Math.max(1, Math.floor(SCREEN_H / 480));
-  var W = Math.round(SCREEN_W / ZOOM), H = Math.round(SCREEN_H / ZOOM);
+  // The window's size in pixels, and the size the list is drawn at: for a
+  // screen about 480 pixels high, shown enlarged by a whole factor (ZOOM) on
+  // denser screens (a phone), so the text stays readable. Set by fitTo(),
+  // at the start and whenever the window changes size.
+  var SCREEN_W = 0, SCREEN_H = 0, ZOOM = 1, W = 0, H = 0;
   var KEY = { up: 38, down: 40, pageUp: 33, pageDown: 34, ok: [90, 13, 32], back: [88, 27] };
   var EXIT_NOTHING_CHOSEN = 10;
 
@@ -153,11 +152,11 @@
   }
 
   // --- Drawing ----------------------------------------------------------------
-  var canvas = c2d.create(W, H);
+  var canvas = null;
   // The lines are in a column on the left; the rest of a wide screen shows
   // the background. The browser's lines are lower, under its explanation,
   // and smaller, so that a small screen still shows several.
-  var MARGIN = 28, COLUMN = Math.min(W - 2 * MARGIN, Math.max(520, Math.round(W * 0.5)));
+  var MARGIN = model.MARGIN, COLUMN = 0;
   var LIST = { top: 98, row: 62 }, BROWSE = { top: 166, row: 46 };
   function metrics() { return browsing ? BROWSE : LIST; }
   function visible() { return Math.max(1, Math.floor((H - metrics().top - 40) / metrics().row)); }
@@ -180,10 +179,20 @@
   }
   // Over the background picture: dark where the lines are, clearer to the
   // right, and dark again along the bottom, under the hints.
-  var VEIL = gradient(0, 0, W, 0, [[0, [0.043, 0.045, 0.063, 0.97]], [0.5, [0.043, 0.045, 0.063, 0.84]], [1, [0.043, 0.045, 0.063, 0.30]]]);
-  var FLOOR = gradient(0, H - 110, 0, H, [[0, [0.043, 0.045, 0.063, 0]], [1, [0.043, 0.045, 0.063, 0.92]]]);
-  var PLAIN = gradient(0, 0, 0, H, [[0, [0.085, 0.09, 0.13, 1]], [1, NIGHT]]);
-  var CHOSEN = gradient(MARGIN, 0, MARGIN + COLUMN, 0, [[0, ACCENT], [1, ACCENT_DEEP]]);
+  var VEIL, FLOOR, PLAIN, CHOSEN;
+  // Lays the list out for a window of this many pixels.
+  function fitTo(width, height) {
+    var fitted = model.fit(width, height);
+    SCREEN_W = width; SCREEN_H = height;
+    ZOOM = fitted.zoom; W = fitted.width; H = fitted.height; COLUMN = fitted.column;
+    if (canvas) c2d.destroy(canvas);
+    canvas = c2d.create(W, H);
+    VEIL = gradient(0, 0, W, 0, [[0, [0.043, 0.045, 0.063, 0.97]], [0.5, [0.043, 0.045, 0.063, 0.84]], [1, [0.043, 0.045, 0.063, 0.30]]]);
+    FLOOR = gradient(0, H - 110, 0, H, [[0, [0.043, 0.045, 0.063, 0]], [1, [0.043, 0.045, 0.063, 0.92]]]);
+    PLAIN = gradient(0, 0, 0, H, [[0, [0.085, 0.09, 0.13, 1]], [1, NIGHT]]);
+    CHOSEN = gradient(MARGIN, 0, MARGIN + COLUMN, 0, [[0, ACCENT], [1, ACCENT_DEEP]]);
+  }
+  fitTo(gl.drawingBufferWidth, gl.drawingBufferHeight);
 
   function rounded(x, y, w, h, r) {
     c2d.beginPath(canvas);
@@ -380,6 +389,7 @@
   var rested = 0, restedOn = null;
   function frame() {
     requestAnimationFrame(frame);
+    if (newSize) takeNewSize();
     var behind = gameBehind();
     rested = behind === restedOn ? rested + 1 : 0;
     restedOn = behind;
@@ -456,6 +466,22 @@
       if (opened) choose();
     }
   };
+  // The window changed size (a desktop's can): the list is laid out again,
+  // with the chosen line still among the ones shown.
+  // While a window is dragged to a new size the sizes come in a stream:
+  // the last one of each frame is the one used (see frame()).
+  var newSize = null;
+  player.onResize = function (width, height) { newSize = [width, height]; };
+  function takeNewSize() {
+    var width = newSize[0], height = newSize[1];
+    newSize = null;
+    if (width < 1 || height < 1 || (width === SCREEN_W && height === SCREEN_H)) return;
+    fitTo(width, height);
+    press = null;
+    move(0);
+    first = Math.max(0, Math.min(first, lines().length - visible()));
+    changed = true;
+  }
   player.onKey = function (keyCode, down) {
     if (!down) return;
     if (touching && keyCode !== 27) { touching = false; changed = true; }

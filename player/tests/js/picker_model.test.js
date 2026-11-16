@@ -114,6 +114,17 @@ const tests = {
     assert.strictEqual(model.tapOpens({ kind: 'folder', label: 'Games/', path: '/Games' }, false), true);
     assert.strictEqual(model.tapOpens({ kind: 'game', label: 'Add this game: X', path: '/g/www' }, false), true);
   },
+
+  'the list is laid out for the window it is given, enlarged by whole factors on dense screens'() {
+    assert.deepStrictEqual(plain(model.fit(640, 480)), { zoom: 1, width: 640, height: 480, column: 520 });
+    assert.deepStrictEqual(plain(model.fit(2400, 1080)), { zoom: 2, width: 1200, height: 540, column: 600 });
+    assert.deepStrictEqual(plain(model.fit(1920, 1080)), { zoom: 2, width: 960, height: 540, column: 520 });
+    assert.deepStrictEqual(plain(model.fit(1224, 936)), { zoom: 1, width: 1224, height: 936, column: 612 });
+  },
+
+  'a small window gets a narrower column, never one wider than the window'() {
+    assert.deepStrictEqual(plain(model.fit(400, 300)), { zoom: 1, width: 400, height: 300, column: 344 });
+  },
 };
 
 let failed = 0;

@@ -865,6 +865,25 @@ adjustments where the game's own code is too expensive for this hardware.
         (or with F2, or the menu button plus Select), for that run.
         `--fps` and `MVPLAYER_FPS=1` still start a game with it on, for
         tests.
+*   **A resizable window on desktop Linux (2026-11-16).**
+    *   **Why**: the player took the whole screen everywhere; on a desktop
+        it should be an ordinary window.
+    *   **Now**: under X11 or Wayland the window is windowed and
+        resizable, as large a whole or half multiple of 816x624 as fits
+        in 85% of the display, at least 408x312. F11 switches to the
+        whole screen and back; `MVPLAYER_FULLSCREEN=1` starts that way
+        (the screenless runner sets it). Handhelds and phones are as
+        before. A game's picture was already fitted to the screen's size
+        on every frame, so it only needed the new size; the touch
+        controls and the game list are told (`player.onResize`), and the
+        list lays itself out again (`fit` in `js/picker-model.js`, with
+        tests).
+    *   **Checked** without a screen, in a real X11 window resized with
+        xdotool: the list at 816x624, 1000x420 and 520x700, and Fear &
+        Hunger's title in a 1100x400 window, its picture centred with
+        its proportions. The RG35XX SP still opens 640x480 full screen.
+    *   **Not checked**: on a real desktop with a window manager, F11,
+        Wayland, a high-density display.
 
 ## Critical User Journeys (CUJs)
 

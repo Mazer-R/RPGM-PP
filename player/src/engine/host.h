@@ -66,6 +66,9 @@ class Host {
   // Calls player.onPointer(phase, x, y), if the script set one: a finger or
   // the mouse put down (0), moved (1) or lifted (2), in screen pixels.
   void DispatchPointer(int phase, float x, float y);
+  // Calls player.onResize(width, height), if the script set one: the
+  // window's new size in pixels.
+  void DispatchResize(int width, int height);
 
   // True while at least one frame callback is waiting. With none, and no
   // other source of work, no script code can ever run again.

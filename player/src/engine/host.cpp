@@ -678,6 +678,27 @@ void Host::DispatchPointer(int phase, float x, float y) {
   isolate_->PerformMicrotaskCheckpoint();
 }
 
+void Host::DispatchResize(int width, int height) {
+  v8::Isolate::Scope isolate_scope(isolate_);
+  v8::HandleScope handle_scope(isolate_);
+  v8::Local<v8::Context> context = context_.Get(isolate_);
+  v8::Context::Scope context_scope(context);
+  v8::TryCatch try_catch(isolate_);
+  v8::Local<v8::Value> player, handler;
+  if (!context->Global()->Get(context, ToV8String(isolate_, "player")).ToLocal(&player) ||
+      !player->IsObject() ||
+      !player.As<v8::Object>()->Get(context, ToV8String(isolate_, "onResize")).ToLocal(&handler) ||
+      !handler->IsFunction()) {
+    return;
+  }
+  v8::Local<v8::Value> arguments[2] = {v8::Integer::New(isolate_, width), v8::Integer::New(isolate_, height)};
+  v8::Local<v8::Value> result;
+  if (!handler.As<v8::Function>()->Call(context, player, 2, arguments).ToLocal(&result)) {
+    ReportException(&try_catch);
+  }
+  isolate_->PerformMicrotaskCheckpoint();
+}
+
 void Host::DispatchKey(int key_code, bool down) {
   v8::Isolate::Scope isolate_scope(isolate_);
   v8::HandleScope handle_scope(isolate_);

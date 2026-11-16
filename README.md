@@ -176,6 +176,8 @@ ARM desktop.
 
 Keys: arrows to move, Z or Enter to confirm, X or Esc to cancel, F1 for the
 player's settings, F2 for the frames per second. A controller works too.
+The player opens in a window that can be resized; F11 switches between the
+window and the whole screen.
 To see a game's videos, install `ffmpeg` with the system's package manager.
 The package brings its own SDL2, Cairo and FreeType; details are in the
 `README.txt` inside it.
@@ -461,7 +463,9 @@ un escritorio ARM real.
 
 Teclas: flechas para moverse, Z o Intro para confirmar, X o Esc para
 cancelar, F1 para los ajustes del reproductor, F2 para los fotogramas por
-segundo. También funciona un mando. Para ver los vídeos de un juego,
+segundo. También funciona un mando. El reproductor se abre en una ventana
+que se puede redimensionar; F11 alterna entre la ventana y la pantalla
+completa. Para ver los vídeos de un juego,
 instala `ffmpeg` con el gestor de paquetes del sistema. El paquete trae sus
 propias SDL2, Cairo y FreeType; los detalles están en el `README.txt` que
 lleva dentro (en inglés).

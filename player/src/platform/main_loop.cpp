@@ -52,6 +52,12 @@ int RunMainLoop(Window& window, Input& input, Host& host, const Clock& clock, Lo
   while (!host.exit_requested() && !g_terminate) {
     host.Heartbeat();
     if (!window.PumpEvents(input)) break;
+    if (window.TakeResized()) {
+      // A desktop's window changed size: the picture is fitted to it from
+      // now on, and the touch controls and the game list are told.
+      input.SetScreenSize(window.width(), window.height());
+      host.DispatchResize(window.width(), window.height());
+    }
     if (input.quit_requested()) {
       log.Write(LogLevel::kInfo, "loop", "quit combination pressed (menu button + Start, or Back held)");
       break;

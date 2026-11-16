@@ -31,7 +31,8 @@ docker run --rm -v "$PWD":/work/player:ro -v "$GAME":/game-ro:ro $MOUNT mvp-play
   rm -f /game/save/mvplayer.log
   mkdir /p && cp /work/player/build-device/mvplayer /p/ && cp -r /work/player/js /work/player/patches /p/
   cd /p
-  xvfb-run -a -s '-screen 0 640x480x24' timeout -k 5 ${PLAY_SECONDS:-120} ./mvplayer --game /game $RUN ${PLAYER_OPTIONS:-}
+  # The player takes the whole of this small screen, as it does on a handheld.
+  MVPLAYER_FULLSCREEN=1 xvfb-run -a -s '-screen 0 640x480x24' timeout -k 5 ${PLAY_SECONDS:-120} ./mvplayer --game /game $RUN ${PLAYER_OPTIONS:-}
   echo \"player exit code: \$?\"
   echo '--- log ---'
   cat /game/save/mvplayer.log

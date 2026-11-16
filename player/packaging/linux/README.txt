@@ -23,6 +23,10 @@ Or start one game directly, giving its folder, its www folder or its .exe:
 
 adds "RPG Maker MV Player" to the desktop's application menu.
 
+The player opens in a window of its own that can be resized; the picture
+keeps its proportions. F11 switches between the window and the whole screen
+(MVPLAYER_FULLSCREEN=1 ./mvplayer.sh starts on the whole screen).
+
 While playing, F2 shows or hides the frames per second.
 F1 opens the player's settings menu over the game (on a controller: the
 menu button held, then X). There you can switch the frame counter, choose
