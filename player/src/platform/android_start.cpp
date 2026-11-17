@@ -24,16 +24,19 @@
 #include <SDL_main.h>
 #include <android/log.h>
 #include <dirent.h>
+#include <dlfcn.h>
 #include <sys/stat.h>
 
 #include <algorithm>
 #include <cstdio>
+#include <cstdlib>
 #include <ctime>
 #include <fstream>
 #include <string>
 #include <vector>
 
 #include "platform/main.h"
+#include "platform/video.h"
 
 namespace {
 
@@ -137,10 +140,25 @@ void KeepLog(const std::string& game_dir, const std::string& logs_dir, int exit_
   for (size_t i = 0; i + 30 < copies.size(); i++) std::remove((logs_dir + "/" + copies[i]).c_str());
 }
 
+// Points the player at the video decoder the package carries: Android has
+// no ffmpeg, so one comes in the package's library folder, next to this
+// program, the only place an app may start programs from.
+void UseOwnVideoDecoder() {
+  Dl_info here;
+  if (!dladdr(reinterpret_cast<void*>(&UseOwnVideoDecoder), &here) || !here.dli_fname) return;
+  std::string decoder = mvp::VideoPlayer::DecoderBeside(here.dli_fname);
+  if (decoder.empty()) {
+    Note("no video decoder beside the player: videos will be skipped");
+    return;
+  }
+  setenv("MVPLAYER_FFMPEG", decoder.c_str(), 0);
+}
+
 }  // namespace
 
 int main(int, char**) {
   SDL_SetHint(SDL_HINT_ANDROID_TRAP_BACK_BUTTON, "1");
+  UseOwnVideoDecoder();
   const char* external = SDL_AndroidGetExternalStoragePath();
   const char* internal = SDL_AndroidGetInternalStoragePath();
   if (!external || !internal) {

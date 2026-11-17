@@ -226,6 +226,21 @@ void TestClosingEarly(const std::string& decoder) {
   Expect("another video starts at its own first picture", Letter(video), "AA");
 }
 
+// On Android the decoder comes inside the app's package, next to the
+// player's own library, as libffmpeg.so: the only folder an app may start
+// programs from.
+void TestDecoderBesideThePlayer(const std::string& decoder) {
+  std::string folder = "/tmp/mvplayer-video-test-lib-" + std::to_string(getpid());
+  mkdir(folder.c_str(), 0755);
+  Expect("no decoder beside the player: none", mvp::VideoPlayer::DecoderBeside(folder + "/libmain.so"), "");
+  std::string beside = folder + "/libffmpeg.so";
+  symlink(decoder.c_str(), beside.c_str());
+  Expect("a decoder beside the player is found", mvp::VideoPlayer::DecoderBeside(folder + "/libmain.so"), beside);
+  Expect("a file without a folder has nothing beside it", mvp::VideoPlayer::DecoderBeside("libmain.so"), "");
+  unlink(beside.c_str());
+  rmdir(folder.c_str());
+}
+
 // The Linux package starts the player with its own copies of some libraries
 // first in the search path. The decoder is the system's program and must
 // get the search path the package's start script found, not the player's.
@@ -269,6 +284,7 @@ int main() {
   TestBrokenVideo(decoder);
   TestClosingEarly(decoder);
   TestDecoderGetsTheSystemsLibraries(decoder);
+  TestDecoderBesideThePlayer(decoder);
   unlink(decoder.c_str());
   std::printf("%s\n", g_failures ? "video_test: FAILED" : "video_test: all passed");
   return g_failures ? 1 : 0;

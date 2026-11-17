@@ -52,6 +52,10 @@ class VideoPlayer {
   // The ffmpeg program that will be used: $MVPLAYER_FFMPEG if set, else the
   // first "ffmpeg" on the PATH. Empty when there is none.
   static std::string FindDecoder();
+  // The decoder that came with the player, in the same folder as `file`
+  // (the player's own library): libffmpeg.so, the name an Android package
+  // needs to carry a program. Empty when there is none.
+  static std::string DecoderBeside(const std::string& file);
   bool available() const;
 
   // Starts reading `path`, to be shown fitted inside width x height with its

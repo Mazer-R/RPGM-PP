@@ -81,6 +81,40 @@ std::vector<std::string> DecoderEnvironment() {
   return result;
 }
 
+// Starts `program` with nothing to read, its output going to `out`, its
+// messages nowhere, and, if `extra` is not negative, `extra` as its file
+// number 3. False if it could not be started.
+bool StartProgram(const std::string& program, char* const* argv, char* const* envp, int out, int extra, pid_t* pid) {
+#if defined(__ANDROID__) && __ANDROID_API__ < 28
+  // Android got posix_spawn in version 9. Between fork and exec only calls
+  // that are safe there are made.
+  pid_t child = fork();
+  if (child < 0) return false;
+  if (child == 0) {
+    int nothing_in = open("/dev/null", O_RDONLY), nothing_out = open("/dev/null", O_WRONLY);
+    if (nothing_in < 0 || nothing_out < 0) _exit(127);
+    dup2(nothing_in, 0);
+    dup2(out, 1);
+    dup2(nothing_out, 2);
+    if (extra >= 0) dup2(extra, 3);
+    execve(program.c_str(), argv, envp);
+    _exit(127);
+  }
+  *pid = child;
+  return true;
+#else
+  posix_spawn_file_actions_t actions;
+  posix_spawn_file_actions_init(&actions);
+  posix_spawn_file_actions_addopen(&actions, 0, "/dev/null", O_RDONLY, 0);
+  posix_spawn_file_actions_adddup2(&actions, out, 1);
+  posix_spawn_file_actions_addopen(&actions, 2, "/dev/null", O_WRONLY, 0);
+  if (extra >= 0) posix_spawn_file_actions_adddup2(&actions, extra, 3);
+  bool started = posix_spawn(pid, program.c_str(), &actions, nullptr, argv, envp) == 0;
+  posix_spawn_file_actions_destroy(&actions);
+  return started;
+#endif
+}
+
 }  // namespace
 
 std::string VideoPlayer::FindDecoder() {
@@ -96,6 +130,13 @@ std::string VideoPlayer::FindDecoder() {
     start = end + 1;
   }
   return std::string();
+}
+
+std::string VideoPlayer::DecoderBeside(const std::string& file) {
+  size_t slash = file.rfind('/');
+  if (slash == std::string::npos) return std::string();
+  std::string candidate = file.substr(0, slash) + "/libffmpeg.so";
+  return IsProgram(candidate) ? candidate : std::string();
 }
 
 struct VideoPlayer::Impl : SoundStream {
@@ -210,15 +251,8 @@ struct VideoPlayer::Impl : SoundStream {
     for (std::string& variable : variables) envp.push_back(&variable[0]);
     envp.push_back(nullptr);
 
-    posix_spawn_file_actions_t actions;
-    posix_spawn_file_actions_init(&actions);
-    posix_spawn_file_actions_addopen(&actions, 0, "/dev/null", O_RDONLY, 0);
-    posix_spawn_file_actions_adddup2(&actions, pictures_write, 1);
-    posix_spawn_file_actions_addopen(&actions, 2, "/dev/null", O_WRONLY, 0);
-    if (with_sound) posix_spawn_file_actions_adddup2(&actions, sound_write, 3);
     pid_t pid = -1;
-    bool started = posix_spawn(&pid, decoder.c_str(), &actions, nullptr, argv.data(), envp.data()) == 0;
-    posix_spawn_file_actions_destroy(&actions);
+    bool started = StartProgram(decoder, argv.data(), envp.data(), pictures_write, sound_write, &pid);
     close(pictures_write);
     if (sound_write >= 0) close(sound_write);
     if (!started) {

@@ -83,8 +83,7 @@ set(MVP_SOURCES
 )
 if(ANDROID)
   # SDL's Java side loads the program as libmain.so and calls its SDL_main.
-  # No ffmpeg program can be started there, so there is no video.
-  add_library(mvplayer SHARED ${MVP_SOURCES} src/platform/android_start.cpp src/platform/video_none.cpp)
+  add_library(mvplayer SHARED ${MVP_SOURCES} src/platform/android_start.cpp src/platform/video.cpp)
   set_target_properties(mvplayer PROPERTIES OUTPUT_NAME main)
 else()
   add_executable(mvplayer ${MVP_SOURCES} src/platform/video.cpp)

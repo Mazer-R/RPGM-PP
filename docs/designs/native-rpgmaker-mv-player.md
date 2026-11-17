@@ -943,6 +943,34 @@ adjustments where the game's own code is too expensive for this hardware.
         Remove", but the keyboard's X key leaves the list (as before, the
         hints name controller buttons).
 
+*   **Video on Android (2026-11-17).**
+    *   **Before**: the Android build had a stand-in video player that did
+        nothing (`video_none.cpp`), because Android has no `ffmpeg` to
+        start; a game went on as if each video had ended at once.
+    *   **Now**: the package carries its own decoder, the `ffmpeg` program
+        cut down to reading WebM, MP4 and Ogg and decoding VP8, VP9, H.264,
+        H.265, Theora, Vorbis, Opus, AAC and MP3 (3.9 MB; LGPL parts only;
+        `tools/build/build-android-ffmpeg.sh`). It sits in the package's
+        library folder as `libffmpeg.so`, the only place an app may start
+        a program from. The app finds it next to its own library
+        (`VideoPlayer::DecoderBeside`) and the ordinary video player
+        (`video.cpp`) is built for Android too; the stand-in is gone. Where
+        `posix_spawn` is missing (before Android 9) the decoder is started
+        with fork and exec. The APK grows from 10.0 to 11.8 MB.
+    *   **Checked**: the same cut-down configuration built for Linux, with
+        the player's exact arguments: a game's VP9 + Opus video (985
+        pictures, 32 s of sound), an H.264 + AAC one, and one without
+        sound. That run found the raw sound output missing from the first
+        configuration. On the phone (Zebra TC53E, Android 15): the package
+        installs, the decoder is unpacked as a program, the player logs
+        that it will use it, and the decoder itself, started from a shell,
+        decodes all five videos of Fear & Hunger 2 (`gods.webm`: 182
+        pictures, 6.06 s of sound).
+    *   **Not checked**: a video on the phone's screen from inside the app.
+        The phone's kiosk launcher sent the app to the background each
+        time it was started for the test. The fork-and-exec path, which
+        needs a phone with Android 8.
+
 ## Critical User Journeys (CUJs)
 
 ### CUJ 1: First launch

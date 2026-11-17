@@ -17,9 +17,13 @@ SDK and NDK r27 installed in `~/Library/Android/sdk`, a Java compiler, and
    `third_party/v8-android` (hours; in a container).
 2. `sh tools/build/build-android-deps.sh` builds Cairo, pixman, FreeType and
    libpng into `third_party/android-deps`.
-3. `sh tools/build/build-android.sh` builds SDL2 and the player
+3. `sh tools/build/build-android-ffmpeg.sh` builds the video decoder, a
+   cut-down `ffmpeg` program, into `third_party/android-deps/bin`. Android
+   has none, and an app may only start programs from its package's library
+   folder, so the package carries it there as `libffmpeg.so`.
+4. `sh tools/build/build-android.sh` builds SDL2 and the player
    (`build-android/native/libmain.so`).
-4. `sh packaging/android/build-apk.sh` makes `build-android/mvplayer.apk`,
+5. `sh packaging/android/build-apk.sh` makes `build-android/mvplayer.apk`,
    signed with a throw-away debug key. No Gradle is involved: the script
    calls the SDK's `aapt2`, `d8`, `zipalign` and `apksigner` directly.
 

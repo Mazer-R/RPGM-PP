@@ -37,7 +37,7 @@ around it:
 | WebGL | The WebGL calls PIXI makes, passed on to OpenGL ES 2 | `player/src/bindings/webgl_binding.cpp` |
 | Canvas 2D | Text and bitmap drawing, on Cairo and FreeType | `player/src/bindings/canvas_binding.cpp` |
 | Sound | Own mixer on SDL2; Ogg Vorbis through stb_vorbis | `player/src/platform/audio_mixer.cpp` |
-| Video | The system's `ffmpeg` program, read through pipes | `player/src/platform/video.cpp` |
+| Video | The `ffmpeg` program (the system's; on Android one inside the app), read through pipes | `player/src/platform/video.cpp` |
 | Window and input | SDL2: controllers, keyboard, touch | `player/src/platform` |
 | Browser stand-in | The DOM, events, storage and Node pieces the engine asks for, in JavaScript | `player/js` |
 | Patches | In-memory changes to the engine where its code is too costly | `player/patches` |
@@ -67,7 +67,7 @@ measurements are in `docs/history/feasibility-study.md`.
 - Saves in the game's own format, in the game's `www/save` folder; a save
   made on a PC continues on the console.
 - Encrypted images and sounds (`.rpgmvp`, `.rpgmvo`).
-- Videos, where the system has `ffmpeg`.
+- Videos, where the system has `ffmpeg`; the Android app brings its own.
 - Controllers, keyboard and touch. A settings menu inside the game (menu
   button + X, or F1, or the MENU button on a touch screen): frame counter,
   which key each controller button presses, and an on-screen editor for
@@ -79,7 +79,6 @@ measurements are in `docs/history/feasibility-study.md`.
 
 - RPG Maker MZ.
 - `.m4a` sound, encrypted or not.
-- Video on Android (there is no `ffmpeg` program to start).
 - Sound effects that rely on pitch or exact loop points are approximated.
 
 ## Installing and using
@@ -129,7 +128,8 @@ Without a controller, the screen shows a direction pad and three buttons.
 The MENU button in the top right corner opens the settings; "TOUCH
 CONTROLS" there moves, resizes, adds and removes buttons (a game that needs
 the T key gets a T button). Back is cancel; held for a second it returns to
-the list. Videos do not play on Android yet.
+the list. Videos are decoded by an `ffmpeg` inside the app; this has not
+been seen on a phone's screen yet.
 
 To update, install the newer APK over the old one; games, saves and
 settings are kept. To remove the player, uninstall the app; the `RPGMV`
@@ -275,7 +275,7 @@ Builds run in containers; the images are described by the Dockerfiles in
 | --- | --- | --- | --- |
 | ARM64 Linux | `tools/v8/build.sh` | `tools/build/build.sh` | `packaging/muos/build-package.sh` (muOS), `packaging/linux/build-package.sh aarch64` (desktop) |
 | Linux x86-64 | `tools/v8/build-x64.sh` | `tools/build/build-x64.sh` | `packaging/linux/build-package.sh x86_64` |
-| Android (arm64-v8a) | `tools/v8/build-android.sh` | `tools/build/build-android-deps.sh`, then `tools/build/build-android.sh` | `packaging/android/build-apk.sh` |
+| Android (arm64-v8a) | `tools/v8/build-android.sh` | `tools/build/build-android-deps.sh`, `tools/build/build-android-ffmpeg.sh`, then `tools/build/build-android.sh` | `packaging/android/build-apk.sh` |
 
 For example, the console build, from the repository's root:
 
@@ -325,7 +325,8 @@ their engine scripts and their plugins belong to their own authors.
 
 The player links against V8 (BSD 3-Clause), SDL2 (zlib), Cairo (LGPL 2.1 or
 MPL 1.1), pixman (MIT), FreeType (FTL), libpng and stb_vorbis (public domain
-or MIT), and starts `ffmpeg` as a separate program.
+or MIT), and starts `ffmpeg` as a separate program. The Android package
+carries a build of FFmpeg (LGPL 2.1 or later) for that.
 
 ## Thanks
 
@@ -376,7 +377,7 @@ navegador que lo rodea:
 | WebGL | Las llamadas WebGL que hace PIXI, pasadas a OpenGL ES 2 | `player/src/bindings/webgl_binding.cpp` |
 | Canvas 2D | Texto y dibujo de mapas de bits, sobre Cairo y FreeType | `player/src/bindings/canvas_binding.cpp` |
 | Sonido | Mezclador propio sobre SDL2; Ogg Vorbis con stb_vorbis | `player/src/platform/audio_mixer.cpp` |
-| Vídeo | El programa `ffmpeg` del sistema, leído por tuberías | `player/src/platform/video.cpp` |
+| Vídeo | El programa `ffmpeg` (el del sistema; en Android, uno dentro de la app), leído por tuberías | `player/src/platform/video.cpp` |
 | Ventana y entrada | SDL2: mandos, teclado, pantalla táctil | `player/src/platform` |
 | Sustituto del navegador | El DOM, los eventos, el almacenamiento y las piezas de Node que pide el motor, en JavaScript | `player/js` |
 | Parches | Cambios en memoria al motor donde su código cuesta demasiado | `player/patches` |
@@ -406,7 +407,7 @@ viabilidad anteriores están en `docs/history/feasibility-study.md`.
 - Partidas en el formato del propio juego, en su carpeta `www/save`; una
   partida guardada en un PC continúa en la consola.
 - Imágenes y sonidos cifrados (`.rpgmvp`, `.rpgmvo`).
-- Vídeos, donde el sistema tenga `ffmpeg`.
+- Vídeos, donde el sistema tenga `ffmpeg`; la app de Android trae el suyo.
 - Mandos, teclado y pantalla táctil. Un menú de ajustes dentro del juego
   (botón menú + X, o F1, o el botón MENU en pantalla táctil): contador de
   fotogramas, qué tecla pulsa cada botón del mando y un editor en pantalla
@@ -418,7 +419,6 @@ viabilidad anteriores están en `docs/history/feasibility-study.md`.
 
 - RPG Maker MZ.
 - Sonido `.m4a`, cifrado o no.
-- Vídeo en Android (no hay programa `ffmpeg` que arrancar).
 - Los efectos de sonido que dependen del tono o de puntos de bucle exactos
   se aproximan.
 
@@ -469,7 +469,8 @@ Sin mando, la pantalla muestra una cruceta y tres botones. El botón MENU,
 arriba a la derecha, abre los ajustes; "TOUCH CONTROLS" permite mover,
 cambiar de tamaño, añadir y quitar botones (un juego que necesita la tecla
 T recibe un botón T). Atrás es cancelar; mantenido un segundo vuelve a la
-lista. En Android todavía no se reproducen vídeos.
+lista. Los vídeos los decodifica un `ffmpeg` que va dentro de la app; aún
+no se ha visto en la pantalla de un móvil.
 
 Para actualizar, instala el APK nuevo sobre el anterior; los juegos, las
 partidas y los ajustes se conservan. Para quitar el reproductor, desinstala
@@ -619,7 +620,7 @@ una vez por plataforma (horas) y no se guarda en git.
 | --- | --- | --- | --- |
 | Linux ARM64 | `tools/v8/build.sh` | `tools/build/build.sh` | `packaging/muos/build-package.sh` (muOS), `packaging/linux/build-package.sh aarch64` (escritorio) |
 | Linux x86-64 | `tools/v8/build-x64.sh` | `tools/build/build-x64.sh` | `packaging/linux/build-package.sh x86_64` |
-| Android (arm64-v8a) | `tools/v8/build-android.sh` | `tools/build/build-android-deps.sh` y después `tools/build/build-android.sh` | `packaging/android/build-apk.sh` |
+| Android (arm64-v8a) | `tools/v8/build-android.sh` | `tools/build/build-android-deps.sh`, `tools/build/build-android-ffmpeg.sh` y después `tools/build/build-android.sh` | `packaging/android/build-apk.sh` |
 
 Por ejemplo, la compilación para la consola, desde la raíz del repositorio:
 
@@ -670,7 +671,8 @@ los juegos, los scripts de su motor y sus plugins son de sus autores.
 
 El reproductor se enlaza con V8 (BSD de 3 cláusulas), SDL2 (zlib), Cairo
 (LGPL 2.1 o MPL 1.1), pixman (MIT), FreeType (FTL), libpng y stb_vorbis
-(dominio público o MIT), y arranca `ffmpeg` como programa aparte.
+(dominio público o MIT), y arranca `ffmpeg` como programa aparte. El paquete
+de Android lleva una compilación de FFmpeg (LGPL 2.1 o posterior) para eso.
 
 ## Agradecimientos
 
