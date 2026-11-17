@@ -966,10 +966,12 @@ adjustments where the game's own code is too expensive for this hardware.
         that it will use it, and the decoder itself, started from a shell,
         decodes all five videos of Fear & Hunger 2 (`gods.webm`: 182
         pictures, 6.06 s of sound).
-    *   **Not checked**: a video on the phone's screen from inside the app.
-        The phone's kiosk launcher sent the app to the background each
-        time it was started for the test. The fork-and-exec path, which
-        needs a phone with Android 8.
+        Then inside the app, with `tests/device/video_watch.js` on
+        Fear & Hunger 2: `gods.webm` played to its end in 6.7 s, 60
+        frames drawn per second, sound at full level, and a capture of
+        the screen shows the video's picture.
+    *   **Not checked**: the fork-and-exec path, which needs a phone with
+        Android 8.
 
 ## Critical User Journeys (CUJs)
 

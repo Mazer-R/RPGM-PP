@@ -22,6 +22,14 @@ the end, and the player has been tried on one Android phone and on one
 desktop PC. Other games are untested, and the 64-bit ARM desktop package
 has not been tried on a real machine yet. RPG Maker MZ games do not run.
 
+![The game list on an Android phone](docs/images/game-list-android.jpg)
+
+*The game list on an Android phone (Zebra TC53E).*
+
+![The game list on the console](docs/images/game-list-console.jpg)
+
+*The same list on the reference console (Anbernic RG35XX SP, 640x480).*
+
 ## What it is
 
 An MV game is a web page: the engine's scripts, the PIXI.js drawing library
@@ -128,8 +136,7 @@ Without a controller, the screen shows a direction pad and three buttons.
 The MENU button in the top right corner opens the settings; "TOUCH
 CONTROLS" there moves, resizes, adds and removes buttons (a game that needs
 the T key gets a T button). Back is cancel; held for a second it returns to
-the list. Videos are decoded by an `ffmpeg` inside the app; this has not
-been seen on a phone's screen yet.
+the list. Videos are decoded by an `ffmpeg` that comes inside the app.
 
 To update, install the newer APK over the old one; games, saves and
 settings are kept. To remove the player, uninstall the app; the `RPGMV`
@@ -163,8 +170,9 @@ and touches nothing else.
    files stay on the card.
 
 With SSH enabled on the console, the same archive can be copied over the
-network and extracted there with `tar -xzf mvplayer-muos.tar.gz -C
-/mnt/mmc`. A game also runs from `/opt/mvplayer/games/<Game>/www` on
+network and extracted there with
+`gzip -dc mvplayer-muos.tar.gz | tar -x -C /mnt/mmc` (the console's `tar`
+does not read `.gz` by itself). A game also runs from `/opt/mvplayer/games/<Game>/www` on
 internal storage, which loads faster.
 
 | Buttons | What they do |
@@ -361,6 +369,14 @@ escritorio. Los demás juegos están sin probar, y el paquete de escritorio
 para ARM de 64 bits no se ha probado todavía en una máquina real. Los
 juegos de RPG Maker MZ no funcionan.
 
+![La lista de juegos en un móvil Android](docs/images/game-list-android.jpg)
+
+*La lista de juegos en un móvil Android (Zebra TC53E).*
+
+![La lista de juegos en la consola](docs/images/game-list-console.jpg)
+
+*La misma lista en la consola de referencia (Anbernic RG35XX SP, 640x480).*
+
 ## Qué es
 
 Un juego de MV es una página web: los scripts del motor, la librería de
@@ -469,8 +485,7 @@ Sin mando, la pantalla muestra una cruceta y tres botones. El botón MENU,
 arriba a la derecha, abre los ajustes; "TOUCH CONTROLS" permite mover,
 cambiar de tamaño, añadir y quitar botones (un juego que necesita la tecla
 T recibe un botón T). Atrás es cancelar; mantenido un segundo vuelve a la
-lista. Los vídeos los decodifica un `ffmpeg` que va dentro de la app; aún
-no se ha visto en la pantalla de un móvil.
+lista. Los vídeos los decodifica un `ffmpeg` que viene dentro de la app.
 
 Para actualizar, instala el APK nuevo sobre el anterior; los juegos, las
 partidas y los ajustes se conservan. Para quitar el reproductor, desinstala
@@ -504,7 +519,8 @@ El paquete se extrae en la tarjeta SD que contiene las carpetas `MUOS` y
    B para dejarlo); sus archivos siguen en la tarjeta.
 
 Con SSH activado en la consola, el mismo archivo se puede copiar por la red
-y extraer allí con `tar -xzf mvplayer-muos.tar.gz -C /mnt/mmc`. Un juego
+y extraer allí con `gzip -dc mvplayer-muos.tar.gz | tar -x -C /mnt/mmc` (el
+`tar` de la consola no lee `.gz` por sí solo). Un juego
 también funciona desde `/opt/mvplayer/games/<Juego>/www`, en el
 almacenamiento interno, donde carga más rápido.
 
