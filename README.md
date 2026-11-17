@@ -1,18 +1,26 @@
-# rpgmaker-player
+# RPGM-PP
+
+**RPG Maker Potato Player.**
 
 A native player for RPG Maker MV games, without the Chromium-based NW.js
 player the games ship with. It is written for low-memory Linux handhelds
 (reference device: Anbernic RG35XX SP, 1 GB RAM, muOS) and is also built for
-Linux x86-64 and Android.
+desktop Linux (x86-64 and 64-bit ARM) and Android. Ready-made packages are
+on the [releases page](https://github.com/Mazer-R/RPGM-PP/releases/latest);
+[Installing and using](#installing-and-using) says how to install each.
 
-<!-- MOTIVATION (EN): put the GIF and the reason for this project here.
-     The GIF is at docs/images/console-to-potato.gif, for example:
-     ![A console turning into a potato](docs/images/console-to-potato.gif)
--->
+![A console turning into a potato](docs/images/console-to-potato.gif)
+
+**Why.** I wanted to play RPG Maker games on my Anbernic RG35XX, and could
+not: the Chromium wrapper the games come with ate all of the console's
+memory. Through other systems the games did start, but they could not be
+played: 5 frames per second at most.
 
 **Status: experimental.** Two games have been played on the reference
-console, Fear & Hunger and Fear & Hunger 2: Termina. Everything else is
-untested. RPG Maker MZ games do not run.
+console, Fear & Hunger and Fear & Hunger 2: Termina, neither of them to
+the end, and the player has been tried on one Android phone and on one
+desktop PC. Other games are untested, and the 64-bit ARM desktop package
+has not been tried on a real machine yet. RPG Maker MZ games do not run.
 
 ## What it is
 
@@ -76,62 +84,46 @@ measurements are in `docs/history/feasibility-study.md`.
 
 ## Installing and using
 
-The player is distributed ready to run; nothing has to be compiled. Android
-gets an APK (app stores later). The Linux packages are published by the
-project itself. There is no public download page yet: until there is one,
-the packages are built as described under "Building".
+The player is distributed ready to run; nothing has to be compiled.
 
 You need your own copy of a game. The player uses only the game's `www`
 folder (the one with `index.html`), which the Windows and Linux downloads of
-an MV game contain.
+an MV game contain. Copy the whole game folder: the list also finds a game
+by its `.exe`.
 
-### Which package
+### Download
 
-A program built for one family of processors does not run on another, so
-there is one package per family. On Linux, this command says which one a
-machine has:
+The packages are on the project's releases page:
+<https://github.com/Mazer-R/RPGM-PP/releases/latest>
 
-```sh
-uname -m
-```
-
-| `uname -m` says | Machine | Package |
-| --- | --- | --- |
-| `x86_64` | PC or laptop with an Intel or AMD processor | `mvplayer-linux-x86_64.tar.gz` |
-| `aarch64` | Handheld running muOS (Anbernic RG35XX family and alike) | `mvplayer-muos.tar.gz` |
-| `aarch64` | Desktop Linux on 64-bit ARM: Raspberry Pi 4 or 5, ARM laptops and boards | `mvplayer-linux-aarch64.tar.gz` |
-| `armv7l`, `armv6l`, `i686` | 32-bit systems | not supported |
-| (Android) | Phone or tablet, 64-bit ARM, Android 8.0 or later | `mvplayer.apk` |
-
-Two things decide whether a Linux package runs: the processor family above,
-and the age of the system's C library (`ldd --version` shows it). The two
-desktop packages need glibc 2.35 or newer (Ubuntu 22.04, Debian 12, Fedora
-36); the muOS package needs 2.34. The two `aarch64` packages hold the same
-program: the muOS one is laid out for that system's SD card and uses the
-console's own libraries, the desktop one brings its libraries and a start
-script. A 32-bit system on a 64-bit processor
-(some Raspberry Pi installations) counts as 32-bit: `uname -m` may say
-`aarch64` while the programs are `armhf`; `dpkg --print-architecture` must
-say `arm64`.
-
-On Android only 64-bit ARM devices (`arm64-v8a`) are supported, which is
-nearly every phone sold since 2017. 32-bit-only phones and x86 devices
-(some emulators and Chromebooks) are not.
+| System | File |
+| --- | --- |
+| Android phone or tablet (64-bit ARM, Android 8.0 or later) | `mvplayer-android-arm64.apk` |
+| Handheld with muOS (Anbernic RG35XX family and alike) | `mvplayer-muos.tar.gz` |
+| Desktop Linux, Intel or AMD processor | `mvplayer-linux-x86_64.tar.gz` |
+| Desktop Linux, 64-bit ARM (Raspberry Pi 4 or 5, ARM laptops and boards) | `mvplayer-linux-aarch64.tar.gz` |
 
 ### Android
 
-1. Copy `mvplayer.apk` to the device and open it. Android asks to allow
-   installing from this source the first time.
-2. Start the app. It opens the system's "all files access" screen: allow it
-   and open the app again. Without it the app cannot read the games folder.
-3. Copy each game into the `RPGMV` folder at the top of the device's shared
-   storage, one folder per game, each holding the game's `www` folder:
-   `RPGMV/<Game>/www`. A file manager or a USB cable will do.
-4. Choose the game from the list; the games played last come first. A game
-   kept anywhere else on the device can be added with the list's "Add a
-   game" line: go into the game's own folder and choose its `.exe`. To take
-   a game off the list, choose it and touch the cross at the end of its
-   line, then touch it again to confirm; its files stay where they are.
+1. Download `mvplayer-android-arm64.apk` on the device (or copy it there)
+   and open it from the file manager. The first time, Android asks to allow
+   installing from that app: allow it and go back. The app is not in any
+   store and is signed with a test key, so Play Protect may ask once more.
+   With a computer and USB debugging the same is done with
+   `adb install -r mvplayer-android-arm64.apk`.
+2. Start "RPG Maker MV Player". It opens the system's "all files access"
+   screen: allow it and open the app again. Without it the app cannot read
+   the games.
+3. Copy each game to the device, with a USB cable or a file manager. The
+   app looks in the `RPGMV` folder at the top of the shared storage, one
+   folder per game, each holding the game's `www` folder:
+   `RPGMV/<Game>/www`. The app creates that folder once access is allowed.
+4. Touch a game to choose it and touch it again to start it; the games
+   played last come first. A game kept anywhere else on the device is added
+   with the list's "Add a game" line: go into the game's own folder and
+   choose its `.exe`. To take a game off the list, choose it and touch the
+   cross at the end of its line, then touch it again to confirm; its files
+   stay where they are.
 
 Without a controller, the screen shows a direction pad and three buttons.
 The MENU button in the top right corner opens the settings; "TOUCH
@@ -139,54 +131,106 @@ CONTROLS" there moves, resizes, adds and removes buttons (a game that needs
 the T key gets a T button). Back is cancel; held for a second it returns to
 the list. Videos do not play on Android yet.
 
+To update, install the newer APK over the old one; games, saves and
+settings are kept. To remove the player, uninstall the app; the `RPGMV`
+folder, with the games and their saves, stays until you delete it.
+
 ### Handhelds with muOS
 
-1. Extract `mvplayer-muos.tar.gz` at the root of the SD card that holds the
-   `MUOS` and `ROMS` folders, keeping the folder structure. It adds
-   `MUOS/emulator/mvplayer`, `MUOS/application/RPG Maker MV` and
-   `ROMS/RPGMV`.
-2. Copy each game to `ROMS/RPGMV/<Game>/www` on the card. A game also runs
-   from `/opt/mvplayer/games/<Game>/www` on internal storage, which loads
-   faster.
-3. On the console: Apps, then "RPG Maker MV". Choose the game with A; the
-   games played last come first. A game kept in any other folder of the
-   cards can be added with the list's "Add a game" line: go into the game's
-   own folder and choose its `.exe`. X takes the chosen game off the list
-   (press X again to confirm, B to keep it); its files stay on the card.
+The package is extracted onto the SD card that holds the `MUOS` and `ROMS`
+folders (the first card), at its top level. It adds
+`MUOS/emulator/mvplayer`, `MUOS/application/RPG Maker MV` and `ROMS/RPGMV`,
+and touches nothing else.
+
+1. Switch the console off, take the card out and put it in a computer.
+2. Extract the archive at the card's top level, so that its `MUOS` and
+   `ROMS` folders merge with the ones already there. On Linux or macOS,
+   with the card's own path in place of `/path/to/card`:
+
+   ```sh
+   tar -xzf mvplayer-muos.tar.gz -C /path/to/card
+   ```
+
+   On Windows, 7-Zip opens the archive (twice: the `.gz`, then the `.tar`
+   inside); drag the `MUOS` and `ROMS` folders onto the card and accept
+   merging the folders.
+3. Copy each game to `ROMS/RPGMV/<Game>/www` on the card.
+4. Put the card back and start the console: Apps, then "RPG Maker MV".
+   Choose a game with A; the games played last come first. A game kept in
+   any other folder of the cards is added with the list's "Add a game"
+   line: go into the game's own folder and choose its `.exe`. X takes the
+   chosen game off the list (press X again to confirm, B to keep it); its
+   files stay on the card.
+
+With SSH enabled on the console, the same archive can be copied over the
+network and extracted there with `tar -xzf mvplayer-muos.tar.gz -C
+/mnt/mmc`. A game also runs from `/opt/mvplayer/games/<Game>/www` on
+internal storage, which loads faster.
 
 | Buttons | What they do |
 | --- | --- |
-| Menu, then Start | Leave the game, back to the list |
+| Menu held + Start | Leave the game, back to the list |
 | Menu held + X | The player's settings: frame counter, which key each button presses |
 | Menu held + Select | Show or hide the frames per second |
 
 Videos use the `ffmpeg` that muOS already has.
 
+To update, extract the newer archive over the old one; the list of games
+and the saves are kept. To remove the player, delete
+`MUOS/emulator/mvplayer` and `MUOS/application/RPG Maker MV` from the card.
+
 ### Desktop Linux (x86-64 and 64-bit ARM)
 
-The steps are the same for both; only the archive differs. The 64-bit ARM
-package has been run without a screen in a container, not yet on a real
-ARM desktop.
+The steps are the same for both; only the archive differs. The x86-64
+package has been tried on a desktop PC; the 64-bit ARM one has only been
+run in a container, without a screen. Both need glibc 2.35 or newer (Ubuntu
+22.04, Debian 12, Fedora 36, or later).
 
-1. Extract `mvplayer-linux-x86_64.tar.gz` or `mvplayer-linux-aarch64.tar.gz`
-   anywhere and keep its files together.
-2. Run `./mvplayer.sh`. The list's "Add a game" line shows your folders:
-   go into the game's own folder and choose its `.exe` (or the `index.html`
-   in its `www` folder). Games added are remembered, and the ones played
-   last come first. Delete (or X on a controller, or the cross at the end
-   of the chosen line with the mouse) takes a game off the list, after
-   asking again; its files stay where they are.
-3. Optional: `./mvplayer.sh --install-launcher` adds the player to the
-   desktop's application menu, and `./mvplayer.sh --check-libs` lists any
-   system library that is missing.
+1. Extract the archive anywhere in your home folder and go into it:
+
+   ```sh
+   tar -xzf mvplayer-linux-x86_64.tar.gz
+   cd mvplayer-linux-x86_64
+   ```
+
+2. Check that the system has the libraries the player expects; it lists
+   any that are missing, to install with the system's package manager:
+
+   ```sh
+   ./mvplayer.sh --check-libs
+   ```
+
+3. Start it:
+
+   ```sh
+   ./mvplayer.sh
+   ```
+
+   The list's "Add a game" line shows your folders: go into the game's own
+   folder and choose its `.exe` (or the `index.html` in its `www` folder).
+   Games added are remembered, and the ones played last come first. Delete
+   (or X on a controller, or the cross at the end of the chosen line with
+   the mouse) takes a game off the list, after asking again; its files
+   stay where they are. A game can also be started directly:
+   `./mvplayer.sh "/path/to/the game/Game.exe"`.
+4. Optional: `./mvplayer.sh --install-launcher` adds "RPG Maker MV Player"
+   to the desktop's application menu.
+5. Optional, for a game's videos: install `ffmpeg` with the system's
+   package manager (`sudo apt install ffmpeg`, `sudo dnf install ffmpeg`,
+   `sudo pacman -S ffmpeg`). Without it a game goes on as if each video had
+   ended at once.
 
 Keys: arrows to move, Z or Enter to confirm, X or Esc to cancel, F1 for the
 player's settings, F2 for the frames per second. A controller works too.
 The player opens in a window that can be resized; F11 switches between the
-window and the whole screen.
-To see a game's videos, install `ffmpeg` with the system's package manager.
-The package brings its own SDL2, Cairo and FreeType; details are in the
-`README.txt` inside it.
+window and the whole screen. The package brings its own SDL2, Cairo and
+FreeType and keeps its files together: always start it through
+`mvplayer.sh`. More details are in the `README.txt` inside it.
+
+To update, extract the newer archive in place of the old folder; the list
+of games is kept in `~/.config/mvplayer/games.txt` and the saves in each
+game's `www/save`. To remove the player, delete its folder, that file and,
+if the launcher was installed, `~/.local/share/applications/mvplayer.desktop`.
 
 ## Patches
 
@@ -283,23 +327,38 @@ The player links against V8 (BSD 3-Clause), SDL2 (zlib), Cairo (LGPL 2.1 or
 MPL 1.1), pixman (MIT), FreeType (FTL), libpng and stb_vorbis (public domain
 or MIT), and starts `ffmpeg` as a separate program.
 
+## Thanks
+
+To Miro Haverinen, the creator of Fear & Hunger, for inspiring me to build
+this so that I could play his games.
+
 ---
 
-# rpgmaker-player (español)
+# RPGM-PP (español)
+
+**RPG Maker Potato Player.**
 
 Un reproductor nativo de juegos de RPG Maker MV, sin el reproductor NW.js
 basado en Chromium con el que se distribuyen. Está escrito para consolas
 Linux con poca memoria (dispositivo de referencia: Anbernic RG35XX SP, 1 GB
-de RAM, muOS) y se compila también para Linux x86-64 y Android.
+de RAM, muOS) y se compila también para Linux de escritorio (x86-64 y ARM de
+64 bits) y Android. Los paquetes ya compilados están en la
+[página de versiones](https://github.com/Mazer-R/RPGM-PP/releases/latest);
+[Instalar y usar](#instalar-y-usar) explica cómo instalar cada uno.
 
-<!-- MOTIVACIÓN (ES): aquí van el GIF y el porqué de este proyecto.
-     El GIF está en docs/images/console-to-potato.gif, por ejemplo:
-     ![Una consola que se convierte en patata](docs/images/console-to-potato.gif)
--->
+![Una consola que se convierte en patata](docs/images/console-to-potato.gif)
+
+**Por qué.** Quería jugar a juegos de RPG Maker en mi Anbernic RG35XX y no
+podía: el envoltorio de Chromium con el que vienen los juegos se comía toda
+la memoria de la consola. Con otros sistemas los juegos arrancaban, pero
+eran injugables: 5 fotogramas por segundo como mucho.
 
 **Estado: experimental.** En la consola de referencia se ha jugado a dos
-juegos, Fear & Hunger y Fear & Hunger 2: Termina. Todo lo demás está sin
-probar. Los juegos de RPG Maker MZ no funcionan.
+juegos, Fear & Hunger y Fear & Hunger 2: Termina, ninguno de los dos hasta
+el final, y el reproductor se ha probado en un móvil Android y en un PC de
+escritorio. Los demás juegos están sin probar, y el paquete de escritorio
+para ARM de 64 bits no se ha probado todavía en una máquina real. Los
+juegos de RPG Maker MZ no funcionan.
 
 ## Qué es
 
@@ -366,64 +425,45 @@ viabilidad anteriores están en `docs/history/feasibility-study.md`.
 ## Instalar y usar
 
 El reproductor se distribuye listo para ejecutar; no hay que compilar nada.
-Para Android hay un APK (más adelante, en las tiendas). Los paquetes de
-Linux los publica el propio proyecto. Todavía no hay página pública de
-descargas: hasta que la haya, los paquetes se generan como se explica en
-"Compilar".
 
 Hace falta tu propia copia del juego. El reproductor solo usa la carpeta
 `www` del juego (la que tiene `index.html`), que viene en las descargas
-para Windows y para Linux de un juego de MV.
+para Windows y para Linux de un juego de MV. Copia la carpeta entera del
+juego: la lista también encuentra un juego por su `.exe`.
 
-### Qué paquete
+### Descarga
 
-Un programa compilado para una familia de procesadores no funciona en otra,
-así que hay un paquete por familia. En Linux, este comando dice cuál tiene
-una máquina:
+Los paquetes están en la página de versiones del proyecto:
+<https://github.com/Mazer-R/RPGM-PP/releases/latest>
 
-```sh
-uname -m
-```
-
-| `uname -m` dice | Máquina | Paquete |
-| --- | --- | --- |
-| `x86_64` | PC o portátil con procesador Intel o AMD | `mvplayer-linux-x86_64.tar.gz` |
-| `aarch64` | Consola con muOS (familia Anbernic RG35XX y parecidas) | `mvplayer-muos.tar.gz` |
-| `aarch64` | Linux de escritorio en ARM de 64 bits: Raspberry Pi 4 o 5, portátiles y placas ARM | `mvplayer-linux-aarch64.tar.gz` |
-| `armv7l`, `armv6l`, `i686` | Sistemas de 32 bits | no soportado |
-| (Android) | Móvil o tableta, ARM de 64 bits, Android 8.0 o posterior | `mvplayer.apk` |
-
-Dos cosas deciden si un paquete de Linux funciona: la familia de procesador
-de la tabla y la antigüedad de la biblioteca de C del sistema (la muestra
-`ldd --version`). Los dos paquetes de escritorio necesitan glibc 2.35 o
-posterior (Ubuntu 22.04, Debian 12, Fedora 36); el de muOS, 2.34. Los dos
-paquetes `aarch64` llevan el mismo programa: el de muOS va dispuesto para
-la tarjeta SD de ese sistema y usa las bibliotecas de la consola; el de
-escritorio trae sus bibliotecas y un script de arranque.
-Un sistema de 32 bits sobre un procesador de 64 (algunas instalaciones de
-Raspberry Pi) cuenta como 32 bits: `uname -m` puede decir `aarch64` y los
-programas ser `armhf`; `dpkg --print-architecture` tiene que decir `arm64`.
-
-En Android solo valen los dispositivos ARM de 64 bits (`arm64-v8a`), que
-son casi todos los móviles vendidos desde 2017. Los móviles solo de 32 bits
-y los dispositivos x86 (algunos emuladores y Chromebooks) no.
+| Sistema | Archivo |
+| --- | --- |
+| Móvil o tableta Android (ARM de 64 bits, Android 8.0 o posterior) | `mvplayer-android-arm64.apk` |
+| Consola con muOS (familia Anbernic RG35XX y parecidas) | `mvplayer-muos.tar.gz` |
+| Linux de escritorio, procesador Intel o AMD | `mvplayer-linux-x86_64.tar.gz` |
+| Linux de escritorio, ARM de 64 bits (Raspberry Pi 4 o 5, portátiles y placas ARM) | `mvplayer-linux-aarch64.tar.gz` |
 
 ### Android
 
-1. Copia `mvplayer.apk` al dispositivo y ábrelo. La primera vez, Android
-   pide permiso para instalar desde ese origen.
-2. Abre la app. Muestra la pantalla del sistema de "acceso a todos los
-   archivos": permítelo y vuelve a abrir la app. Sin eso no puede leer la
-   carpeta de juegos.
-3. Copia cada juego a la carpeta `RPGMV`, en la raíz del almacenamiento
-   compartido, una carpeta por juego con su `www` dentro:
-   `RPGMV/<Juego>/www`. Sirve un gestor de archivos o un cable USB.
-4. Elige el juego en la lista; los últimos jugados salen primero. Un juego
-   guardado en cualquier otro sitio del dispositivo se añade con la línea
-   "Add a game" de la lista: entra en la carpeta del juego y elige su
-   `.exe`. Para quitar un juego de la lista, elígelo y toca la cruz al
-   final de su línea; vuelve a tocarla para confirmar. Sus archivos se
-   quedan donde están.
+1. Descarga `mvplayer-android-arm64.apk` en el dispositivo (o cópialo) y
+   ábrelo desde el gestor de archivos. La primera vez, Android pide permiso
+   para instalar desde esa app: permítelo y vuelve atrás. La app no está en
+   ninguna tienda y va firmada con una clave de pruebas, así que Play
+   Protect puede preguntar una vez más. Con un ordenador y la depuración
+   USB se hace lo mismo con `adb install -r mvplayer-android-arm64.apk`.
+2. Abre "RPG Maker MV Player". Muestra la pantalla del sistema de "acceso a
+   todos los archivos": permítelo y vuelve a abrir la app. Sin eso no puede
+   leer los juegos.
+3. Copia cada juego al dispositivo, con un cable USB o un gestor de
+   archivos. La app busca en la carpeta `RPGMV`, en la raíz del
+   almacenamiento compartido, una carpeta por juego con su `www` dentro:
+   `RPGMV/<Juego>/www`. La app crea esa carpeta una vez permitido el acceso.
+4. Toca un juego para elegirlo y vuelve a tocarlo para empezar; los últimos
+   jugados salen primero. Un juego guardado en cualquier otro sitio del
+   dispositivo se añade con la línea "Add a game" de la lista: entra en la
+   carpeta del juego y elige su `.exe`. Para quitar un juego de la lista,
+   elígelo y toca la cruz al final de su línea; vuelve a tocarla para
+   confirmar. Sus archivos se quedan donde están.
 
 Sin mando, la pantalla muestra una cruceta y tres botones. El botón MENU,
 arriba a la derecha, abre los ajustes; "TOUCH CONTROLS" permite mover,
@@ -431,56 +471,110 @@ cambiar de tamaño, añadir y quitar botones (un juego que necesita la tecla
 T recibe un botón T). Atrás es cancelar; mantenido un segundo vuelve a la
 lista. En Android todavía no se reproducen vídeos.
 
+Para actualizar, instala el APK nuevo sobre el anterior; los juegos, las
+partidas y los ajustes se conservan. Para quitar el reproductor, desinstala
+la app; la carpeta `RPGMV`, con los juegos y sus partidas, se queda hasta
+que la borres.
+
 ### Consolas con muOS
 
-1. Extrae `mvplayer-muos.tar.gz` en la raíz de la tarjeta SD que contiene
-   las carpetas `MUOS` y `ROMS`, conservando la estructura de carpetas.
-   Añade `MUOS/emulator/mvplayer`, `MUOS/application/RPG Maker MV` y
-   `ROMS/RPGMV`.
-2. Copia cada juego a `ROMS/RPGMV/<Juego>/www` en la tarjeta. Un juego
-   también funciona desde `/opt/mvplayer/games/<Juego>/www`, en el
-   almacenamiento interno, donde carga más rápido.
-3. En la consola: Apps y después "RPG Maker MV". Elige el juego con A; los
-   últimos jugados salen primero. Un juego guardado en cualquier otra
-   carpeta de las tarjetas se añade con la línea "Add a game" de la lista:
-   entra en la carpeta del juego y elige su `.exe`. X quita el juego
-   elegido de la lista (X otra vez para confirmar, B para dejarlo); sus
-   archivos siguen en la tarjeta.
+El paquete se extrae en la tarjeta SD que contiene las carpetas `MUOS` y
+`ROMS` (la primera tarjeta), en su raíz. Añade `MUOS/emulator/mvplayer`,
+`MUOS/application/RPG Maker MV` y `ROMS/RPGMV`, y no toca nada más.
+
+1. Apaga la consola, saca la tarjeta y ponla en un ordenador.
+2. Extrae el archivo en la raíz de la tarjeta, de modo que sus carpetas
+   `MUOS` y `ROMS` se combinen con las que ya hay. En Linux o macOS, con la
+   ruta de la tarjeta en lugar de `/ruta/a/la/tarjeta`:
+
+   ```sh
+   tar -xzf mvplayer-muos.tar.gz -C /ruta/a/la/tarjeta
+   ```
+
+   En Windows, 7-Zip abre el archivo (dos veces: el `.gz` y luego el `.tar`
+   de dentro); arrastra las carpetas `MUOS` y `ROMS` a la tarjeta y acepta
+   combinar las carpetas.
+3. Copia cada juego a `ROMS/RPGMV/<Juego>/www` en la tarjeta.
+4. Vuelve a poner la tarjeta y enciende la consola: Apps y después "RPG
+   Maker MV". Elige un juego con A; los últimos jugados salen primero. Un
+   juego guardado en cualquier otra carpeta de las tarjetas se añade con la
+   línea "Add a game" de la lista: entra en la carpeta del juego y elige su
+   `.exe`. X quita el juego elegido de la lista (X otra vez para confirmar,
+   B para dejarlo); sus archivos siguen en la tarjeta.
+
+Con SSH activado en la consola, el mismo archivo se puede copiar por la red
+y extraer allí con `tar -xzf mvplayer-muos.tar.gz -C /mnt/mmc`. Un juego
+también funciona desde `/opt/mvplayer/games/<Juego>/www`, en el
+almacenamiento interno, donde carga más rápido.
 
 | Botones | Qué hacen |
 | --- | --- |
-| Menú y después Start | Salir del juego, de vuelta a la lista |
+| Menú mantenido + Start | Salir del juego, de vuelta a la lista |
 | Menú mantenido + X | Ajustes del reproductor: contador de fotogramas, qué tecla pulsa cada botón |
 | Menú mantenido + Select | Mostrar u ocultar los fotogramas por segundo |
 
 Los vídeos usan el `ffmpeg` que muOS ya trae.
 
+Para actualizar, extrae el archivo nuevo sobre el anterior; la lista de
+juegos y las partidas se conservan. Para quitar el reproductor, borra
+`MUOS/emulator/mvplayer` y `MUOS/application/RPG Maker MV` de la tarjeta.
+
 ### Linux de escritorio (x86-64 y ARM de 64 bits)
 
 Los pasos son los mismos para los dos; solo cambia el archivo. El paquete
-ARM de 64 bits se ha ejecutado sin pantalla en un contenedor, todavía no en
-un escritorio ARM real.
+x86-64 se ha probado en un PC de escritorio; el de ARM de 64 bits solo se
+ha ejecutado en un contenedor, sin pantalla. Los dos necesitan glibc 2.35 o
+posterior (Ubuntu 22.04, Debian 12, Fedora 36, o posteriores).
 
-1. Extrae `mvplayer-linux-x86_64.tar.gz` o `mvplayer-linux-aarch64.tar.gz`
-   donde quieras y mantén sus archivos juntos.
-2. Ejecuta `./mvplayer.sh`. La línea "Add a game" de la lista muestra tus
-   carpetas: entra en la carpeta del juego y elige su `.exe` (o el
-   `index.html` de su carpeta `www`). Los juegos añadidos se recuerdan, y
-   los últimos jugados salen primero. Supr (o X en un mando, o la cruz al
-   final de la línea elegida con el ratón) quita un juego de la lista, tras
-   volver a preguntar; sus archivos se quedan donde están.
-3. Opcional: `./mvplayer.sh --install-launcher` añade el reproductor al
-   menú de aplicaciones del escritorio, y `./mvplayer.sh --check-libs`
-   enumera las bibliotecas del sistema que falten.
+1. Extrae el archivo donde quieras dentro de tu carpeta personal y entra
+   en él:
+
+   ```sh
+   tar -xzf mvplayer-linux-x86_64.tar.gz
+   cd mvplayer-linux-x86_64
+   ```
+
+2. Comprueba que el sistema tiene las bibliotecas que el reproductor
+   espera; enumera las que falten, para instalarlas con el gestor de
+   paquetes del sistema:
+
+   ```sh
+   ./mvplayer.sh --check-libs
+   ```
+
+3. Arráncalo:
+
+   ```sh
+   ./mvplayer.sh
+   ```
+
+   La línea "Add a game" de la lista muestra tus carpetas: entra en la
+   carpeta del juego y elige su `.exe` (o el `index.html` de su carpeta
+   `www`). Los juegos añadidos se recuerdan, y los últimos jugados salen
+   primero. Supr (o X en un mando, o la cruz al final de la línea elegida
+   con el ratón) quita un juego de la lista, tras volver a preguntar; sus
+   archivos se quedan donde están. Un juego también se puede arrancar
+   directamente: `./mvplayer.sh "/ruta/al juego/Game.exe"`.
+4. Opcional: `./mvplayer.sh --install-launcher` añade "RPG Maker MV Player"
+   al menú de aplicaciones del escritorio.
+5. Opcional, para los vídeos de un juego: instala `ffmpeg` con el gestor de
+   paquetes del sistema (`sudo apt install ffmpeg`, `sudo dnf install
+   ffmpeg`, `sudo pacman -S ffmpeg`). Sin él, el juego sigue como si cada
+   vídeo hubiera terminado al instante.
 
 Teclas: flechas para moverse, Z o Intro para confirmar, X o Esc para
 cancelar, F1 para los ajustes del reproductor, F2 para los fotogramas por
 segundo. También funciona un mando. El reproductor se abre en una ventana
 que se puede redimensionar; F11 alterna entre la ventana y la pantalla
-completa. Para ver los vídeos de un juego,
-instala `ffmpeg` con el gestor de paquetes del sistema. El paquete trae sus
-propias SDL2, Cairo y FreeType; los detalles están en el `README.txt` que
-lleva dentro (en inglés).
+completa. El paquete trae sus propias SDL2, Cairo y FreeType y necesita sus
+archivos juntos: arráncalo siempre con `mvplayer.sh`. Hay más detalles en
+el `README.txt` que lleva dentro (en inglés).
+
+Para actualizar, extrae el archivo nuevo en lugar de la carpeta anterior;
+la lista de juegos se guarda en `~/.config/mvplayer/games.txt` y las
+partidas en el `www/save` de cada juego. Para quitar el reproductor, borra
+su carpeta, ese archivo y, si instalaste el lanzador,
+`~/.local/share/applications/mvplayer.desktop`.
 
 ## Parches
 
@@ -577,3 +671,8 @@ los juegos, los scripts de su motor y sus plugins son de sus autores.
 El reproductor se enlaza con V8 (BSD de 3 cláusulas), SDL2 (zlib), Cairo
 (LGPL 2.1 o MPL 1.1), pixman (MIT), FreeType (FTL), libpng y stb_vorbis
 (dominio público o MIT), y arranca `ffmpeg` como programa aparte.
+
+## Agradecimientos
+
+A Miro Haverinen, el creador de Fear & Hunger, por inspirarme a crear esto
+para poder jugar a sus juegos.
