@@ -98,6 +98,21 @@ const tests = {
     assert.strictEqual(model.dragged({ top: 92, row: 62, first: 0, count: 3, visible: 5, left: 0, width: 9 }, -500), 0, 'a short list does not move');
   },
 
+  'games taken off the list are not shown, whether found in a folder or played before'() {
+    const found = [{ title: 'Alpha', www: '/a' }, { title: 'Beta', www: '/b' }, { title: 'Gamma', www: '/g' }];
+    const ordered = model.order(found, ['/g', '/b'], ['/b', '/a']);
+    assert.deepStrictEqual(plain(ordered.map((game) => game.www)), ['/g']);
+  },
+
+  'the button that takes a game off is at the right end of its line, with room for a finger'() {
+    // The lines are drawn from x 28 to 564; the layout reaches 8 further each side.
+    const layout = { top: 92, row: 62, first: 0, count: 3, visible: 5, left: 20, width: 552 };
+    assert.strictEqual(model.onRemoveButton(563, layout), true, 'the line\'s last pixel');
+    assert.strictEqual(model.onRemoveButton(564 - model.REMOVE - 2 * model.REMOVE_GAP, layout), true, 'just left of the button');
+    assert.strictEqual(model.onRemoveButton(564 - model.REMOVE - 2 * model.REMOVE_GAP - 1, layout), false, 'the title');
+    assert.strictEqual(model.onRemoveButton(564, layout), false, 'beyond the line');
+  },
+
   'a touch that hardly moved is a tap; one that moved is a drag'() {
     assert.strictEqual(model.isTap(100, 200, 104, 195), true);
     assert.strictEqual(model.isTap(100, 200, 100, 230), false);

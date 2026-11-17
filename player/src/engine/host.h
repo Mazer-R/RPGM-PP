@@ -105,7 +105,10 @@ class Host {
   static void ListDirCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ListFolderCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ResolveGameCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ChangeGamesFile(const v8::FunctionCallbackInfo<v8::Value>& args,
+                              std::string (*change)(const std::string&, const std::string&));
   static void RememberGameCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ForgetGameCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void FileHeadCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ReadFileBytesCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void PrintCallback(const v8::FunctionCallbackInfo<v8::Value>& args);

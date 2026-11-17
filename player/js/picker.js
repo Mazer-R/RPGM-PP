@@ -10,6 +10,13 @@
 // player, which then runs the player again with --game. Leaving without
 // choosing exits with code 10.
 //
+// A game can be taken off the list: X on a controller (or Delete or Shift
+// on a keyboard), or the cross at the end of the chosen game's line when
+// touched, then the same again to be sure. Its files are left alone. It
+// stays off (player.forgetGame, read back as player.forgottenGames), also
+// when it is in one of the folders the list looks through, until it is
+// added again.
+//
 // When player.canAddGame is set the list has an "add a game" line. It opens
 // a second screen that shows folders, starting from player.browseDirs, and
 // says what to look for: the game's own folder, and in it the game's .exe.
@@ -28,7 +35,7 @@
   // denser screens (a phone), so the text stays readable. Set by fitTo(),
   // at the start and whenever the window changes size.
   var SCREEN_W = 0, SCREEN_H = 0, ZOOM = 1, W = 0, H = 0;
-  var KEY = { up: 38, down: 40, pageUp: 33, pageDown: 34, ok: [90, 13, 32], back: [88, 27] };
+  var KEY = { up: 38, down: 40, pageUp: 33, pageDown: 34, ok: [90, 13, 32], back: [88, 27], remove: [16, 46] };
   var EXIT_NOTHING_CHOSEN = 10;
 
   // --- Find the games -------------------------------------------------------
@@ -42,7 +49,7 @@
   player.loadScript(player.playerDir + '/js/picker-model.js');
   var model = globalThis.__pickerModel;
   function folderName(www) { return www.split('/').slice(-2, -1)[0] || www; }
-  var found = [], recent = (player.libraryGames || []).slice();
+  var found = [], recent = (player.libraryGames || []).slice(), forgotten = (player.forgottenGames || []).slice();
   (player.libraryDirs || []).forEach(function (dir) {
     player.listDir(dir).forEach(function (name) {
       var www = dir + '/' + name + '/www';
@@ -56,14 +63,44 @@
   // The lines of the list: the games, then adding one.
   var games = [];
   function listGames() {
-    games = model.order(found, recent);
+    games = model.order(found, recent, forgotten);
     if (player.canAddGame) games.push({ add: true });
   }
   listGames();
   // Puts a game on top of the remembered ones, here and in the file.
+  // Also brings back a game that had been taken off the list.
   function remember(www) {
     recent = [www].concat(recent.filter(function (other) { return other !== www; }));
+    forgotten = forgotten.filter(function (other) { return other !== www; });
     if (player.rememberGame) player.rememberGame(www);
+  }
+
+  // --- Taking a game off the list -------------------------------------------
+  // `removing` is the www folder of the chosen game while the list asks
+  // whether to take it off, else null. Anything but the same again keeps it.
+  var removing = null;
+  function askToRemove() {
+    var entry = browsing ? null : games[selected];
+    if (!entry || !entry.www) return;
+    if (removing === entry.www) return forget(entry);
+    removing = entry.www;
+    note = '';
+    changed = true;
+  }
+  function keepGame() {
+    if (removing) { removing = null; changed = true; }
+  }
+  function forget(game) {
+    removing = null;
+    recent = recent.filter(function (other) { return other !== game.www; });
+    forgotten.push(game.www);
+    var saved = player.forgetGame ? player.forgetGame(game.www) : false;
+    console.info('picker: took ' + game.www + ' off the list' + (saved ? '' : ', for this time only'));
+    note = saved ? 'Taken off the list. Its files are still there.' : 'Taken off, but could not be saved: it will be back.';
+    listGames();
+    selected = Math.max(0, Math.min(selected, games.length - 1));
+    first = Math.max(0, Math.min(first, games.length - visible()));
+    move(0);
   }
 
   // --- Looking through folders for a game to add ---------------------------
@@ -288,11 +325,24 @@
     }
     c2d.fillRect(canvas, 0, H - 110, W, 110, FLOOR, 1);
   }
+  // The button that takes the chosen game off the list, for fingers and the
+  // mouse: a cross, in a box that lights up while the list asks to be sure.
+  function removeButton(x, y, h, asking) {
+    var size = model.REMOVE, left = x + COLUMN - model.REMOVE_GAP - size, top = y + (h - size) / 2;
+    box(left, top, size, size, 8, asking ? INK : [1, 1, 1, 0.22]);
+    var c = asking ? ACCENT_DEEP : INK, cx = left + size / 2, cy = top + size / 2;
+    line([[cx - 7, cy - 7], [cx + 7, cy + 7]], c, 2.5);
+    line([[cx + 7, cy - 7], [cx - 7, cy + 7]], c, 2.5);
+  }
   function paintGameLine(game, x, y, h, chosen) {
     gameIcon(game, x + 10, y + (h - 44) / 2, 44, chosen);
+    var asking = chosen && removing === game.www, button = chosen && touching;
+    var room = COLUMN - 86 - (button ? model.REMOVE + model.REMOVE_GAP : 0);
     var under = game.recent && game === games[0] ? 'Played last' : folderName(game.www);
-    text(fitted(game.title, 21, COLUMN - 86), x + 68, y + 26, 21, INK);
-    text(fitted(under, 13, COLUMN - 86), x + 68, y + 45, 13, chosen ? [1, 1, 1, 0.78] : MUTED);
+    if (asking) under = touching ? 'Take it off the list? Touch the cross again' : 'Take it off the list? X again: yes, B: no';
+    text(fitted(game.title, 21, room), x + 68, y + 26, 21, INK);
+    text(fitted(under, 13, room), x + 68, y + 45, 13, asking ? INK : chosen ? [1, 1, 1, 0.78] : MUTED);
+    if (button) removeButton(x, y, h, asking);
   }
   function paintListLine(entry, x, y, h, chosen) {
     if (entry.www) return paintGameLine(entry, x, y, h, chosen);
@@ -346,6 +396,7 @@
     } else {
       at = hint(at, H - 18, 'A', browsing ? 'Open' : 'Choose');
       at = hint(at, H - 18, 'B', browsing ? 'Back' : 'Leave');
+      if (gameBehind()) at = hint(at, H - 18, 'X', 'Remove');
     }
     if (note) text(fitted(note, 15, W - at - x), at, H - 18, 15, INK);
   }
@@ -411,6 +462,7 @@
   // --- Controls -----------------------------------------------------------------
   function move(by) {
     var count = lines().length, VISIBLE = visible();
+    if (by) keepGame();
     if (!count) return;
     selected = Math.min(count - 1, Math.max(0, selected + by));
     if (selected < first) first = selected;
@@ -449,20 +501,27 @@
     if (phase === 0) {
       press = { x: x, y: y, layout: layout(), line: model.lineAt(x, y, layout()), moved: false };
       press.wasChosen = press.line === selected;
-      if (press.line >= 0) { selected = press.line; changed = true; }
+      // The cross is drawn on the chosen game only.
+      press.remove = press.wasChosen && !!gameBehind() && model.onRemoveButton(x, press.layout);
+      if (press.line >= 0 && !press.remove) { selected = press.line; changed = true; }
     } else if (press && phase === 1) {
       if (!model.isTap(press.x, press.y, x, y)) press.moved = true;
       var top = model.dragged(press.layout, y - press.y);
       if (press.moved && top !== first) {
         first = top;
         // The chosen line stays among the ones shown.
-        selected = Math.min(first + visible() - 1, Math.max(first, selected));
+        var kept = Math.min(first + visible() - 1, Math.max(first, selected));
+        if (kept !== selected) keepGame();
+        selected = kept;
         changed = true;
       }
     } else if (press && phase === 2) {
-      var opened = !press.moved && press.line >= 0 && model.lineAt(x, y, layout()) === press.line &&
-        model.tapOpens(lines()[press.line], press.wasChosen);
+      var tapped = !press.moved && press.line >= 0 && model.lineAt(x, y, layout()) === press.line;
+      var remove = tapped && press.remove && model.onRemoveButton(x, layout());
+      var opened = tapped && !press.remove && model.tapOpens(lines()[press.line], press.wasChosen);
       press = null;
+      if (remove) return askToRemove();
+      keepGame();
       if (opened) choose();
     }
   };
@@ -485,6 +544,10 @@
   player.onKey = function (keyCode, down) {
     if (!down) return;
     if (touching && keyCode !== 27) { touching = false; changed = true; }
+    if (KEY.remove.indexOf(keyCode) >= 0) return askToRemove();
+    // While the list asks whether to take a game off, A and B (and a
+    // phone's Back) only keep it; the arrows also move.
+    if (removing && (KEY.ok.indexOf(keyCode) >= 0 || KEY.back.indexOf(keyCode) >= 0)) return keepGame();
     if (keyCode === KEY.up) move(-1);
     else if (keyCode === KEY.down) move(1);
     else if (keyCode === KEY.pageUp) move(-visible());

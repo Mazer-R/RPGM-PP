@@ -12,7 +12,8 @@
 //   <shared storage>/RPGMV/mvplayer     the player's own things, where the
 //       user can reach them (<external files> until access is allowed):
 //         logs/      a copy of the log of every run
-//         games.txt  the games played or added, the last one first
+//         games.txt  the games played or added, the last one first, and
+//                    those taken off the list
 //   <external files>/args.txt           for tests: if present, one run with
 //       these arguments, one per line, instead of the list. Read only from
 //       the app's own folder, which other apps cannot write to: the

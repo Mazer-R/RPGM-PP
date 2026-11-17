@@ -12,7 +12,8 @@
 #
 # <path> may be the game's www folder (the one with index.html), the folder
 # that holds it, or the game's .exe. The games played or added through the
-# list are remembered in ~/.config/mvplayer/games.txt, one folder per line.
+# list are remembered in ~/.config/mvplayer/games.txt, one folder per line;
+# a line starting with "-" is a game taken off the list (Delete key).
 #
 # A copy of the log of every run is kept in the logs/ folder next to this
 # script (or in ~/.config/mvplayer/logs if that cannot be written), named

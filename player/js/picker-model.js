@@ -4,15 +4,18 @@
 (function () {
   'use strict';
 
-  // found:  [{ title, www }], every game known, in any order.
-  // recent: www folders, the one played or added last first.
+  // found:     [{ title, www }], every game known, in any order.
+  // recent:    www folders, the one played or added last first.
+  // forgotten: www folders of games taken off the list (may be left out).
   // Returns the games played before first, in that order, each marked
-  // `recent`, then the others by title; a game found twice appears once.
-  function order(found, recent) {
-    var byWww = {}, rest = [];
+  // `recent`, then the others by title; a game found twice appears once,
+  // a game taken off not at all.
+  function order(found, recent, forgotten) {
+    var byWww = {}, rest = [], off = {};
+    (forgotten || []).forEach(function (www) { off[www] = true; });
     found.forEach(function (game) {
       game.recent = false;  // decided afresh on every call
-      if (!byWww[game.www]) { byWww[game.www] = game; rest.push(game); }
+      if (!byWww[game.www] && !off[game.www]) { byWww[game.www] = game; rest.push(game); }
     });
     var first = [];
     recent.forEach(function (www) {
@@ -79,6 +82,15 @@
     var last = Math.max(0, layout.count - layout.visible);
     return Math.min(last, Math.max(0, layout.first - Math.round(pixels / layout.row)));
   }
+  // Whether the point x is on the button at the right end of a line, the
+  // one that takes the chosen game off the list. REMOVE is its size; it
+  // sits REMOVE_GAP from the line's end, and the finger may miss it by as
+  // much again.
+  var REMOVE = 36, REMOVE_GAP = 10;
+  function onRemoveButton(x, layout) {
+    var lineEnd = layout.left + layout.width - 8;
+    return x >= lineEnd - REMOVE_GAP - REMOVE - REMOVE_GAP && x < lineEnd;
+  }
   var TAP_SLACK = 12;
   function isTap(x0, y0, x1, y1) { return Math.abs(x1 - x0) <= TAP_SLACK && Math.abs(y1 - y0) <= TAP_SLACK; }
 
@@ -99,5 +111,5 @@
     return { zoom: zoom, width: width, height: height, column: Math.min(width - 2 * MARGIN, Math.max(520, Math.round(width * 0.5))) };
   }
 
-  globalThis.__pickerModel = { order: order, browse: browse, places: places, lineAt: lineAt, dragged: dragged, isTap: isTap, tapOpens: tapOpens, fit: fit, MARGIN: MARGIN };
+  globalThis.__pickerModel = { order: order, browse: browse, places: places, lineAt: lineAt, dragged: dragged, onRemoveButton: onRemoveButton, REMOVE: REMOVE, REMOVE_GAP: REMOVE_GAP, isTap: isTap, tapOpens: tapOpens, fit: fit, MARGIN: MARGIN };
 })();

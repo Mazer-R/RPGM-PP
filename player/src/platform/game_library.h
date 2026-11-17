@@ -14,9 +14,20 @@ namespace mvp {
 std::string ResolveGameDir(std::string path);
 
 // The remembered games are a text file of www folders, one per line, the
-// one played or added last first. Returns that text with `www` at the top
-// and nowhere else.
+// one played or added last first. A line that starts with "-" holds a game
+// taken off the list instead: it is not shown, even when it is in one of
+// the folders the list looks through. Its files are left alone.
+//
+// Returns that text with `www` at the top and nowhere else, and no longer
+// taken off.
 std::string RememberGame(const std::string& list, const std::string& www);
+
+// Returns the text with `www` taken off the list: gone from the games
+// played or added, and marked as taken off, once.
+std::string ForgetGame(const std::string& list, const std::string& www);
+
+// The www folders the text marks as taken off, in its order.
+std::vector<std::string> ForgottenGames(const std::string& list);
 
 // The names in a folder, without those that start with a dot: folders
 // first, each ending in "/", then files; each group by name, whatever the

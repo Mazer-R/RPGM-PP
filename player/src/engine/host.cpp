@@ -265,9 +265,11 @@ void Host::ResolveGameCallback(const v8::FunctionCallbackInfo<v8::Value>& args) 
   args.GetReturnValue().Set(ToV8String(isolate, ResolveGameDir(ToStdString(isolate, args[0]))));
 }
 
-// player.rememberGame(www): puts a game at the top of the remembered games,
-// the file the game list was given. Returns whether it was written.
-void Host::RememberGameCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
+// Rewrites the file of remembered games the game list was given with
+// `change`, which takes its text and the game's www folder (the call's
+// first argument). The call returns whether the file was written.
+void Host::ChangeGamesFile(const v8::FunctionCallbackInfo<v8::Value>& args,
+                           std::string (*change)(const std::string&, const std::string&)) {
   Host* host = FromArgs(args);
   args.GetReturnValue().Set(false);
   std::string www = ToStdString(args.GetIsolate(), args[0]);
@@ -275,13 +277,24 @@ void Host::RememberGameCallback(const v8::FunctionCallbackInfo<v8::Value>& args)
   std::ostringstream before;
   before << std::ifstream(host->games_file_).rdbuf();
   std::ofstream file(host->games_file_, std::ios::trunc);
-  file << RememberGame(before.str(), www);
+  file << change(before.str(), www);
   file.flush();
   if (!file.good()) {
     host->log_.Write(LogLevel::kError, "files", "cannot write the remembered games: " + host->games_file_);
     return;
   }
   args.GetReturnValue().Set(true);
+}
+
+// player.rememberGame(www): puts a game at the top of the remembered games.
+void Host::RememberGameCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  ChangeGamesFile(args, RememberGame);
+}
+
+// player.forgetGame(www): takes a game off the list for good, without
+// touching its files; adding it again brings it back.
+void Host::ForgetGameCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  ChangeGamesFile(args, ForgetGame);
 }
 
 // player.print(text): one line on standard output, for a script whose
@@ -490,6 +503,7 @@ void Host::InstallGlobals(v8::Local<v8::Context> context) {
   set(player, "listFolder", make_function(ListFolderCallback, "listFolder"));
   set(player, "resolveGame", make_function(ResolveGameCallback, "resolveGame"));
   set(player, "rememberGame", make_function(RememberGameCallback, "rememberGame"));
+  set(player, "forgetGame", make_function(ForgetGameCallback, "forgetGame"));
   set(player, "print", make_function(PrintCallback, "print"));
   set(player, "readFileBytes", make_function(ReadFileBytesCallback, "readFileBytes"));
   set(player, "fileHead", make_function(FileHeadCallback, "fileHead"));

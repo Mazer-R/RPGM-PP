@@ -70,6 +70,15 @@ int main() {
   Expect("empty lines and a missing last line end are put right", mvp::RememberGame("\n/a/www\n\n/b/www", "/a/www"),
          "/a/www\n/b/www\n");
 
+  Expect("a game taken off the list is gone from it and marked", mvp::ForgetGame("/a/www\n/b/www\n", "/a/www"),
+         "/b/www\n-/a/www\n");
+  Expect("one that was only in a games folder is marked", mvp::ForgetGame("/a/www\n", "/g/www"), "/a/www\n-/g/www\n");
+  Expect("taking a game off twice marks it once", mvp::ForgetGame("-/a/www\n/b/www\n", "/a/www"), "/b/www\n-/a/www\n");
+  Expect("a game added again is no longer taken off", mvp::RememberGame("/b/www\n-/a/www\n", "/a/www"),
+         "/a/www\n/b/www\n");
+  Expect("the games taken off are read back in order",
+         Joined(mvp::ForgottenGames("-/a/www\n/b/www\n-/c/www\n-\n")), "/a/www /c/www");
+
   std::system(("rm -rf " + root).c_str());
   std::printf(g_failures ? "\n%d FAILED\n" : "\nall passed\n", g_failures);
   return g_failures ? 1 : 0;

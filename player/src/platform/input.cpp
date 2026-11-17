@@ -82,6 +82,7 @@ int KeyForKeyboard(SDL_Keycode key) {
     case SDLK_TAB: return 9;
     case SDLK_BACKSPACE: return 8;
     case SDLK_INSERT: return 45;
+    case SDLK_DELETE: return 46;
     case SDLK_PAGEUP: return kKeyPageUp;
     case SDLK_PAGEDOWN: return kKeyPageDown;
     case SDLK_LEFT: return kKeyLeft;

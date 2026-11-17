@@ -64,7 +64,8 @@ measurements are in `docs/history/feasibility-study.md`.
   button + X, or F1, or the MENU button on a touch screen): frame counter,
   which key each controller button presses, and an on-screen editor for
   the touch controls. Both are kept per game.
-- A game list, to choose among the games found.
+- A game list, to choose among the games found, add others, and take off
+  the ones you no longer want (their files are not deleted).
 
 ## What does not
 
@@ -128,7 +129,9 @@ nearly every phone sold since 2017. 32-bit-only phones and x86 devices
    `RPGMV/<Game>/www`. A file manager or a USB cable will do.
 4. Choose the game from the list; the games played last come first. A game
    kept anywhere else on the device can be added with the list's "Add a
-   game" line: go into the game's own folder and choose its `.exe`.
+   game" line: go into the game's own folder and choose its `.exe`. To take
+   a game off the list, choose it and touch the cross at the end of its
+   line, then touch it again to confirm; its files stay where they are.
 
 Without a controller, the screen shows a direction pad and three buttons.
 The MENU button in the top right corner opens the settings; "TOUCH
@@ -148,7 +151,8 @@ the list. Videos do not play on Android yet.
 3. On the console: Apps, then "RPG Maker MV". Choose the game with A; the
    games played last come first. A game kept in any other folder of the
    cards can be added with the list's "Add a game" line: go into the game's
-   own folder and choose its `.exe`.
+   own folder and choose its `.exe`. X takes the chosen game off the list
+   (press X again to confirm, B to keep it); its files stay on the card.
 
 | Buttons | What they do |
 | --- | --- |
@@ -169,7 +173,9 @@ ARM desktop.
 2. Run `./mvplayer.sh`. The list's "Add a game" line shows your folders:
    go into the game's own folder and choose its `.exe` (or the `index.html`
    in its `www` folder). Games added are remembered, and the ones played
-   last come first.
+   last come first. Delete (or X on a controller, or the cross at the end
+   of the chosen line with the mouse) takes a game off the list, after
+   asking again; its files stay where they are.
 3. Optional: `./mvplayer.sh --install-launcher` adds the player to the
    desktop's application menu, and `./mvplayer.sh --check-libs` lists any
    system library that is missing.
@@ -346,7 +352,8 @@ viabilidad anteriores están en `docs/history/feasibility-study.md`.
   (botón menú + X, o F1, o el botón MENU en pantalla táctil): contador de
   fotogramas, qué tecla pulsa cada botón del mando y un editor en pantalla
   de los controles táctiles. Ambos se guardan por juego.
-- Una lista de juegos para elegir entre los encontrados.
+- Una lista de juegos para elegir entre los encontrados, añadir otros y
+  quitar los que ya no quieras (sus archivos no se borran).
 
 ## Qué no
 
@@ -414,7 +421,9 @@ y los dispositivos x86 (algunos emuladores y Chromebooks) no.
 4. Elige el juego en la lista; los últimos jugados salen primero. Un juego
    guardado en cualquier otro sitio del dispositivo se añade con la línea
    "Add a game" de la lista: entra en la carpeta del juego y elige su
-   `.exe`.
+   `.exe`. Para quitar un juego de la lista, elígelo y toca la cruz al
+   final de su línea; vuelve a tocarla para confirmar. Sus archivos se
+   quedan donde están.
 
 Sin mando, la pantalla muestra una cruceta y tres botones. El botón MENU,
 arriba a la derecha, abre los ajustes; "TOUCH CONTROLS" permite mover,
@@ -434,7 +443,9 @@ lista. En Android todavía no se reproducen vídeos.
 3. En la consola: Apps y después "RPG Maker MV". Elige el juego con A; los
    últimos jugados salen primero. Un juego guardado en cualquier otra
    carpeta de las tarjetas se añade con la línea "Add a game" de la lista:
-   entra en la carpeta del juego y elige su `.exe`.
+   entra en la carpeta del juego y elige su `.exe`. X quita el juego
+   elegido de la lista (X otra vez para confirmar, B para dejarlo); sus
+   archivos siguen en la tarjeta.
 
 | Botones | Qué hacen |
 | --- | --- |
@@ -455,7 +466,9 @@ un escritorio ARM real.
 2. Ejecuta `./mvplayer.sh`. La línea "Add a game" de la lista muestra tus
    carpetas: entra en la carpeta del juego y elige su `.exe` (o el
    `index.html` de su carpeta `www`). Los juegos añadidos se recuerdan, y
-   los últimos jugados salen primero.
+   los últimos jugados salen primero. Supr (o X en un mando, o la cruz al
+   final de la línea elegida con el ratón) quita un juego de la lista, tras
+   volver a preguntar; sus archivos se quedan donde están.
 3. Opcional: `./mvplayer.sh --install-launcher` añade el reproductor al
    menú de aplicaciones del escritorio, y `./mvplayer.sh --check-libs`
    enumera las bibliotecas del sistema que falten.

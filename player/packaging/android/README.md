@@ -36,7 +36,8 @@ or a USB cable can put them there. A game kept anywhere else in the shared
 storage can be added from the list's "Add a game" line, which shows the
 folders: go into the game's own folder and choose its `.exe`. The list
 shows the games played last first; touch a game to play it, and drag the
-list to move it. Saves and the log stay in each game's
+list to move it. The cross at the end of the chosen game's line takes the
+game off the list (touch it again to confirm); its files stay. Saves and the log stay in each game's
 `www/save`.
 
 The first time it starts, the app opens the system screen for "all files
@@ -49,7 +50,7 @@ that one cannot be where games are copied.
 | --- | --- |
 | `RPGMV/<Game>/www` | The games. |
 | `RPGMV/mvplayer/logs/` | A copy of the log of every run (newest 30) and `picker.log`. |
-| `RPGMV/mvplayer/games.txt` | The games played or added, the last one first. |
+| `RPGMV/mvplayer/games.txt` | The games played or added, the last one first; a line starting with `-` is a game taken off the list. |
 | `Android/data/org.mvplayer/files/args.txt` | For tests: if present, the app runs once with these arguments (one per line) instead of showing the list. Kept in the app's own folder, which other apps cannot write to, because the arguments can name a script to run. |
 
 Until access is allowed, the `mvplayer` folder is kept in

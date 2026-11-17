@@ -917,6 +917,31 @@ adjustments where the game's own code is too expensive for this hardware.
         twice; each test now runs once.
     *   **Not checked**: an autorun event far from the player in a real
         game (none at hand), a save file compared before and after.
+*   **Games can be taken off the list (2026-11-16).**
+    *   **Asked for**: removing games from the list, on every platform.
+    *   **What it does**: the chosen game leaves the list; its files are
+        never touched. It stays off on later runs, also when it sits in
+        one of the folders the list looks through (`ROMS/RPGMV`, `RPGMV`),
+        until it is added again through "Add a game". The games file
+        keeps it as a line starting with `-` (`ForgetGame`,
+        `ForgottenGames` in `platform/game_library`); adding or playing a
+        game clears that line (`RememberGame`).
+    *   **Controls**: X on a controller (which presses Shift by default),
+        Delete or Shift on a keyboard; with fingers or the mouse, a cross
+        drawn at the end of the chosen game's line. Each asks first: the
+        line says "Take it off the list?" and the same press again
+        confirms. A or B (or a phone's Back) keep the game; moving to
+        another line forgets the question. The Delete key now reaches
+        scripts as key code 46.
+    *   **Checked** without a screen (arm64 container, 816x624), with
+        scripted key presses, taps and captures: asking, taking off,
+        keeping, the file written, a game taken off staying hidden on the
+        next run, and coming back when added again. Native and model
+        tests cover the file format and where the cross is.
+    *   **Not checked**: on the RG35XX SP, a real phone, or a desktop
+        with a real mouse. A keyboard user reading the hints sees "X
+        Remove", but the keyboard's X key leaves the list (as before, the
+        hints name controller buttons).
 
 ## Critical User Journeys (CUJs)
 

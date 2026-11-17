@@ -49,6 +49,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -97,7 +98,7 @@ int PlayerMain(int argc, char** argv) {
   bool no_patches = false;
   bool profile_slow = false;
   bool pick = false;
-  std::vector<std::string> library_dirs, library_games, browse_dirs;
+  std::vector<std::string> library_dirs, library_games, forgotten_games, browse_dirs;
   std::string game_path, games_file, resolve_path;
   bool can_add = false;
   const char* fps_setting = std::getenv("MVPLAYER_FPS");
@@ -139,12 +140,16 @@ int PlayerMain(int argc, char** argv) {
     }
   }
   if (!games_file.empty()) {
-    // Lines that no longer lead to a game are left out of the list.
-    std::ifstream list(games_file);
+    // Lines that no longer lead to a game are left out of the list, and so
+    // are the games taken off it.
+    std::ostringstream text;
+    text << std::ifstream(games_file).rdbuf();
+    std::istringstream list(text.str());
     for (std::string line; std::getline(list, line);) {
-      std::string found = line.empty() ? "" : ResolveGameDir(line);
+      std::string found = line.empty() || line[0] == '-' ? "" : ResolveGameDir(line);
       if (!found.empty()) library_games.push_back(found);
     }
+    forgotten_games = ForgottenGames(text.str());
   }
   if (player_dir.empty()) player_dir = ExecutableDir();
   if (script.empty() && !game_dir.empty()) script = player_dir + "/js/boot.js";
@@ -214,6 +219,7 @@ int PlayerMain(int argc, char** argv) {
     host.SetFlag("profileSlow", profile_slow);
     host.SetStringList("libraryDirs", library_dirs);
     host.SetStringList("libraryGames", library_games);
+    host.SetStringList("forgottenGames", forgotten_games);
     host.SetFlag("canAddGame", can_add);
     host.SetStringList("browseDirs", browse_dirs);
     host.SetGamesFile(games_file);

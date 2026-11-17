@@ -40,13 +40,38 @@ std::string ResolveGameDir(std::string path) {
   return "";
 }
 
-std::string RememberGame(const std::string& list, const std::string& www) {
-  std::string text = www + "\n";
+namespace {
+
+constexpr char kForgotten = '-';
+
+// The text's lines, without the empty ones and those that name `www`,
+// whether to remember or to keep it off the list.
+std::string WithoutGame(const std::string& list, const std::string& www) {
+  std::string text;
   std::istringstream lines(list);
   for (std::string line; std::getline(lines, line);) {
-    if (!line.empty() && line != www) text += line + "\n";
+    if (!line.empty() && line != www && line != kForgotten + www) text += line + "\n";
   }
   return text;
+}
+
+}  // namespace
+
+std::string RememberGame(const std::string& list, const std::string& www) {
+  return www + "\n" + WithoutGame(list, www);
+}
+
+std::string ForgetGame(const std::string& list, const std::string& www) {
+  return WithoutGame(list, www) + kForgotten + www + "\n";
+}
+
+std::vector<std::string> ForgottenGames(const std::string& list) {
+  std::vector<std::string> games;
+  std::istringstream lines(list);
+  for (std::string line; std::getline(lines, line);) {
+    if (line.size() > 1 && line[0] == kForgotten) games.push_back(line.substr(1));
+  }
+  return games;
 }
 
 std::vector<std::string> ListFolder(const std::string& path) {
