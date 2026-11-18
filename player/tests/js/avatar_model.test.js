@@ -103,7 +103,45 @@ const tests = {
     assert.strictEqual(model.typed('', 'del'), '');
     assert.strictEqual(model.typed('ABCDEFGHIJKL', 'M'), 'ABCDEFGHIJKL');
     assert.strictEqual(model.typed('MAN', 'space'), 'MAN ');
-    assert.strictEqual(model.KEYS.length, 30);
+    assert.strictEqual(model.typed('ESPA', 'Ñ'), 'ESPAÑ');
+  },
+
+  'the board of letters is laid out like a keyboard, ten across'() {
+    const rows = plain(model.BOARD).map((row) => row.map((each) => each.key).join(' '));
+    assert.deepStrictEqual(rows, ['Q W E R T Y U I O P', 'A S D F G H J K L Ñ', 'Z X C V B N M - del', 'space ok']);
+    for (const row of model.BOARD) assert.strictEqual(row.reduce((sum, each) => sum + each.span, 0), 10);
+    // where each key begins, counted in keys from the left
+    assert.deepStrictEqual(plain(model.BOARD[2].map((each) => each.start)), [0, 1, 2, 3, 4, 5, 6, 7, 8]);
+    assert.deepStrictEqual(plain(model.BOARD[3]), [{ key: 'space', start: 0, span: 7 }, { key: 'ok', start: 7, span: 3 }]);
+  },
+
+  'the choice moves over the board as the eye expects, a wide key standing for the ones above it'() {
+    const at = (row, index) => ({ row, index });
+    assert.deepStrictEqual(plain(model.boardStep(at(0, 0), 'right')), at(0, 1));
+    assert.deepStrictEqual(plain(model.boardStep(at(0, 0), 'left')), at(0, 0));
+    assert.deepStrictEqual(plain(model.boardStep(at(0, 9), 'right')), at(0, 9));
+    assert.deepStrictEqual(plain(model.boardStep(at(0, 4), 'down')), at(1, 4));
+    assert.deepStrictEqual(plain(model.boardStep(at(0, 0), 'up')), at(0, 0));
+    // P is over Ñ, which is over the wide delete key, which is over OK
+    assert.deepStrictEqual(plain(model.boardStep(at(1, 9), 'down')), at(2, 8));
+    assert.deepStrictEqual(plain(model.boardStep(at(2, 8), 'down')), at(3, 1));
+    assert.deepStrictEqual(plain(model.boardStep(at(2, 3), 'down')), at(3, 0));
+    assert.deepStrictEqual(plain(model.boardStep(at(3, 0), 'down')), at(3, 0));
+    // going up from a wide key lands over its middle
+    assert.deepStrictEqual(plain(model.boardStep(at(3, 0), 'up')), at(2, 3));
+    assert.deepStrictEqual(plain(model.boardStep(at(3, 1), 'up')), at(2, 8));
+    assert.strictEqual(model.boardKey(at(3, 1)), 'ok');
+  },
+
+  'a touch finds the key under it, by how far across and which row'() {
+    assert.deepStrictEqual(plain(model.boardAt(0, 0.0)), { row: 0, index: 0 });
+    assert.deepStrictEqual(plain(model.boardAt(1, 9.9)), { row: 1, index: 9 });
+    assert.deepStrictEqual(plain(model.boardAt(2, 9.2)), { row: 2, index: 8 });
+    assert.deepStrictEqual(plain(model.boardAt(3, 6.9)), { row: 3, index: 0 });
+    assert.deepStrictEqual(plain(model.boardAt(3, 7.0)), { row: 3, index: 1 });
+    assert.strictEqual(model.boardAt(4, 2), null);
+    assert.strictEqual(model.boardAt(1, 10.5), null);
+    assert.strictEqual(model.boardAt(-1, 2), null);
   },
 };
 

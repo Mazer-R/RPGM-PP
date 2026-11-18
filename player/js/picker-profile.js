@@ -239,13 +239,15 @@
     }
 
     // --- The name -----------------------------------------------------------------
-    // Typed on a board of letters, with the pad or a finger.
-    var typing = '', key = 0, BOARD_COLUMNS = 6;
-    function openName() { screen = 'name'; typing = ui.profile.name || ''; key = 0; ui.changed(); }
+    // Typed on a board of letters laid out like a keyboard, with the pad or
+    // a finger (js/avatar-model.js has the board and the way over it).
+    var typing = '', key = { row: 0, index: 0 }, ACROSS = 10;
+    function openName() { screen = 'name'; typing = ui.profile.name || ''; key = { row: 0, index: 0 }; ui.changed(); }
+    // The board takes the width there is, its keys taller where a finger
+    // is likelier than a pad.
     function board() {
-      var W = ui.width(), w = Math.min(64, Math.floor((W - 2 * MARGIN) / BOARD_COLUMNS)), h = 46;
-      return { columns: BOARD_COLUMNS, rows: Math.ceil(avatars.KEYS.length / BOARD_COLUMNS), shown: 99, cell: w, gap: 0,
-        left: Math.round((W - w * BOARD_COLUMNS) / 2), top: 166, w: w, h: h };
+      var W = ui.width(), H = ui.height(), w = Math.min(60, Math.floor((W - 2 * MARGIN) / ACROSS));
+      return { left: Math.round((W - w * ACROSS) / 2), top: 166, w: w, h: H > W ? 64 : 50 };
     }
     var KEY_LABELS = { space: 'SPACE', del: 'DEL', ok: 'OK' };
     function paintName() {
@@ -255,11 +257,13 @@
       ui.text('Your name', MARGIN, 72, 32, INK);
       ui.box(MARGIN, 96, Math.min(W - 2 * MARGIN, 420), 48, 10, PANEL);
       ui.text(typing + '_', MARGIN + 16, 128, 24, INK);
-      avatars.KEYS.forEach(function (each, i) {
-        var x = at.left + (i % at.columns) * at.w, y = at.top + Math.floor(i / at.columns) * at.h;
-        ui.box(x + 3, y + 3, at.w - 6, at.h - 6, 8, i === key ? ui.colours.CHOSEN : PANEL);
-        var label = KEY_LABELS[each] || each, size = label.length > 1 ? 12 : 20;
-        ui.text(label, x + (at.w - ui.widthOf(label, size)) / 2, y + at.h / 2 + size / 3, size, INK);
+      avatars.BOARD.forEach(function (row, r) {
+        row.forEach(function (each, i) {
+          var x = at.left + each.start * at.w, y = at.top + r * at.h, w = each.span * at.w;
+          ui.box(x + 3, y + 3, w - 6, at.h - 6, 8, r === key.row && i === key.index ? ui.colours.CHOSEN : PANEL);
+          var label = KEY_LABELS[each.key] || each.key, size = label.length > 1 ? 13 : 21;
+          ui.text(label, x + (w - ui.widthOf(label, size)) / 2, y + at.h / 2 + size / 3, size, INK);
+        });
       });
       if (!ui.touching()) ui.hint(ui.hint(MARGIN, H - 18, 'A', 'Type'), H - 18, 'B', 'Cancel');
     }
@@ -272,17 +276,16 @@
     }
     function nameKey(keyCode) {
       var direction = keyCode === KEY.up ? 'up' : keyCode === KEY.down ? 'down' : keyCode === KEY.left ? 'left' : keyCode === KEY.right ? 'right' : null;
-      if (direction) { key = view.step(key, direction, BOARD_COLUMNS, avatars.KEYS.length); return ui.changed(); }
-      if (KEY.ok.indexOf(keyCode) >= 0) return press(avatars.KEYS[key]);
+      if (direction) { key = avatars.boardStep(key, direction); return ui.changed(); }
+      if (KEY.ok.indexOf(keyCode) >= 0) return press(avatars.boardKey(key));
       if (KEY.back.indexOf(keyCode) >= 0) { screen = 'profile'; ui.changed(); }
     }
     function namePointer(phase, x, y) {
       if (phase !== 0) return;
-      var at = board(), column = Math.floor((x - at.left) / at.w), row = Math.floor((y - at.top) / at.h);
-      var index = row * at.columns + column;
-      if (x < at.left || y < at.top || column >= at.columns || index >= avatars.KEYS.length) return;
-      key = index;
-      press(avatars.KEYS[index]);
+      var at = board(), found = y >= at.top ? avatars.boardAt(Math.floor((y - at.top) / at.h), (x - at.left) / at.w) : null;
+      if (!found) return;
+      key = found;
+      press(avatars.boardKey(found));
     }
 
     // --- The achievements ------------------------------------------------------

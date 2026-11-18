@@ -72,10 +72,39 @@
   }
 
   // --- The name -----------------------------------------------------------------
-  // Typed on a small board of letters, which works with a pad and with a
-  // finger alike: the letters, then a space, deleting and being done.
+  // Typed on a board of letters laid out like a keyboard, so that each
+  // letter is where the hand expects it; it works with a pad and with a
+  // finger alike. The board is ten keys across; `span` is how many of them
+  // a key takes and `start` where it begins.
   var LONGEST_NAME = 12;
-  var KEYS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').concat(['-', 'space', 'del', 'ok']);
+  var BOARD = ['QWERTYUIOP'.split(''), 'ASDFGHJKLÑ'.split(''), 'ZXCVBNM-'.split('').concat([['del', 2]]), [['space', 7], ['ok', 3]]]
+    .map(function (row) {
+      var start = 0;
+      return row.map(function (each) {
+        var key = { key: each[0].length > 1 ? each[0] : each, start: start, span: each[0].length > 1 ? each[1] : 1 };
+        start += key.span;
+        return key;
+      });
+    });
+  function boardKey(at) { return BOARD[at.row][at.index].key; }
+  // The key at `across` (in keys from the left, with fractions) of a row,
+  // or null outside the board.
+  function boardAt(row, across) {
+    if (row < 0 || row >= BOARD.length || across < 0) return null;
+    for (var i = 0; i < BOARD[row].length; i++) {
+      if (across < BOARD[row][i].start + BOARD[row][i].span) return { row: row, index: i };
+    }
+    return null;
+  }
+  // Where the choice goes from `at` towards 'left', 'right', 'up' or
+  // 'down'. Up and down go to the key over or under the middle of this one.
+  function boardStep(at, direction) {
+    var row = BOARD[at.row], key = row[at.index];
+    if (direction === 'left') return { row: at.row, index: Math.max(0, at.index - 1) };
+    if (direction === 'right') return { row: at.row, index: Math.min(row.length - 1, at.index + 1) };
+    var to = at.row + (direction === 'up' ? -1 : 1);
+    return boardAt(to, key.start + (key.span - 1) / 2) || at;
+  }
   function typed(name, key) {
     if (key === 'del') return name.slice(0, -1);
     if (key === 'ok') return name;
@@ -84,5 +113,5 @@
   function tidyName(name) { return String(name || '').slice(0, LONGEST_NAME).trim(); }
 
   globalThis.__avatar = { LABELS: LABELS, CATALOGUE: CATALOGUE, owned: owned, dressed: dressed, next: next, nameOf: nameOf,
-    KEYS: KEYS, typed: typed, tidyName: tidyName, LONGEST_NAME: LONGEST_NAME };
+    BOARD: BOARD, boardKey: boardKey, boardAt: boardAt, boardStep: boardStep, typed: typed, tidyName: tidyName, LONGEST_NAME: LONGEST_NAME };
 })();
