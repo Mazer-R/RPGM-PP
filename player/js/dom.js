@@ -290,6 +290,12 @@
     },
   });
 
+  // Which files are given to the engine by their start only (see the file
+  // requests below): sounds, and encrypted images. These are MV's names; an
+  // engine that names them otherwise says so in a piece of its profile.
+  browser.soundFiles = /\.(ogg|m4a|rpgmvo)$/i;
+  browser.startOnlyFiles = /\.rpgmvp$/i;
+
   // --- Scripts --------------------------------------------------------------
   var scripts = [];
   browser.runScript = function (url, element) {
@@ -539,9 +545,9 @@
           // Sound files are not handed over whole: see audio.js.
           // Nor are encrypted images: the engine only unscrambles their
           // start, so the start is all it gets (see file-bytes.js).
-          var isSound = browser.readSoundFile && /\.(ogg|m4a|rpgmvo)$/i.test(file);
+          var isSound = browser.readSoundFile && browser.soundFiles.test(file);
           var bytes = isSound ? browser.readSoundFile(file)
-            : /\.rpgmvp$/i.test(file) ? startOfFile(file, 80)
+            : browser.startOnlyFiles.test(file) ? startOfFile(file, 80)
             : player.readFileBytes(file);
           request.readyState = 4;
           if (bytes) {

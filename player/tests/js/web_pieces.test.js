@@ -117,6 +117,35 @@ const tests = {
     await assert.rejects(() => video.play(), /no/);
   },
 
+
+  'MZ\'s encrypted files are known by the underscore the engine adds to their names'() {
+    const browser = { later() {}, fireLoad() {}, startOnlyFiles: /\.rpgmvp$/i, soundFiles: /\.(ogg|m4a|rpgmvo)$/i };
+    load('mz-files.js', { __browser: browser, document: {} });
+    assert.ok(browser.startOnlyFiles.test('/game/img/system/Window.png_'), 'an encrypted image');
+    assert.ok(!browser.startOnlyFiles.test('/game/img/system/Window.png'), 'a plain image is read whole, as before');
+    assert.ok(browser.soundFiles.test('/game/audio/se/Cursor1.ogg_'), 'an encrypted sound');
+    assert.ok(browser.soundFiles.test('/game/audio/bgm/Theme.ogg'), 'a plain sound');
+    assert.ok(browser.soundFiles.test('/game/audio/bgm/Theme.m4a_'));
+    assert.ok(!browser.soundFiles.test('/game/data/System.json'));
+  },
+
+  'elements the page itself declares with an id can be found, as a script expects'() {
+    const made = [];
+    const body = { appendChild: (element) => made.push(element) };
+    const document = { body, createElement: (tag) => ({ tag }) };
+    const html = '<html><head><title>x</title></head>\n<canvas id="refresher" style="width:100%"></div>\n' +
+      '<body style="background-color: black"><div id=\'note\'></div><p>no id</p><script id="s" src="js/main.js"></script></body></html>';
+    load('web-page.js', { __browser: { later() {}, fireLoad() {} }, document,
+      player: { gameDir: '/g', readTextFile: (file) => (file === '/g/index.html' ? html : null) } });
+    assert.deepStrictEqual(plain(made), [{ tag: 'canvas', id: 'refresher' }, { tag: 'div', id: 'note' }]);
+  },
+
+  'a page that cannot be read declares nothing'() {
+    const made = [];
+    load('web-page.js', { __browser: {}, document: { body: { appendChild: (e) => made.push(e) }, createElement: (tag) => ({ tag }) },
+      player: { gameDir: '/g', readTextFile: () => null } });
+    assert.deepStrictEqual(made, []);
+  },
 };
 
 let failed = 0;

@@ -19,12 +19,24 @@ gclient() { /usr/bin/python3 /opt/depot_tools/gclient.py "$@"; }
 mkdir -p "$SRC" "$OUT"
 cd "$SRC"
 
-if [ ! -d v8/.git ]; then
+# The version of a checkout, read from its own version header.
+checkout_version() {
+  sed -n -E 's/^#define V8_(MAJOR_VERSION|MINOR_VERSION|BUILD_NUMBER|PATCH_LEVEL) ([0-9]+).*/\2/p' \
+    "$1/include/v8-version.h" | paste -sd . -
+}
+
+# A checkout already at this version is used as it is: asking gclient to
+# sync it again fails once the local patches below have been applied.
+if [ -d v8/.git ] && [ "$(checkout_version v8)" = "$V8_VERSION" ]; then
+  echo "== reusing the V8 $V8_VERSION checkout =="
+else
   echo "== fetching V8 $V8_VERSION =="
-  gclient config --name v8 --unmanaged https://chromium.googlesource.com/v8/v8.git
+  if [ ! -d v8/.git ]; then
+    gclient config --name v8 --unmanaged https://chromium.googlesource.com/v8/v8.git
+  fi
+  # No hooks: the hooks download an x86 compiler and sysroots that are not used.
+  gclient sync --nohooks --no-history --revision "v8@$V8_VERSION" --jobs "$JOBS"
 fi
-# No hooks: the hooks download an x86 compiler and sysroots that are not used.
-gclient sync --nohooks --no-history --revision "v8@$V8_VERSION" --jobs "$JOBS"
 
 cd v8
 # Local patches, each explained in its own header comment. Applied only if

@@ -66,7 +66,7 @@ const tests = {
   'no piece is left out of every profile'() {
     const used = new Set([].concat(...Object.values(plain(select().PROFILES))));
     const pieces = fs.readdirSync(path.join(__dirname, '..', '..', 'js'))
-      .filter((file) => /^(web-.*|nw-global|engine-tasks)\.js$/.test(file));
+      .filter((file) => /^(web-.*|nw-global|engine-tasks|mz-.*)\.js$/.test(file));
     pieces.forEach((piece) => assert.ok(used.has(piece), piece + ' is in no profile'));
   },
 

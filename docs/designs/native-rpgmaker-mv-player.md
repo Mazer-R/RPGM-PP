@@ -1131,6 +1131,77 @@ adjustments where the game's own code is too expensive for this hardware.
         there is no HTML or CSS layout, WebGL 1 only, and parts of Canvas
         and Web Audio.
 
+*   **A stick to move with on touch screens, and a round pad instead if wanted (2026-11-18).**
+    *   **Asked for**: the cross-shaped pad was small, ugly and awkward.
+        An octagonal pad was tried and rejected on sight. Decided: a
+        stick is the standard control, a round pad the alternative, and
+        two directions held together move diagonally where the game
+        allows it.
+    *   **The stick** has no place of its own while playing: it appears
+        under a thumb that lands anywhere in the left half of the screen,
+        on no button. Nothing is held until the thumb has moved 0.3 of
+        the stick's radius; then one arrow, or two on the diagonals
+        (eight even directions). The knob follows the thumb to the
+        stick's edge; past it the whole stick comes along, a radius
+        behind, so turning back takes effect at once. With no thumb on it
+        it is drawn faintly at its own place, which the editor can move
+        and resize like any control.
+    *   **The pad** is a disc cut in four by its diagonals, with an
+        arrowhead in each quarter and a neutral ring in the middle; the
+        quarters of the arrows held are lit, two on a diagonal. It stays
+        where it is drawn. Radius 0.21 of the screen's shorter side (it
+        was 0.17), answering 1.35 radii from its centre (was 1.5).
+    *   **Choosing**: the settings menu has a row, "MOVE: STICK" or
+        "MOVE: PAD", shown when the touch controls are. The choice is
+        part of the game's touch layout (`touch-controls.txt`, the word
+        `stick` or `pad`), so it is kept per game; a layout saved before
+        this keeps its pad.
+    *   **Diagonals**: both controls hold two arrow keys on a diagonal.
+        Whether the character then moves diagonally is the game's
+        business: RPG Maker moves in four directions unless a plugin adds
+        eight.
+    *   **Checked**: native tests for the stick (landing, each step of a
+        pull, following, lifting, right half ignored, together with a
+        button), the switch, the file format and the menu row; the pad's
+        eight directions are pinned 20 degrees either side of each
+        middle. On the phone: captures of the stick under a swipe with
+        its knob pulled, of the menu row, and of the round pad; the saved
+        file changes between `stick` and `pad`.
+    *   **Not checked**: how it feels in the hand. Handhelds and
+        controllers are not affected: the on-screen controls only show
+        on a touch screen without a controller or keyboard.
+
+*   **A second MZ game, a commercial one with plugins and encrypted files (2026-11-18).**
+    *   **Game**: "Look Outside" (the user's copy, kept outside git): MZ
+        1.8.1, PIXI 5.3.12, images and sounds encrypted, 24 plugins
+        switched on, Steam's interface (Greenworks), 1.3 GB.
+    *   **First run** (without a screen, the two WebAssembly libraries
+        replaced by empty stand-ins): stopped while loading its first
+        image. MZ encrypts by MV's scheme but keeps the file's name and
+        adds an underscore (`Window.png_`, `Theme.ogg_`); the shortcut
+        that gives the engine only the start of an encrypted file knew
+        MV's names alone, so the image arrived whole, was unscrambled in
+        script, and could not be shown from there.
+    *   **Done**: the two name patterns are now values the common layer
+        reads (MV's by default, unchanged), and `mz-files.js`, a piece of
+        MZ's profile, sets MZ's. This is the first piece that belongs to
+        one engine rather than to the browser. `web-page.js`, a browser
+        piece, makes the elements a page declares with an id findable:
+        this game keeps a `<canvas id="refresher">` in its page and
+        clears it every second, which failed every second.
+    *   **Result**: the game loads its scripts and plugins, both fonts
+        (`.ttf` this time) and its encrypted images, plays its pre-title
+        scene and shows its title screen correctly (capture). The Steam
+        plugin reports that it could not start and the game goes on.
+    *   **Seen and left**: "colour not understood: deepskyblue" (a named
+        CSS colour missing from the table); PIXI's warning that 32-bit
+        index buffers are not offered.
+    *   **Not checked**: the game with its real libraries, sound
+        (encrypted), anything past the title, and the game on a device.
+        The Linux V8 is being rebuilt with WebAssembly for that; its
+        build script now reuses a checkout already at the right version,
+        which a second run used to trip over.
+
 ## Critical User Journeys (CUJs)
 
 ### CUJ 1: First launch
