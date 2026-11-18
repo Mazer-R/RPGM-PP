@@ -1,6 +1,6 @@
 # RPGM-PP
 
-<img src="player/packaging/icon/potato-player.png" alt="Three potato heroes: a knight, a wizard and an archer" width="200">
+<img src="docs/images/potato-heroes.png" alt="Three potato heroes: a knight, a wizard and an archer" width="200">
 
 **Potato Player**, the RPG Maker Potato Player.
 
@@ -378,7 +378,7 @@ this so that I could play his games.
 
 # RPGM-PP (español)
 
-<img src="player/packaging/icon/potato-player.png" alt="Tres patatas heroicas: un caballero, una maga y una arquera" width="200">
+<img src="docs/images/potato-heroes.png" alt="Tres patatas heroicas: un caballero, una maga y una arquera" width="200">
 
 **Potato Player**, the RPG Maker Potato Player.
 
