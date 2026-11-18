@@ -1052,6 +1052,26 @@ adjustments where the game's own code is too expensive for this hardware.
         and their Effekseer animations, saving), and MZ on the handheld
         or a desktop.
 
+*   **MZ takes key presses; the menu says whether the frame counter is on (2026-11-18).**
+    *   **MZ ignored every key.** Tried by hand on the phone, the MZ game
+        stayed on its title. On each key press, click and touch MZ calls
+        `play()` on its video element and adds `.catch()` to the result;
+        the player's `play()` gave nothing back, so every key press ended
+        in an error before reaching the game. Under MZ `play()` now gives
+        a promise (`js/mz.js`, tests). The runs without a screen had not
+        pressed a key, which is why they missed it; they now do.
+    *   **Checked**: with scripted key presses, without a screen and on
+        the phone with the real libraries: new game, the first message,
+        and walking on map 1; the map is drawn correctly (captures).
+    *   **Frame counter row.** The settings menu's row read "FPS COUNTER"
+        whatever the state. It now reads "FPS COUNTER: ON" or ": OFF".
+        The counter belongs to the scripts, which switch it on each press
+        of F2; the input layer follows every F2 it passes on (keyboard,
+        menu button + Select, the menu's own row) and starts from the
+        `--fps` setting. Native test for the row; seen on the phone.
+    *   **Not checked**: MZ battles and their animations, saving and
+        loading, sound by ear.
+
 ## Critical User Journeys (CUJs)
 
 ### CUJ 1: First launch

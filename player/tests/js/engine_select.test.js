@@ -127,6 +127,24 @@ const tests = {
     assert.strictEqual(ran, 2);
     assert.strictEqual(frames.length, 1, 'and for the one after');
   },
+
+  async 'under MZ playing a video element gives a promise, as the engine expects on every key press'() {
+    const played = [];
+    const browser = { later() {}, fireLoad() {}, makeVideo: (video) => { video.play = function () { played.push(this); }; return video; } };
+    load('mz.js', { __browser: browser, document: {} });
+    const video = browser.makeVideo({ tag: 'video' });
+    const result = video.play();
+    assert.strictEqual(typeof result.catch, 'function');
+    await result;
+    assert.deepStrictEqual(played, [video], 'the player\'s own play still runs, on the element');
+  },
+
+  async 'under MZ a video that cannot be played gives a promise that fails, not an error thrown'() {
+    const browser = { later() {}, fireLoad() {}, makeVideo: (video) => { video.play = () => { throw new Error('no'); }; return video; } };
+    load('mz.js', { __browser: browser, document: {} });
+    const video = browser.makeVideo({});
+    await assert.rejects(() => video.play(), /no/);
+  },
 };
 
 let failed = 0;
