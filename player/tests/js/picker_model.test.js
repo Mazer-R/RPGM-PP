@@ -104,6 +104,21 @@ const tests = {
     assert.deepStrictEqual(plain(ordered.map((game) => game.www)), ['/g']);
   },
 
+  'a games folder holds MV games (with a www folder) and MZ games (without)'() {
+    const files = ['/g/Mv/www/index.html', '/g/Mz/index.html', '/g/Mz/js/rmmz_core.js', '/g/Page/index.html'];
+    const exists = (file) => files.includes(file);
+    assert.strictEqual(model.gameIn('/g', 'Mv', exists), '/g/Mv/www');
+    assert.strictEqual(model.gameIn('/g', 'Mz', exists), '/g/Mz');
+    assert.strictEqual(model.gameIn('/g', 'Page', exists), null, 'a page without MZ\'s engine is no game');
+    assert.strictEqual(model.gameIn('/g', 'Empty', exists), null);
+  },
+
+  'a game is named after its own folder, which for MV is the one holding www'() {
+    assert.strictEqual(model.folderOf('/g/Mv/www'), 'Mv');
+    assert.strictEqual(model.folderOf('/g/Mz'), 'Mz');
+    assert.strictEqual(model.folderOf('/www'), '/www');
+  },
+
   'the button that takes a game off is at the right end of its line, with room for a finger'() {
     // The lines are drawn from x 28 to 564; the layout reaches 8 further each side.
     const layout = { top: 92, row: 62, first: 0, count: 3, visible: 5, left: 20, width: 552 };

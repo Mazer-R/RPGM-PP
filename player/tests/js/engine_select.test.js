@@ -53,24 +53,60 @@ const tests = {
   'under MZ the load event waits for what the page had already asked for'() {
     const order = [], tasks = [];
     const browser = { later: (fn) => tasks.push(fn), fireLoad: () => order.push('load') };
-    load('mz.js', { __browser: browser });
+    load('mz.js', { __browser: browser, document: {} });
     browser.later(() => order.push('file answer'));
     browser.fireLoad();
     assert.deepStrictEqual(order, [], 'nothing fires at once');
     while (tasks.length) tasks.shift()();
     assert.deepStrictEqual(order, ['file answer', 'load']);
   },
+
+  async 'under MZ a font is loaded through FontFace, from the file its url() names'() {
+    const asked = [];
+    const browser = { later() {}, fireLoad() {}, registerFont: (family, url) => { asked.push([family, url]); return url !== 'fonts/missing.woff'; } };
+    const page = load('mz.js', { __browser: browser, document: {} });
+    assert.ok(page.document.fonts && page.document.fonts.ready, 'the engine checks for document.fonts.ready');
+    await page.document.fonts.ready;
+
+    const font = new page.FontFace('rmmz-mainfont', 'url(fonts/mplus-1m-regular.woff)');
+    assert.strictEqual(font.status, 'unloaded');
+    assert.strictEqual(await font.load(), font);
+    assert.strictEqual(font.status, 'loaded');
+    assert.deepStrictEqual(asked, [['rmmz-mainfont', 'fonts/mplus-1m-regular.woff']]);
+    page.document.fonts.add(font);
+    assert.strictEqual(page.document.fonts.check('20px rmmz-mainfont'), true);
+
+    const quoted = new page.FontFace('other', 'url("fonts/missing.woff")');
+    await assert.rejects(() => quoted.load());
+    assert.strictEqual(quoted.status, 'error');
+    assert.deepStrictEqual(asked[1], ['other', 'fonts/missing.woff']);
+  },
+
+  'under MZ the engine\'s check for IndexedDB passes'() {
+    const page = load('mz.js', { __browser: { later() {}, fireLoad() {} }, document: {} });
+    assert.ok(page.indexedDB);
+  },
+
+  'under MZ the desktop player\'s object is the global nw, started without options'() {
+    const gui = { Window: { get: () => 'the window' }, App: { quit() {} } };
+    const page = load('mz.js', { __browser: { later() {}, fireLoad() {} }, document: {}, require: (name) => (name === 'nw.gui' ? gui : null) });
+    assert.strictEqual(page.nw.Window.get(), 'the window');
+    assert.deepStrictEqual(plain(page.nw.App.argv), []);
+    assert.strictEqual(typeof page.nw.App.quit, 'function', 'what the desktop layer already offers is kept');
+  },
 };
 
 let failed = 0;
-for (const [name, test] of Object.entries(tests)) {
-  try {
-    test();
-    console.log('ok   ' + name);
-  } catch (error) {
-    failed++;
-    console.log('FAIL ' + name + '\n     ' + String(error.message).split('\n').join('\n     '));
+(async () => {
+  for (const [name, test] of Object.entries(tests)) {
+    try {
+      await test();
+      console.log('ok   ' + name);
+    } catch (error) {
+      failed++;
+      console.log('FAIL ' + name + '\n     ' + String(error.message).split('\n').join('\n     '));
+    }
   }
-}
-console.log(failed ? failed + ' failed' : 'all passed');
-process.exit(failed ? 1 : 0);
+  console.log(failed ? failed + ' failed' : 'all passed');
+  process.exit(failed ? 1 : 0);
+})();

@@ -48,12 +48,12 @@
   }
   player.loadScript(player.playerDir + '/js/picker-model.js');
   var model = globalThis.__pickerModel;
-  function folderName(www) { return www.split('/').slice(-2, -1)[0] || www; }
+  var folderName = model.folderOf;
   var found = [], recent = (player.libraryGames || []).slice(), forgotten = (player.forgottenGames || []).slice();
   (player.libraryDirs || []).forEach(function (dir) {
     player.listDir(dir).forEach(function (name) {
-      var www = dir + '/' + name + '/www';
-      if (player.fileExists(www + '/index.html')) found.push({ title: titleOf(www, name), www: www });
+      var www = model.gameIn(dir, name, player.fileExists);
+      if (www) found.push({ title: titleOf(www, name), www: www });
     });
   });
   // Named after the folder that holds www when the page has no title.

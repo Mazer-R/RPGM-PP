@@ -12,3 +12,69 @@
   var fireLoad = browser.fireLoad;
   browser.fireLoad = function () { browser.later(fireLoad); };
 })();
+
+// --- Fonts -------------------------------------------------------------------
+// MZ loads its fonts through the browser's font loading interface: it makes
+// a FontFace from a family name and "url(fonts/file.woff)", waits for its
+// load(), and adds it to document.fonts. Before starting it checks that
+// document.fonts.ready is there. Here load() gives the file to the player's
+// own text drawing under that family name (browser.registerFont).
+(function () {
+  'use strict';
+  var browser = globalThis.__browser;
+  var loaded = [];
+
+  function FontFace(family, source) {
+    this.family = String(family);
+    this.status = 'unloaded';
+    var match = /url\(\s*(?:"([^"]*)"|'([^']*)'|([^)]*))\s*\)/.exec(String(source));
+    this._url = match ? (match[1] || match[2] || match[3] || '').trim() : '';
+    var font = this;
+    this.loaded = new Promise(function (resolve, reject) { font._settle = { resolve: resolve, reject: reject }; });
+    this.loaded.catch(function () {});  // a failure nobody waits for is not an error of its own
+  }
+  FontFace.prototype.load = function () {
+    if (this.status === 'unloaded') {
+      var ok = !!this._url && browser.registerFont(this.family, this._url);
+      this.status = ok ? 'loaded' : 'error';
+      if (ok) this._settle.resolve(this);
+      else this._settle.reject(new Error('font: cannot load ' + this._url + ' for ' + this.family));
+    }
+    return this.loaded;
+  };
+  globalThis.FontFace = FontFace;
+
+  document.fonts = {
+    ready: Promise.resolve(),
+    add: function (font) { if (loaded.indexOf(font) < 0) loaded.push(font); return this; },
+    // check('20px family'): whether text in that font can be drawn now.
+    check: function (font) {
+      return loaded.some(function (face) { return String(font).indexOf(face.family) >= 0; });
+    },
+  };
+  document.fonts.ready = Promise.resolve(document.fonts);
+})();
+
+// --- IndexedDB ---------------------------------------------------------------
+// MZ refuses to start in a browser without IndexedDB, where a web game keeps
+// its saves. A game on the player is a desktop game and saves to files, so
+// nothing is ever stored through this: it is only there to be found.
+(function () {
+  'use strict';
+  if (!globalThis.indexedDB) globalThis.indexedDB = {};
+})();
+
+// --- The desktop player ------------------------------------------------------
+// MV asks for the desktop player's interface with require('nw.gui'); MZ uses
+// the global `nw`, which newer versions of that player offer, and reads the
+// options the game was started with from nw.App.argv ("test", "btest" ...).
+// A game here is started without any.
+(function () {
+  'use strict';
+  if (globalThis.nw || typeof require !== 'function') return;
+  var gui = require('nw.gui');
+  if (!gui) return;
+  gui.App = gui.App || {};
+  if (!gui.App.argv) gui.App.argv = [];
+  globalThis.nw = gui;
+})();

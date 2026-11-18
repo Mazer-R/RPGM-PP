@@ -111,5 +111,22 @@
     return { zoom: zoom, width: width, height: height, column: Math.min(width - 2 * MARGIN, Math.max(520, Math.round(width * 0.5))) };
   }
 
-  globalThis.__pickerModel = { order: order, browse: browse, places: places, lineAt: lineAt, dragged: dragged, onRemoveButton: onRemoveButton, REMOVE: REMOVE, REMOVE_GAP: REMOVE_GAP, isTap: isTap, tapOpens: tapOpens, fit: fit, MARGIN: MARGIN };
+  // The game in the folder `name` of a games folder, or null: an MV game is
+  // the www folder inside it, an MZ game is the folder itself, with the
+  // engine's script next to its page. fileExists(path) says what is there.
+  function gameIn(dir, name, fileExists) {
+    var folder = dir + '/' + name;
+    if (fileExists(folder + '/www/index.html')) return folder + '/www';
+    if (fileExists(folder + '/index.html') && fileExists(folder + '/js/rmmz_core.js')) return folder;
+    return null;
+  }
+
+  // The name of a game's own folder: for an MV game the one that holds www.
+  function folderOf(game) {
+    var parts = game.split('/');
+    if (parts[parts.length - 1] === 'www') parts.pop();
+    return parts[parts.length - 1] || game;
+  }
+
+  globalThis.__pickerModel = { gameIn: gameIn, folderOf: folderOf, order: order, browse: browse, places: places, lineAt: lineAt, dragged: dragged, onRemoveButton: onRemoveButton, REMOVE: REMOVE, REMOVE_GAP: REMOVE_GAP, isTap: isTap, tapOpens: tapOpens, fit: fit, MARGIN: MARGIN };
 })();

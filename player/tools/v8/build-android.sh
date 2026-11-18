@@ -9,6 +9,9 @@
 #   /work/tools this folder (read-only)
 #   /work/out   where the headers, the library and a build record are placed
 #
+#   V8_WEBASSEMBLY=1  builds with WebAssembly, which RPG Maker MZ games need
+#                     (use a different /work/out to keep both libraries)
+#
 # V8 is compiled with the NDK's clang, which is an x86-64 program (see
 # Dockerfile.android), so the machine must be able to execute x86-64
 # programs through emulation.
@@ -86,6 +89,13 @@ fi
 echo "== generating the build =="
 mkdir -p "$BUILD_DIR"
 cp /work/tools/args-android.gn "$BUILD_DIR/args.gn"
+# RPG Maker MZ games need WebAssembly (their animation library is compiled
+# to it); MV games do not, and the library is smaller without it.
+if [ "${V8_WEBASSEMBLY:-0}" = 1 ]; then
+  sed -i 's/^v8_enable_webassembly = false$/v8_enable_webassembly = true/' "$BUILD_DIR/args.gn"
+  grep -q '^v8_enable_webassembly = true$' "$BUILD_DIR/args.gn" || { echo "could not turn WebAssembly on in args.gn" >&2; exit 1; }
+  echo "WebAssembly: on"
+fi
 # Only the library and what it depends on: other targets in V8's build files
 # refer to Android test tooling that is not part of this checkout.
 gn gen "$BUILD_DIR" --root-pattern="//:v8_monolith"

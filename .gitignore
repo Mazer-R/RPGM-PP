@@ -14,6 +14,7 @@ player/build*/
 player/third_party/v8/
 player/third_party/v8-x64/
 player/third_party/v8-android/
+player/third_party/v8-android-wasm/
 player/third_party/android-deps/
 player/tools/*/logs/
 __pycache__/
