@@ -100,13 +100,14 @@
   function tapOpens(entry, wasChosen) { return !entry.www || wasChosen; }
 
   // How the list is laid out in a window of this many pixels. It is drawn
-  // for a screen about 480 high and shown enlarged by a whole factor (zoom)
-  // on denser ones, so the text stays readable; width and height are the
+  // for a screen about 480 on its shorter side and shown enlarged by a whole
+  // factor (zoom) on denser ones, so the text stays readable, held on its
+  // side or upright; width and height are the
   // size it is drawn at. The lines are in a column on the left, at least
   // 520 wide where there is room, half the width on a wide screen.
   var MARGIN = 28;
   function fit(screenWidth, screenHeight) {
-    var zoom = Math.max(1, Math.floor(screenHeight / 480));
+    var zoom = Math.max(1, Math.floor(Math.min(screenWidth, screenHeight) / 480));
     var width = Math.round(screenWidth / zoom), height = Math.round(screenHeight / zoom);
     return { zoom: zoom, width: width, height: height, column: Math.min(width - 2 * MARGIN, Math.max(520, Math.round(width * 0.5))) };
   }

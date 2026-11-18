@@ -116,6 +116,7 @@ void Input::SetSettingsDir(const std::string& dir) {
   std::string text = ReadFile(dir + "/touch-controls.txt", &found);
   if (found) {
     touch_->SetLayout(ParseTouchLayout(text));
+    touch_->SetShown(TouchControlsShown(text));
     log_.Write(LogLevel::kInfo, "input", std::to_string(touch_->layout().size()) + " touch controls from " + dir);
   }
   text = ReadFile(dir + "/buttons.txt", &found);
@@ -150,7 +151,7 @@ void Input::AfterTouch() {
   for (const KeyChange& change : touch_->TakeChanges()) Queue(change.key_code, change.down);
   if (touch_->TakeMenuRequest()) OpenMenu();
   if (touch_->TakeLayoutChanged() && !settings_dir_.empty()) {
-    Save(log_, settings_dir_ + "/touch-controls.txt", FormatTouchLayout(touch_->layout()), "touch controls");
+    Save(log_, settings_dir_ + "/touch-controls.txt", FormatTouchLayout(touch_->layout(), touch_->shown()), "touch controls");
   }
 }
 
@@ -170,6 +171,7 @@ void Input::OpenMenu() {
   for (bool& held : trigger_) held = false;
   menu_->SetFpsShown(fps_shown_);
   menu_->SetMoveStick(touch_->move_stick());
+  menu_->SetControlsShown(touch_->shown());
   menu_->Open(touch_visible_);
 }
 
@@ -188,6 +190,13 @@ void Input::MenuEffectDone(int effect) {
       // Saved with the rest of the game's touch controls (see Update).
       touch_->SetMoveStick(!touch_->move_stick());
       menu_->SetMoveStick(touch_->move_stick());
+      break;
+    case MenuEffect::kToggleControls:
+      touch_->SetShown(!touch_->shown());
+      menu_->SetControlsShown(touch_->shown());
+      if (!settings_dir_.empty()) {
+        Save(log_, settings_dir_ + "/touch-controls.txt", FormatTouchLayout(touch_->layout(), touch_->shown()), "touch controls");
+      }
       break;
     case MenuEffect::kEditTouch:
       touch_visible_ = true;

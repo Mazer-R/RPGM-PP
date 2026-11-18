@@ -174,7 +174,7 @@ std::vector<TouchShape> TouchControls::KeyChoices() const {
 
 std::vector<TouchShape> TouchControls::Shapes() const {
   std::vector<TouchShape> shapes;
-  if (!choosing_) {
+  if (!choosing_ && (shown_ || editing_)) {
     for (size_t i = 0; i < circles_.size(); i++) {
       const TouchCircle& circle = circles_[i];
       // While editing, the chosen control is the lit one.
@@ -311,6 +311,15 @@ int TouchControls::StickIndex() const {
   return -1;
 }
 
+void TouchControls::SetShown(bool shown) {
+  shown_ = shown;
+  // Whatever was held is let go.
+  held_by_finger_.clear();
+  game_fingers_.clear();
+  stick_finger_ = -1;
+  knob_x_ = knob_y_ = 0;
+}
+
 bool TouchControls::move_stick() const { return StickIndex() >= 0; }
 
 void TouchControls::SetMoveStick(bool stick) {
@@ -359,6 +368,11 @@ void TouchControls::Place(long long finger, float x, float y) {
   if (editing_) {
     held_by_finger_[finger] = {};
     Edit(finger, x, y, fresh);
+    return;
+  }
+  if (!shown_) {
+    if (fresh) game_fingers_.insert(finger);
+    held_by_finger_[finger] = {};
     return;
   }
   if (StickIndex() >= 0) {

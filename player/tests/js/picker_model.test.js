@@ -152,6 +152,11 @@ const tests = {
     assert.deepStrictEqual(plain(model.fit(1224, 936)), { zoom: 1, width: 1224, height: 936, column: 612 });
   },
 
+  'a screen held upright is enlarged by its narrow side, so the text is the size it is on its side'() {
+    assert.deepStrictEqual(plain(model.fit(1080, 2400)), { zoom: 2, width: 540, height: 1200, column: 484 });
+    assert.deepStrictEqual(plain(model.fit(480, 640)), { zoom: 1, width: 480, height: 640, column: 424 });
+  },
+
   'a small window gets a narrower column, never one wider than the window'() {
     assert.deepStrictEqual(plain(model.fit(400, 300)), { zoom: 1, width: 400, height: 300, column: 344 });
   },

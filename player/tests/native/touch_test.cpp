@@ -280,6 +280,40 @@ int main() {
     menus.Place(2, 1500, 300);
     Expect("while the controls are being changed, no finger is", menus.ForGame(2) ? "game" : "controls", "controls");
   }
+  // The controls can be switched off, for a game played by touching it. The
+  // MENU button stays, to bring them back.
+  {
+    mvp::TouchControls hidden;
+    hidden.SetScreen(2400, 1080);
+    hidden.OfferMenu(true);
+    const mvp::TouchCircle confirm = Control(hidden, kConfirm);
+    Expect("the controls are shown unless switched off", hidden.shown() ? "shown" : "hidden", "shown");
+    hidden.SetShown(false);
+    std::string drawn;
+    for (const mvp::TouchShape& shape : hidden.Shapes()) drawn += (drawn.empty() ? "" : " ") + (shape.label.empty() ? std::to_string(shape.key_code) : shape.label);
+    Expect("switched off, only the MENU button is drawn", drawn, "MENU");
+    hidden.Place(1, confirm.x, confirm.y);
+    Expect("a finger where a button was is the game's and presses nothing",
+           std::string(hidden.ForGame(1) ? "game" : "controls") + " [" + Text(hidden.TakeChanges()) + "]", "game []");
+    hidden.Lift(1);
+    hidden.Place(2, 500, 400);
+    Expect("the left half is the game's too: there is no stick", hidden.ForGame(2) ? "game" : "controls", "game");
+    hidden.Lift(2);
+    mvp::TouchShape menu = Shape(hidden, "MENU");
+    hidden.Place(3, menu.x, menu.y);
+    Expect("the MENU button still asks for the menu", hidden.TakeMenuRequest() ? "asked" : "not asked", "asked");
+    hidden.Lift(3);
+    hidden.SetShown(true);
+    hidden.Place(4, confirm.x, confirm.y);
+    Expect("switched back on, the button presses its key", Text(hidden.TakeChanges()), "+90");
+    hidden.Lift(4);
+
+    std::vector<mvp::TouchControl> standard = mvp::DefaultTouchLayout();
+    std::string off = mvp::FormatTouchLayout(standard, false);
+    Expect("the file says when the controls are off", mvp::TouchControlsShown(off) ? "shown" : "hidden", "hidden");
+    Expect("and keeps the controls themselves", Keys(mvp::ParseTouchLayout(off)), Keys(standard));
+    Expect("a file that says nothing has them on", mvp::TouchControlsShown(mvp::FormatTouchLayout(standard)) ? "shown" : "hidden", "shown");
+  }
   // The game's picture is fitted inside the screen; a place on the screen is
   // told to the game as a place in its picture.
   {

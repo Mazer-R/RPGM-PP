@@ -33,7 +33,10 @@ std::vector<TouchControl> DefaultTouchLayout();
 // The text form, one control per line: "<key> <x> <y> <size>", where <key>
 // is a key code or the word "pad" or "stick". Lines starting with # are comments.
 // Reading skips lines that are not a control.
-std::string FormatTouchLayout(const std::vector<TouchControl>& layout);
+// A line "controls off" says the controls are not shown (see TouchControls::
+// SetShown); the controls themselves are kept for when they are again.
+std::string FormatTouchLayout(const std::vector<TouchControl>& layout, bool shown = true);
+bool TouchControlsShown(const std::string& text);
 std::vector<TouchControl> ParseTouchLayout(const std::string& text);
 
 // A short name for a key, in capital letters and digits: "T", "ENTER";

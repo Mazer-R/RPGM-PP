@@ -32,7 +32,7 @@ std::vector<TouchControl> DefaultTouchLayout() {
   };
 }
 
-std::string FormatTouchLayout(const std::vector<TouchControl>& layout) {
+std::string FormatTouchLayout(const std::vector<TouchControl>& layout, bool shown) {
   std::string text = "# On-screen touch controls: key (a key code, pad or stick), x, y, size.\n"
                      "# Lengths are in units of the screen's shorter side; negative x and y\n"
                      "# count from the right and the bottom.\n";
@@ -42,7 +42,17 @@ std::string FormatTouchLayout(const std::vector<TouchControl>& layout) {
     std::snprintf(line, sizeof line, "%s %.4f %.4f %.4f\n", key.c_str(), control.x, control.y, control.size);
     text += line;
   }
+  if (!shown) text += "controls off\n";
   return text;
+}
+
+bool TouchControlsShown(const std::string& text) {
+  std::istringstream lines(text);
+  std::string line;
+  while (std::getline(lines, line)) {
+    if (line == "controls off") return false;
+  }
+  return true;
 }
 
 std::vector<TouchControl> ParseTouchLayout(const std::string& text) {

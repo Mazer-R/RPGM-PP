@@ -1522,6 +1522,23 @@ adjustments where the game's own code is too expensive for this hardware.
         to `ForGame` has only its unit tests), the mouse wheel (not
         passed), two-finger cancel.
 
+*   **Touch on a phone, after trying it (2026-11-18)**: touching menus
+    and walking by touch work with a real finger on the phone, and the
+    right hand caused no stray touches. Two things were asked for.
+    *   **Controls off**: a row "CONTROLS: ON/OFF" in the settings menu
+        takes the stick and the buttons off the screen for a game played
+        by touch; every finger is then the game's. The MENU button stays,
+        so the row can always be reached again. Kept per game as a line
+        "controls off" in `touch-controls.txt`, which older versions pass
+        over.
+    *   **Orientation on Android**: the list of games is shown upright
+        and a game on its side. The start code sets SDL's orientation
+        hint before each of the two runs, SDL asks Android when the
+        window is made, and the list enlarges itself by the screen's
+        shorter side so its text is the same size either way.
+    *   **Checked**: tests for the switch, the file and the list's
+        layout. The orientation has no test off the device.
+
 ## Critical User Journeys (CUJs)
 
 ### CUJ 1: First launch

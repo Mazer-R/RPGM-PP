@@ -33,6 +33,7 @@ const char* Name(mvp::MenuEffect effect) {
     case mvp::MenuEffect::kClose: return "close";
     case mvp::MenuEffect::kToggleFps: return "fps";
     case mvp::MenuEffect::kToggleMove: return "move";
+    case mvp::MenuEffect::kToggleControls: return "controls";
     case mvp::MenuEffect::kEditTouch: return "touch";
     case mvp::MenuEffect::kQuit: return "quit";
     case mvp::MenuEffect::kButtonsChanged: return "buttons";
@@ -99,12 +100,17 @@ void TestMenu() {
 
   menu.Open(true);
   Expect("with a touch screen it also offers its controls", Joined(menu.Rows()),
-         "RESUME | FPS COUNTER: OFF | BUTTONS | MOVE: STICK | TOUCH CONTROLS | QUIT GAME");
+         "RESUME | FPS COUNTER: OFF | BUTTONS | CONTROLS: ON | MOVE: STICK | TOUCH CONTROLS | QUIT GAME");
   Expect("choosing how to move keeps the menu open", Name(Choose(&menu, "MOVE: STICK")), "move");
   menu.SetMoveStick(false);
-  Expect("its row names the control in use", menu.Rows()[3], "MOVE: PAD");
+  Expect("its row names the control in use", menu.Rows()[4], "MOVE: PAD");
   Expect("and still switches it", Name(Choose(&menu, "MOVE: PAD")), "move");
   menu.SetMoveStick(true);
+  Expect("switching the on-screen controls off keeps the menu open", Name(Choose(&menu, "CONTROLS: ON")), "controls");
+  menu.SetControlsShown(false);
+  Expect("its row says they are off", menu.Rows()[3], "CONTROLS: OFF");
+  Expect("and switches them back on", Name(Choose(&menu, "CONTROLS: OFF")), "controls");
+  menu.SetControlsShown(true);
   Expect("the frame counter is switched without leaving the menu", Name(Choose(&menu, "FPS COUNTER: OFF")), "fps");
   Expect("so the menu stays open", menu.open() ? "open" : "closed", "open");
   menu.SetFpsShown(true);

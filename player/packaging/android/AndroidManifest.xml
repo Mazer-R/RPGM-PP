@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The player as an Android app: one full-screen landscape activity that
-     hands over to SDL. Games are read from the RPGMV folder at the top of the
+<!-- The player as an Android app: one full-screen activity that hands over
+     to SDL: upright for the list of games, on its side for a game (the
+     player asks for each when it makes its window). Games are read from the RPGMV folder at the top of the
      shared storage, where the user can copy them with any file manager or
      over USB; current Android versions let nobody but the app itself write
      to an app's own folder, so that folder cannot be the place for games.
@@ -32,7 +33,7 @@
             android:exported="true"
             android:configChanges="layoutDirection|locale|orientation|uiMode|screenLayout|screenSize|smallestScreenSize|keyboard|keyboardHidden|navigation"
             android:launchMode="singleInstance"
-            android:screenOrientation="sensorLandscape">
+            android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

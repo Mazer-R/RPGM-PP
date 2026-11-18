@@ -205,6 +205,10 @@ int main(int, char**) {
     std::vector<std::string> pick = {"--pick", shared_games, games, "--player", player_dir,
                                      "--log", logs + "/picker.log", "--games-file", base + "/games.txt",
                                      "--can-add", "--browse", shared_games.substr(0, shared_games.rfind('/'))};
+    // The list is read like any other list on a phone, held upright; a game
+    // is a wide picture, shown with the phone on its side. SDL asks Android
+    // for the orientation when the window of each is made.
+    SDL_SetHint(SDL_HINT_ORIENTATIONS, "Portrait");
     int code = Run(pick);
     std::fflush(stdout);
     std::string game;
@@ -214,6 +218,7 @@ int main(int, char**) {
     if (code != 0 || game.empty()) return 0;
 
     std::vector<std::string> play = {"--game", game, "--player", player_dir};
+    SDL_SetHint(SDL_HINT_ORIENTATIONS, "LandscapeLeft LandscapeRight");
     code = Run(play);
     KeepLog(game, logs, code);
     Note("game ended with exit code " + std::to_string(code));

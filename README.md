@@ -144,7 +144,11 @@ the list. Videos are decoded by an `ffmpeg` that comes inside the app.
 A touch on none of these controls goes to the game itself, where the game
 takes touches: to walk to a place on the map, or to choose from a menu.
 With the stick that is the right half of the screen; with the pad, all of
-it. A game that switches the mouse off ignores these touches too.
+it. A game that switches the mouse off ignores these touches too. For a
+game played entirely by touch, "CONTROLS" in the settings takes the stick
+and the buttons off the screen; the MENU button stays, to bring them back.
+The list of games is shown with the phone upright; a game turns the screen
+on its side.
 
 To update, install the newer APK over the old one; games, saves and
 settings are kept. To remove the player, uninstall the app; the `RPGMV`
@@ -505,7 +509,11 @@ lista. Los vídeos los decodifica un `ffmpeg` que viene dentro de la app.
 Un toque fuera de estos controles va al propio juego, donde el juego los
 admite: para caminar hasta un punto del mapa o elegir en un menú. Con el
 stick es la mitad derecha de la pantalla; con la cruceta, toda. Un juego
-que desactiva el ratón también ignora estos toques.
+que desactiva el ratón también ignora estos toques. Para un juego que se
+juega solo tocando, "CONTROLS" en los ajustes quita de la pantalla el stick
+y los botones; el botón MENU se queda, para recuperarlos. La lista de
+juegos se muestra con el móvil en vertical; al empezar un juego la
+pantalla pasa a horizontal.
 
 Para actualizar, instala el APK nuevo sobre el anterior; los juegos, las
 partidas y los ajustes se conservan. Para quitar el reproductor, desinstala

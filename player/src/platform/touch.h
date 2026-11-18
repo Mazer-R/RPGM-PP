@@ -72,6 +72,12 @@ class TouchControls {
   bool move_stick() const;
   void SetMoveStick(bool stick);
 
+  // Whether the controls are there at all. Switched off, for a game played
+  // by touching it, nothing is drawn but the MENU button, which still
+  // works, and every other finger is the game's.
+  bool shown() const { return shown_; }
+  void SetShown(bool shown);
+
   // Whether the MENU button is offered. Off at first.
   void OfferMenu(bool offered);
   // True once after the MENU button has been touched. Every key held was
@@ -119,6 +125,7 @@ class TouchControls {
   float width_ = 0, height_ = 0;
   std::vector<TouchControl> layout_;
   std::vector<TouchCircle> circles_;  // layout_ on this screen, in the same order
+  bool shown_ = true;
   bool menu_offered_ = false, menu_requested_ = false, editing_ = false;
   bool choosing_ = false;   // the list of keys for a new control is open
   bool dirty_ = false;      // this edit changed something
