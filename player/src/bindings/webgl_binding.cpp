@@ -936,20 +936,33 @@ void PresentDrawingBuffer(int screen_width, int screen_height, const std::vector
           "attribute vec2 p; attribute vec2 t; varying vec2 v;"
           "void main(){ v = t; gl_Position = vec4(p, 0.0, 1.0); }"));
       glAttachShader(g_state.ring_program, CompileInternal(GL_FRAGMENT_SHADER,
-          "precision mediump float; varying vec2 v; uniform float symbol; uniform vec4 lit;"
+          "precision mediump float; varying vec2 v; uniform float symbol; uniform vec4 lit; uniform vec2 knob;"
           // Distance from p to the stroke from a to b.
           "float stroke(vec2 p, vec2 a, vec2 b){ vec2 pa = p - a, ba = b - a;"
           "  return length(pa - ba * clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0)); }"
           "void main(){ float a = 0.0;"
           "  if (symbol < 0.5) {"
-          // A cross: two bars. d is below zero inside it.
-          "    vec2 q = abs(v); float arm = 0.36;"
-          "    float d = min(max(q.x - 1.0, q.y - arm), max(q.y - 1.0, q.x - arm));"
-          "    float held = v.x < -arm ? lit.x : v.x > arm ? lit.z : v.y > arm ? lit.y : v.y < -arm ? lit.w : 0.0;"
-          "    if (d < 0.0) a = d > -0.05 ? 0.6 : (held > 0.5 ? 0.5 : 0.16);"
-          // An arrowhead on each arm, pointing outwards: r.x runs along the arm.
-          "    vec2 r = q.x > q.y ? q : q.yx; float t = (0.88 - r.x) / 0.26;"
-          "    if (t > 0.0 && t < 1.0 && r.y < 0.22 * t) a = 0.85;"
+          // The direction pad: a disc cut in four by its diagonals, an
+          // arrowhead in each quarter, and a ring round the middle, where
+          // nothing is held. A quarter is lit while its arrow is held, so a
+          // diagonal lights two.
+          "    float r = length(v); vec2 q = abs(v);"
+          "    if (r <= 1.0) {"
+          "      float held = q.x > q.y ? (v.x < 0.0 ? lit.x : lit.z) : (v.y > 0.0 ? lit.y : lit.w);"
+          "      a = r > 0.93 ? 0.6 : (held > 0.5 && r > 0.2 ? 0.5 : 0.16);"
+          "      if (r > 0.24 && r < 0.93 && abs(q.x - q.y) < 0.02) a = max(a, 0.3);"
+          "      if (abs(r - 0.2) < 0.02) a = max(a, 0.45);"
+          // p.x runs along the quarter's arrow.
+          "      vec2 p = q.x > q.y ? q : q.yx; float t = (0.84 - p.x) / 0.26;"
+          "      if (t > 0.0 && t < 1.0 && p.y < 0.2 * t) a = 0.85;"
+          "    }"
+          "  } else if (symbol > 4.5) {"
+          // The stick: a faint disc with a rim, and its knob, a smaller
+          // disc that goes where the thumb pulls it.
+          "    float r = length(v);"
+          "    if (r <= 1.0) a = r > 0.95 ? 0.45 : 0.1;"
+          "    float k = length(v - knob * 0.55);"
+          "    if (k <= 0.45) a = k > 0.40 ? 0.75 : (dot(lit, lit) > 0.5 ? 0.55 : 0.32);"
           "  } else {"
           "    float d = length(v);"
           "    if (d <= 1.0) a = d > 0.88 ? 0.6 : (lit.x > 0.5 ? 0.5 : 0.16);"
@@ -974,10 +987,13 @@ void PresentDrawingBuffer(int screen_width, int screen_height, const std::vector
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     GLint symbol_uniform = glGetUniformLocation(g_state.ring_program, "symbol");
     GLint lit_uniform = glGetUniformLocation(g_state.ring_program, "lit");
+    GLint knob_uniform = glGetUniformLocation(g_state.ring_program, "knob");
     for (const ScreenCircle& circle : circles) {
       glUniform1f(symbol_uniform, static_cast<GLfloat>(static_cast<int>(circle.symbol)));
       glUniform4f(lit_uniform, circle.lit & 1 ? 1.0f : 0.0f, circle.lit & 2 ? 1.0f : 0.0f,
                   circle.lit & 4 ? 1.0f : 0.0f, circle.lit & 8 ? 1.0f : 0.0f);
+      // The shape's own y points up; the knob's is given pointing down.
+      glUniform2f(knob_uniform, circle.knob_x, -circle.knob_y);
       float cx = -1.0f + 2.0f * circle.x / static_cast<float>(screen_width);
       float cy = 1.0f - 2.0f * circle.y / static_cast<float>(screen_height);
       float rx = 2.0f * circle.radius / static_cast<float>(screen_width);

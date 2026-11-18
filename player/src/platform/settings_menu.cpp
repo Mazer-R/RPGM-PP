@@ -57,6 +57,8 @@ std::string SettingsMenu::Title() const {
 namespace {
 // The row of the frame counter starts with this; ": ON" or ": OFF" follows.
 constexpr char kFpsRow[] = "FPS COUNTER";
+// The same for the row of the movement control: ": STICK" or ": PAD".
+constexpr char kMoveRow[] = "MOVE";
 }  // namespace
 
 std::vector<std::string> SettingsMenu::Rows() const {
@@ -64,7 +66,10 @@ std::vector<std::string> SettingsMenu::Rows() const {
   if (!open_) return rows;
   if (page_ == Page::kMain) {
     rows = {"RESUME", std::string(kFpsRow) + (fps_shown_ ? ": ON" : ": OFF"), "BUTTONS"};
-    if (with_touch_) rows.push_back("TOUCH CONTROLS");
+    if (with_touch_) {
+      rows.push_back(std::string(kMoveRow) + (move_stick_ ? ": STICK" : ": PAD"));
+      rows.push_back("TOUCH CONTROLS");
+    }
     rows.push_back("QUIT GAME");
   } else if (page_ == Page::kButtons) {
     for (const std::string& button : MappableButtons()) {
@@ -97,6 +102,7 @@ MenuEffect SettingsMenu::Confirm() {
   const std::string& row = rows[selected_];
   if (page_ == Page::kMain) {
     if (row.rfind(kFpsRow, 0) == 0) return MenuEffect::kToggleFps;
+    if (row.rfind(std::string(kMoveRow) + ":", 0) == 0) return MenuEffect::kToggleMove;
     if (row == "BUTTONS") {
       Show(Page::kButtons, 0);
       return MenuEffect::kNone;

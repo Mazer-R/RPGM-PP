@@ -25,7 +25,8 @@ void OnTerminate(int) { g_terminate = 1; }
 ControlSymbol SymbolFor(const TouchShape& shape) {
   if (!shape.label.empty()) return ControlSymbol::kPlain;
   switch (shape.key_code) {
-    case 0: return ControlSymbol::kDirections;
+    case kTouchPad: return ControlSymbol::kDirections;
+    case kTouchStick: return ControlSymbol::kStick;
     case 88: return ControlSymbol::kCancel;
     case 16: return ControlSymbol::kDash;
     default: return ControlSymbol::kConfirm;
@@ -86,7 +87,7 @@ int RunMainLoop(Window& window, Input& input, Host& host, const Clock& clock, Lo
     std::vector<ScreenCircle> circles;
     std::vector<ScreenText> texts;
     for (const TouchShape& shape : input.TouchShapes()) {
-      circles.push_back({shape.x, shape.y, shape.radius, SymbolFor(shape), shape.lit});
+      circles.push_back({shape.x, shape.y, shape.radius, SymbolFor(shape), shape.lit, shape.knob_x, shape.knob_y});
       if (!shape.label.empty()) texts.push_back({shape.x, shape.y, LetterHeight(shape), shape.label});
     }
     std::vector<MenuBox> menu_boxes;

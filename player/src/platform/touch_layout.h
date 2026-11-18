@@ -14,23 +14,31 @@ namespace mvp {
 // positive and from the right edge when negative; y from the top when
 // positive and from the bottom when negative. A control therefore stays
 // with the edge it was put near. key_code is the browser key code the
-// control presses; 0 is the direction pad.
+// control presses, or one of the two movement controls below.
 struct TouchControl {
   float x, y, size;
   int key_code;
 };
 
-// The pad on the left; confirm, cancel and dash on the right.
+// The two movement controls, which are not keys: each holds one or two of
+// the arrow keys. The pad stays where it is drawn. The stick appears under
+// a thumb that lands anywhere in the left half of the screen and is only
+// drawn at its own place while nothing touches it.
+constexpr int kTouchPad = 0, kTouchStick = 1;
+inline bool IsMoveControl(int key_code) { return key_code == kTouchPad || key_code == kTouchStick; }
+
+// The stick on the left; confirm, cancel and dash on the right.
 std::vector<TouchControl> DefaultTouchLayout();
 
 // The text form, one control per line: "<key> <x> <y> <size>", where <key>
-// is a key code or the word "pad". Lines starting with # are comments.
+// is a key code or the word "pad" or "stick". Lines starting with # are comments.
 // Reading skips lines that are not a control.
 std::string FormatTouchLayout(const std::vector<TouchControl>& layout);
 std::vector<TouchControl> ParseTouchLayout(const std::string& text);
 
 // A short name for a key, in capital letters and digits: "T", "ENTER";
-// "PAD" for 0. Empty for a key without a name.
+// "PAD" and "STICK" for the movement controls. Empty for a key without a
+// name.
 std::string TouchKeyLabel(int key_code);
 
 // The keys a new control can be given, in the order they are offered.

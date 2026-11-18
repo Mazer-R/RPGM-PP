@@ -164,6 +164,7 @@ void Input::OpenMenu() {
   for (bool& held : stick_) held = false;
   for (bool& held : trigger_) held = false;
   menu_->SetFpsShown(fps_shown_);
+  menu_->SetMoveStick(touch_->move_stick());
   menu_->Open(touch_visible_);
 }
 
@@ -177,6 +178,11 @@ void Input::MenuEffectDone(int effect) {
       // The frame counter belongs to the scripts, which switch it on F2.
       Queue(kKeyF2, true);
       Queue(kKeyF2, false);
+      break;
+    case MenuEffect::kToggleMove:
+      // Saved with the rest of the game's touch controls (see Update).
+      touch_->SetMoveStick(!touch_->move_stick());
+      menu_->SetMoveStick(touch_->move_stick());
       break;
     case MenuEffect::kEditTouch:
       touch_visible_ = true;

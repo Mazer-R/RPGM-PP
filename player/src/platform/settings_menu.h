@@ -19,6 +19,7 @@ enum class MenuEffect {
   kNone,
   kClose,           // the menu has closed; the game goes on
   kToggleFps,       // show or hide the frame counter
+  kToggleMove,      // switch between the stick and the pad on a touch screen
   kEditTouch,       // the menu has closed; start editing the touch controls
   kQuit,            // leave the game
   kButtonsChanged,  // the button map changed: save it
@@ -48,6 +49,8 @@ class SettingsMenu {
   // Whether the frame counter is showing, which its row says. The counter
   // belongs to the scripts; the caller keeps this in step with it.
   void SetFpsShown(bool shown) { fps_shown_ = shown; }
+  // Which movement control the touch screen has, which its row says.
+  void SetMoveStick(bool stick) { move_stick_ = stick; }
 
   MenuEffect Press(MenuInput input);
   // A finger put down at x, y on a screen of this size: on a row it chooses
@@ -63,6 +66,7 @@ class SettingsMenu {
 
  private:
   bool fps_shown_ = false;
+  bool move_stick_ = true;
   enum class Page { kMain, kButtons, kKeys };
   struct Frame {
     float left, top, cell_width, row_height;

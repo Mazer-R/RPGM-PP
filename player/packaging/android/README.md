@@ -63,14 +63,16 @@ Until access is allowed, the `mvplayer` folder is kept in
 ## Controls
 
 A controller or keyboard works as on the other platforms. Without one, the
-screen shows a direction pad on the left and three buttons on the right
-(confirm, cancel/menu, dash); they hide while a controller or keyboard is in
-use. The Back button is cancel/menu; held for a second it leaves the game
+screen shows three buttons on the right (confirm, cancel/menu, dash) and a
+stick on the left: it appears under a thumb that lands anywhere on the left
+half of the screen, and is pulled to move, in eight directions. They hide
+while a controller or keyboard is in use. The Back button is cancel/menu; held for a second it leaves the game
 and returns to the list.
 
 Inside a game, the small MENU button in the top right corner opens the
 player's settings menu: the frame counter, which key each controller button
-presses, the touch controls, and leaving the game. "TOUCH CONTROLS" lets you
+presses, "MOVE" (the stick, or a round pad that stays in place), the touch
+controls, and leaving the game. "TOUCH CONTROLS" lets you
 change them on the screen: drag a control to move it; ADD puts a new button
 for any key (a game that needs the T key gets a T button), DEL removes the
 one touched last, - and + change its size, RESET brings the standard ones

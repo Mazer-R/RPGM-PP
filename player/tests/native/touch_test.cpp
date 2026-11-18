@@ -1,6 +1,7 @@
 // Tests for platform/touch: which keys fingers on the screen press.
 // Built and run by tools/build/test.sh.
 #include <cstdio>
+#include <cmath>
 #include <string>
 #include <vector>
 
@@ -68,13 +69,17 @@ std::string Keys(const std::vector<mvp::TouchControl>& layout) {
 
 void TestLayouts() {
   std::vector<mvp::TouchControl> standard = mvp::DefaultTouchLayout();
-  Expect("the standard layout is the pad, confirm, cancel and dash", Keys(standard), "0 90 88 16");
+  Expect("the standard layout is the stick, confirm, cancel and dash", Keys(standard), "1 90 88 16");
   Expect("a layout written out and read back is the same layout",
          mvp::FormatTouchLayout(mvp::ParseTouchLayout(mvp::FormatTouchLayout(standard))),
          mvp::FormatTouchLayout(standard));
   std::vector<mvp::TouchControl> read = mvp::ParseTouchLayout(
       "# a comment\npad 0.2 -0.2 0.17\n84 -0.3 0.5 0.08\nnonsense\n84 1 2\n999999 0.1 0.1 0.1\n\n90 0.5 0.5 0\n");
   Expect("lines that are not a control are skipped", Keys(read), "0 84");
+  Expect("the stick is written and read by its name",
+         Keys(mvp::ParseTouchLayout(mvp::FormatTouchLayout({{0.2f, -0.2f, 0.2f, mvp::kTouchStick}}))) + " " +
+             (mvp::FormatTouchLayout({{0.2f, -0.2f, 0.2f, mvp::kTouchStick}}).find("\nstick ") != std::string::npos ? "named" : "unnamed"),
+         "1 named");
   Expect("an empty file is a layout without controls", Keys(mvp::ParseTouchLayout("")), "");
 
   Expect("a letter key is named by its letter", mvp::TouchKeyLabel(84), "T");
@@ -161,19 +166,19 @@ void TestEditing() {
   Tap(&controls, "ADD");
   Expect("ADD shows the keys to choose from", Shown(controls, "T") && Shown(controls, "PAD") ? "yes" : "no", "yes");
   Tap(&controls, "T");
-  Expect("choosing a key adds a button for it", Keys(controls.layout()), "0 90 88 16 84");
+  Expect("choosing a key adds a button for it", Keys(controls.layout()), "1 90 88 16 84");
   Expect("and closes the list", Shown(controls, "PAD") ? "yes" : "no", "no");
   Tap(&controls, "ADD");
   controls.Place(1, 2, 1078);
   controls.Lift(1);
-  Expect("a touch beside the keys closes the list without adding", Keys(controls.layout()), "0 90 88 16 84");
+  Expect("a touch beside the keys closes the list without adding", Keys(controls.layout()), "1 90 88 16 84");
 
   // Removing: the button just added is the chosen one.
   Tap(&controls, "T");
   Tap(&controls, "DEL");
-  Expect("DEL removes the chosen control", Keys(controls.layout()), "0 90 88 16");
+  Expect("DEL removes the chosen control", Keys(controls.layout()), "1 90 88 16");
   Tap(&controls, "DEL");
-  Expect("with nothing chosen DEL removes nothing", Keys(controls.layout()), "0 90 88 16");
+  Expect("with nothing chosen DEL removes nothing", Keys(controls.layout()), "1 90 88 16");
 
   Expect("nothing is to be saved while editing goes on", controls.TakeLayoutChanged() ? "yes" : "no", "no");
   Tap(&controls, "OK");
@@ -206,12 +211,78 @@ void TestEditing() {
          mvp::FormatTouchLayout(controls.layout()), mvp::FormatTouchLayout(mvp::DefaultTouchLayout()));
 }
 
+// Where the stick is drawn and where its knob is, in radii from its middle.
+std::string StickAt(const mvp::TouchControls& controls) {
+  for (const mvp::TouchShape& shape : controls.Shapes()) {
+    if (shape.key_code != mvp::kTouchStick || !shape.label.empty()) continue;
+    char text[64];
+    std::snprintf(text, sizeof text, "%d,%d knob %.2f,%.2f", static_cast<int>(shape.x), static_cast<int>(shape.y),
+                  shape.knob_x, shape.knob_y);
+    return text;
+  }
+  return "no stick";
+}
+
 }  // namespace
 
 int main() {
   const int kLeft = 37, kUp = 38, kRight = 39, kDown = 40, kConfirm = 90, kCancel = 88, kDash = 16;
+  // The stick: what moves the character unless the pad is chosen instead. It
+  // has no place of its own while playing: it is wherever the thumb lands in
+  // the left half of the screen.
+  {
+    mvp::TouchControls sticks;
+    sticks.SetScreen(2400, 1080);
+    Expect("the standard movement control is the stick", sticks.move_stick() ? "stick" : "pad", "stick");
+    const mvp::TouchCircle home = Control(sticks, mvp::kTouchStick);
+    Expect("a thumb landing on the left presses nothing yet", (sticks.Place(1, 700, 400), Text(sticks.TakeChanges())), "");
+    Expect("and the stick is drawn there, its knob in the middle", StickAt(sticks), "700,400 knob 0.00,0.00");
+    sticks.Place(1, 700 + home.radius * 0.6f, 400);
+    Expect("sliding right holds right", Text(sticks.TakeChanges()), "+39");
+    Expect("the knob follows the thumb", StickAt(sticks), "700,400 knob 0.60,0.00");
+    sticks.Place(1, 700 + home.radius * 0.5f, 400 - home.radius * 0.5f);
+    Expect("up and right holds both", Text(sticks.TakeChanges()), "+38");
+    sticks.Place(1, 700, 400 - home.radius * 0.6f);
+    Expect("straight up lets right go", Text(sticks.TakeChanges()), "-39");
+    sticks.Place(1, 700 + home.radius * 0.1f, 400);
+    Expect("near where it landed nothing is held", Text(sticks.TakeChanges()), "-38");
+    sticks.Place(1, 700 + home.radius * 3.0f, 400);
+    Expect("far to the right is still right", Text(sticks.TakeChanges()), "+39");
+    Expect("and the stick has come along, a radius behind the thumb",
+           StickAt(sticks), std::to_string(static_cast<int>(700 + home.radius * 2.0f)) + ",400 knob 1.00,0.00");
+    sticks.Lift(1);
+    Expect("lifting the thumb lets go", Text(sticks.TakeChanges()), "-39");
+    char at[64];
+    std::snprintf(at, sizeof at, "%d,%d knob 0.00,0.00", static_cast<int>(home.x), static_cast<int>(home.y));
+    Expect("and the stick is back at its place", StickAt(sticks), at);
+
+    sticks.Place(2, 1800, 300);
+    Expect("a thumb on the right half moves nothing", Text(sticks.TakeChanges()), "");
+    sticks.Lift(2);
+    const mvp::TouchCircle ok = Control(sticks, 90);
+    sticks.Place(1, 500, 500);
+    sticks.Place(2, ok.x, ok.y);
+    sticks.Place(1, 500, 500 + home.radius * 0.7f);
+    Expect("the stick and a button work together", Text(sticks.TakeChanges()), "+40 +90");
+    sticks.Lift(1);
+    sticks.Lift(2);
+    sticks.TakeChanges();
+
+    sticks.SetMoveStick(false);
+    Expect("the pad can be chosen instead, in the stick's place",
+           !sticks.move_stick() && Control(sticks, mvp::kTouchPad).x == home.x ? "yes" : "no", "yes");
+    Expect("which is something to save", sticks.TakeLayoutChanged() ? "yes" : "no", "yes");
+    sticks.Place(1, 700, 400);
+    Expect("then a thumb elsewhere on the left does nothing", Text(sticks.TakeChanges()), "");
+    sticks.Lift(1);
+    sticks.SetMoveStick(true);
+    Expect("and the stick can be chosen again", sticks.move_stick() ? "stick" : "pad", "stick");
+  }
+
   mvp::TouchControls controls;
   controls.SetScreen(2400, 1080);
+  controls.SetMoveStick(false);
+  controls.TakeLayoutChanged();
   const mvp::TouchCircle pad = Control(controls, 0);
   const mvp::TouchCircle confirm = Control(controls, kConfirm);
   const mvp::TouchCircle cancel = Control(controls, kCancel);
@@ -225,6 +296,30 @@ int main() {
   Expect("every control is wholly on the screen", inside ? "yes" : "no", "yes");
   Expect("the pad is on the left, the buttons on the right",
          pad.x < 1200 && confirm.x > 1200 && cancel.x > 1200 && dash.x > 1200 ? "yes" : "no", "yes");
+
+  Expect("the pad is big enough for a thumb: its radius is a fifth of the screen's shorter side",
+         pad.radius >= 0.2f * 1080 ? "yes" : "no", "yes");
+  Expect("and at least twice a button's", pad.radius >= 2 * confirm.radius ? "yes" : "no", "yes");
+
+  // Eight directions, each an eighth of the circle wide: the four arrows and
+  // the four diagonals between them, which hold two arrows at once.
+  {
+    const char* wanted[8] = {"+39", "+38 +39", "+38", "+37 +38", "+37", "+37 +40", "+40", "+39 +40"};
+    const char* names[8] = {"right", "up and right", "up", "up and left", "left", "down and left", "down", "down and right"};
+    const float kPi = 3.14159265f;
+    for (int direction = 0; direction < 8; direction++) {
+      for (float off : {-20.0f, 0.0f, 20.0f}) {
+        mvp::TouchControls fresh;
+        fresh.SetScreen(2400, 1080);
+        fresh.SetMoveStick(false);
+        float angle = (static_cast<float>(direction) * 45.0f + off) * kPi / 180.0f;
+        // The screen's y grows downwards.
+        fresh.Place(1, pad.x + std::cos(angle) * pad.radius * 0.7f, pad.y - std::sin(angle) * pad.radius * 0.7f);
+        Expect(std::string("the pad's ") + names[direction] + " eighth, " + std::to_string(static_cast<int>(off)) + " degrees off its middle",
+               Text(fresh.TakeChanges()), wanted[direction]);
+      }
+    }
+  }
 
   Expect("nothing touched, nothing pressed", Text(controls.TakeChanges()), "");
 

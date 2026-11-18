@@ -11,15 +11,31 @@ constexpr int kKeyCancel = 88, kKeyConfirm = 90;
 
 // A thumb drifts: the pad still answers this far beyond its drawn edge
 // (as a multiple of its radius), and ignores this much around its centre.
-constexpr float kPadReach = 1.5f;
+constexpr float kPadReach = 1.35f;
 constexpr float kPadNeutral = 0.2f;
+// The stick holds nothing until the thumb has moved this far from where it
+// landed (as a multiple of the stick's radius).
+constexpr float kStickNeutral = 0.3f;
+
+// The arrow keys for a pull of dx, dy (y down): eight directions, a
+// direction being held while the pull is within 67.5 degrees of it, so the
+// diagonals hold two.
+std::set<int> ArrowsFor(float dx, float dy) {
+  std::set<int> keys;
+  float limit = std::cos(67.5f * 3.14159265f / 180.0f) * std::sqrt(dx * dx + dy * dy);
+  if (dx < -limit) keys.insert(kKeyLeft);
+  if (dx > limit) keys.insert(kKeyRight);
+  if (dy < -limit) keys.insert(kKeyUp);
+  if (dy > limit) keys.insert(kKeyDown);
+  return keys;
+}
 
 // Sizes of a control while editing, in units of the screen's shorter side.
 constexpr float kSmallest = 0.04f, kBiggest = 0.3f, kSizeStep = 1.15f;
 
 // The keys whose controls have a drawing of their own instead of a name.
 bool HasOwnDrawing(int key_code) {
-  return key_code == 0 || key_code == kKeyConfirm || key_code == kKeyCancel || key_code == kKeyShift;
+  return IsMoveControl(key_code) || key_code == kKeyConfirm || key_code == kKeyCancel || key_code == kKeyShift;
 }
 
 bool Inside(const TouchShape& shape, float x, float y) {
@@ -108,6 +124,8 @@ void TouchControls::StartEditing() {
   dirty_ = false;
   chosen_ = -1;
   for (auto& finger : held_by_finger_) finger.second.clear();
+  stick_finger_ = -1;
+  knob_x_ = knob_y_ = 0;
 }
 
 bool TouchControls::TakeLayoutChanged() {
@@ -160,9 +178,16 @@ std::vector<TouchShape> TouchControls::Shapes() const {
     for (size_t i = 0; i < circles_.size(); i++) {
       const TouchCircle& circle = circles_[i];
       // While editing, the chosen control is the lit one.
-      int lit = !editing_ ? Lit(circle) : static_cast<int>(i) != chosen_ ? 0 : circle.key_code ? 1 : 15;
-      shapes.push_back({circle.x, circle.y, circle.radius, circle.key_code, lit,
-                        HasOwnDrawing(circle.key_code) ? "" : TouchKeyLabel(circle.key_code)});
+      int lit = !editing_ ? Lit(circle) : static_cast<int>(i) != chosen_ ? 0 : IsMoveControl(circle.key_code) ? 15 : 1;
+      TouchShape shape = {circle.x, circle.y, circle.radius, circle.key_code, lit,
+                          HasOwnDrawing(circle.key_code) ? "" : TouchKeyLabel(circle.key_code)};
+      if (circle.key_code == kTouchStick && stick_finger_ >= 0 && !editing_) {
+        shape.x = stick_x_;
+        shape.y = stick_y_;
+        shape.knob_x = knob_x_;
+        shape.knob_y = knob_y_;
+      }
+      shapes.push_back(shape);
     }
   }
   if (editing_) {
@@ -254,23 +279,60 @@ std::set<int> TouchControls::KeysAt(float x, float y) const {
   for (const TouchCircle& circle : circles_) {
     float dx = x - circle.x, dy = y - circle.y;
     float distance = std::sqrt(dx * dx + dy * dy) / circle.radius;
-    if (circle.key_code) {
+    // The stick has no place of its own while playing: see Place().
+    if (circle.key_code == kTouchStick) continue;
+    if (circle.key_code != kTouchPad) {
       if (distance <= 1.0f) return {circle.key_code};
       continue;
     }
     if (distance > kPadReach) continue;
     if (distance < kPadNeutral) return {};
-    // Eight directions: a direction is held while the finger is within 67.5
-    // degrees of it, so the diagonals hold two.
-    std::set<int> keys;
-    float limit = std::cos(67.5f * 3.14159265f / 180.0f) * distance * circle.radius;
-    if (dx < -limit) keys.insert(kKeyLeft);
-    if (dx > limit) keys.insert(kKeyRight);
-    if (dy < -limit) keys.insert(kKeyUp);
-    if (dy > limit) keys.insert(kKeyDown);
-    return keys;
+    return ArrowsFor(dx, dy);
   }
   return {};
+}
+
+int TouchControls::StickIndex() const {
+  for (size_t i = 0; i < circles_.size(); i++) {
+    if (circles_[i].key_code == kTouchStick) return static_cast<int>(i);
+  }
+  return -1;
+}
+
+bool TouchControls::move_stick() const { return StickIndex() >= 0; }
+
+void TouchControls::SetMoveStick(bool stick) {
+  bool changed = false;
+  for (TouchControl& control : layout_) {
+    if (!IsMoveControl(control.key_code) || control.key_code == (stick ? kTouchStick : kTouchPad)) continue;
+    control.key_code = stick ? kTouchStick : kTouchPad;
+    changed = true;
+  }
+  if (!changed) return;
+  stick_finger_ = -1;
+  knob_x_ = knob_y_ = 0;
+  changed_ = true;
+  PlaceCircles();
+}
+
+// The keys for the thumb on the stick at x, y. The knob goes with the thumb
+// as far as the stick's edge; past that the whole stick comes along, a
+// radius behind, so that turning back takes effect at once.
+std::set<int> TouchControls::StickKeys(float x, float y) {
+  float radius = circles_[StickIndex()].radius;
+  float dx = x - stick_x_, dy = y - stick_y_;
+  float distance = std::sqrt(dx * dx + dy * dy);
+  if (distance > radius) {
+    stick_x_ = x - dx / distance * radius;
+    stick_y_ = y - dy / distance * radius;
+    dx = x - stick_x_;
+    dy = y - stick_y_;
+    distance = radius;
+  }
+  knob_x_ = dx / radius;
+  knob_y_ = dy / radius;
+  if (distance < kStickNeutral * radius) return {};
+  return ArrowsFor(dx, dy);
 }
 
 void TouchControls::Place(long long finger, float x, float y) {
@@ -287,12 +349,32 @@ void TouchControls::Place(long long finger, float x, float y) {
     Edit(finger, x, y, fresh);
     return;
   }
+  if (StickIndex() >= 0) {
+    if (finger == stick_finger_) {
+      held_by_finger_[finger] = StickKeys(x, y);
+      return;
+    }
+    // A thumb landing in the left half, on no other control, takes the
+    // stick: it is under the thumb from then until the thumb lifts.
+    if (fresh && stick_finger_ < 0 && x < width_ / 2 && KeysAt(x, y).empty()) {
+      stick_finger_ = finger;
+      stick_x_ = x;
+      stick_y_ = y;
+      knob_x_ = knob_y_ = 0;
+      held_by_finger_[finger] = {};
+      return;
+    }
+  }
   held_by_finger_[finger] = KeysAt(x, y);
 }
 
 void TouchControls::Lift(long long finger) {
   held_by_finger_.erase(finger);
   if (finger == dragging_finger_) dragging_ = false;
+  if (finger == stick_finger_) {
+    stick_finger_ = -1;
+    knob_x_ = knob_y_ = 0;
+  }
 }
 
 int TouchControls::Lit(const TouchCircle& circle) const {
@@ -302,7 +384,7 @@ int TouchControls::Lit(const TouchCircle& circle) const {
     }
     return false;
   };
-  if (circle.key_code) return held(circle.key_code) ? 1 : 0;
+  if (!IsMoveControl(circle.key_code)) return held(circle.key_code) ? 1 : 0;
   return (held(kKeyLeft) ? kLitLeft : 0) | (held(kKeyUp) ? kLitUp : 0) | (held(kKeyRight) ? kLitRight : 0) |
          (held(kKeyDown) ? kLitDown : 0);
 }

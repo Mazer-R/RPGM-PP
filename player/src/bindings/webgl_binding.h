@@ -42,11 +42,13 @@ v8::Local<v8::Object> CreateWebGLContext(v8::Isolate* isolate, v8::Local<v8::Con
 // the pad, 1 left + 2 up + 4 right + 8 down.
 // kPlain is the ring alone, for a control that carries a name instead (see
 // `texts`).
-enum class ControlSymbol { kDirections = 0, kConfirm = 1, kCancel = 2, kDash = 3, kPlain = 4 };
+enum class ControlSymbol { kDirections = 0, kConfirm = 1, kCancel = 2, kDash = 3, kPlain = 4, kStick = 5 };
 struct ScreenCircle {
   float x, y, radius;
   ControlSymbol symbol = ControlSymbol::kConfirm;
   int lit = 0;
+  // For the stick: its knob, in radii from the middle, x right and y down.
+  float knob_x = 0, knob_y = 0;
 };
 //
 // `boxes` are filled rectangles drawn over the circles: the player's own

@@ -132,9 +132,12 @@ The packages are on the project's releases page:
    cross at the end of its line, then touch it again to confirm; its files
    stay where they are.
 
-Without a controller, the screen shows a direction pad and three buttons.
-The MENU button in the top right corner opens the settings; "TOUCH
-CONTROLS" there moves, resizes, adds and removes buttons (a game that needs
+Without a controller, the screen shows three buttons, and a stick that
+appears under your thumb anywhere on the left half: pull it to move, in
+eight directions where the game has them. The MENU button in the top right
+corner opens the settings: "MOVE" there swaps the stick for a round pad
+that stays in place, and "TOUCH CONTROLS" moves, resizes, adds and removes
+buttons (a game that needs
 the T key gets a T button). Back is cancel; held for a second it returns to
 the list. Videos are decoded by an `ffmpeg` that comes inside the app.
 
@@ -481,9 +484,12 @@ Los paquetes están en la página de versiones del proyecto:
    elígelo y toca la cruz al final de su línea; vuelve a tocarla para
    confirmar. Sus archivos se quedan donde están.
 
-Sin mando, la pantalla muestra una cruceta y tres botones. El botón MENU,
-arriba a la derecha, abre los ajustes; "TOUCH CONTROLS" permite mover,
-cambiar de tamaño, añadir y quitar botones (un juego que necesita la tecla
+Sin mando, la pantalla muestra tres botones y un stick que aparece bajo el
+pulgar en cualquier punto de la mitad izquierda: arrástralo para moverte,
+en ocho direcciones si el juego las tiene. El botón MENU, arriba a la
+derecha, abre los ajustes: "MOVE" cambia el stick por una cruceta redonda
+fija, y "TOUCH CONTROLS" permite mover, cambiar de tamaño, añadir y quitar
+botones (un juego que necesita la tecla
 T recibe un botón T). Atrás es cancelar; mantenido un segundo vuelve a la
 lista. Los vídeos los decodifica un `ffmpeg` que viene dentro de la app.
 

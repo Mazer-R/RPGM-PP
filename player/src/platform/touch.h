@@ -23,8 +23,8 @@
 namespace mvp {
 
 // A round control, in screen pixels from the top-left corner. key_code is
-// the browser key code it presses; 0 for the direction pad, which presses
-// one or two of the arrow keys depending on where it is touched.
+// the browser key code it presses, or one of the two movement controls
+// (kTouchPad, kTouchStick), which press one or two of the arrow keys.
 struct TouchCircle {
   float x, y, radius;
   int key_code;
@@ -39,6 +39,9 @@ struct TouchShape {
   int key_code;
   int lit;
   std::string label;
+  // For the stick: where its knob is, in radii from its middle, x to the
+  // right and y down.
+  float knob_x = 0, knob_y = 0;
 };
 
 // What Lit() answers for the direction pad: one bit per arm being held.
@@ -63,6 +66,11 @@ class TouchControls {
   // The controls there are; the standard ones until told otherwise.
   void SetLayout(const std::vector<TouchControl>& layout);
   const std::vector<TouchControl>& layout() const { return layout_; }
+
+  // Which movement control the layout has: the stick, or the pad. Changing
+  // it keeps the control's place and size, and is something to save.
+  bool move_stick() const;
+  void SetMoveStick(bool stick);
 
   // Whether the MENU button is offered. Off at first.
   void OfferMenu(bool offered);
@@ -93,6 +101,8 @@ class TouchControls {
 
  private:
   std::set<int> KeysAt(float x, float y) const;
+  int StickIndex() const;
+  std::set<int> StickKeys(float x, float y);
   void PlaceCircles();
   void StoreLayout();
   void Edit(long long finger, float x, float y, bool fresh);
@@ -115,6 +125,10 @@ class TouchControls {
   float drag_dx_ = 0, drag_dy_ = 0;
   std::map<long long, std::set<int>> held_by_finger_;
   std::set<int> reported_;  // keys reported as down so far
+  // The stick while a thumb is on it: whose thumb, where the stick is, and
+  // its knob in radii from there.
+  long long stick_finger_ = -1;
+  float stick_x_ = 0, stick_y_ = 0, knob_x_ = 0, knob_y_ = 0;
 };
 
 }  // namespace mvp
