@@ -1497,6 +1497,31 @@ adjustments where the game's own code is too expensive for this hardware.
     *   **Not checked**: the save and load menus by hand, on a device,
         or a save made late in a game (larger files).
 
+*   **Touches and the mouse for the game (2026-11-18)**: a finger only
+    worked the player's own controls, and the mouse nothing, so what the
+    engines do with a touch (walk to a touched place, choose from a menu,
+    MZ's on-screen buttons) did not exist, in MV or MZ.
+    *   **Change**: a finger that lands on none of the controls is the
+        game's until it lifts (`TouchControls::ForGame`): with the stick
+        that is the right half, with the pad the whole screen. A desktop's
+        left mouse button and its movement go to the game; the right
+        button is the Esc key. The place is turned from the screen into
+        the game's picture (`platform/fit.h`) and `js/pointer.js`, a layer
+        for both engines, makes the mouse events of it, at the page place
+        the engine turns back into the touched one whatever it believes
+        of its canvas's size. One finger is followed; a finger is told as
+        the left button.
+    *   **Checked**: tests, native and JavaScript. Without a screen,
+        `tests/device/pointer_check.js` passes on an MZ game and on Fear &
+        Hunger with its mouse-disabling plugin emptied; as shipped, that
+        game ignores the mouse, as its author chose. A real click in a
+        1280x720 virtual screen reaches MZ's `TouchInput` at the exact
+        place in the 816x624 picture, a click on a side bar does not, and
+        the right button cancels.
+    *   **Not checked**: a real finger (the path from SDL's finger events
+        to `ForGame` has only its unit tests), the mouse wheel (not
+        passed), two-finger cancel.
+
 ## Critical User Journeys (CUJs)
 
 ### CUJ 1: First launch

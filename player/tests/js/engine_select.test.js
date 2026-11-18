@@ -24,7 +24,7 @@ const select = () => load('engine-select.js', {}).__engineSelect;
 const filesOf = (...files) => (file) => files.includes(file);
 
 // The layers an MV game was given before MZ existed here, in their order.
-const MV_LAYERS = ['file-bytes.js', 'css.js', 'video.js', 'dom.js', 'canvas2d.js', 'desktop.js', 'patch-select.js'];
+const MV_LAYERS = ['file-bytes.js', 'css.js', 'video.js', 'dom.js', 'pointer.js', 'canvas2d.js', 'desktop.js', 'patch-select.js'];
 
 const tests = {
   'a game with MV\'s core script is MV'() {

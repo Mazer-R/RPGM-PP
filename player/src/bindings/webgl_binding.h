@@ -78,6 +78,8 @@ void PresentDrawingBuffer(int screen_width, int screen_height, const std::vector
 // True once the game has its own drawing buffer; the main loop then leaves
 // clearing to the game.
 bool HasDrawingBuffer();
+// Its size in pixels, which is the size of the game's picture.
+void DrawingBufferSize(int* width, int* height);
 
 // Releases the references the binding holds into the JavaScript engine. Must
 // be called before the engine is shut down; they cannot outlive it.

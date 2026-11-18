@@ -91,6 +91,10 @@ class TouchControls {
   // lets go of the first and presses the second.
   void Place(long long finger, float x, float y);
   void Lift(long long finger);
+  // Whether this finger, now on the screen, is the game's own: it landed on
+  // none of these controls (with the stick, that means in the right half),
+  // and presses nothing until it lifts.
+  bool ForGame(long long finger) const { return game_fingers_.count(finger) > 0; }
 
   // Whether a finger is on a control right now, for drawing it lit: 1 for a
   // button; for the direction pad, the kLit bits of the arms being held.
@@ -124,6 +128,8 @@ class TouchControls {
   bool dragging_ = false;
   float drag_dx_ = 0, drag_dy_ = 0;
   std::map<long long, std::set<int>> held_by_finger_;
+  std::set<long long> game_fingers_;
+  bool OnControl(float x, float y) const;
   std::set<int> reported_;  // keys reported as down so far
   // The stick while a thumb is on it: whose thumb, where the stick is, and
   // its knob in radii from there.

@@ -27,9 +27,9 @@ struct KeyChange {
   bool down;
 };
 
-// A finger or the mouse on the screen, for a script that asked for them:
-// phase 0 = put down, 1 = moved while down, 2 = lifted; x, y in screen
-// pixels from the top left.
+// A finger or the mouse on the screen, for the scripts: phase 0 = put down,
+// 1 = moved while down, 2 = lifted, 3 = the mouse moved with no button down
+// (only while a game runs); x, y in screen pixels from the top left.
 struct PointerChange {
   int phase;
   float x, y;
@@ -115,6 +115,8 @@ class Input {
   long long pointer_finger_ = 0;   // which finger, while one is followed
   std::vector<PointerChange> pointer_changes_;
   bool HandlePointerEvent(const SDL_Event& event);
+  void GamePointer(bool finger, long long id, int phase, float x, float y);
+  float pointer_x_ = 0, pointer_y_ = 0;  // where the followed finger or mouse last was
   int screen_width_ = 0, screen_height_ = 0;
 };
 

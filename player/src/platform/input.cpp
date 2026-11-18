@@ -160,6 +160,11 @@ void Input::OpenMenu() {
   if (settings_dir_.empty() || menu_->open()) return;
   std::vector<int> down = keys_down_;
   for (int key : down) Queue(key, false);
+  // Nor the lifting of a finger or of the mouse button it was following.
+  if (pointer_down_ && !pointer_mode_) {
+    pointer_down_ = false;
+    pointer_changes_.push_back({2, pointer_x_, pointer_y_});
+  }
   // The stick and the triggers start afresh once the menu closes.
   for (bool& held : stick_) held = false;
   for (bool& held : trigger_) held = false;
@@ -292,6 +297,23 @@ void Input::SetStickDirection(int index, bool down) {
   Queue(keys[index], down);
 }
 
+// A finger or the mouse for the game itself. One is followed at a time,
+// from going down to coming up; phase 3 is the mouse moving with no button
+// down, which needs nothing to be followed.
+void Input::GamePointer(bool finger, long long id, int phase, float x, float y) {
+  bool followed = pointer_down_ && pointer_is_finger_ == finger && (!finger || pointer_finger_ == id);
+  if (phase == 0 ? pointer_down_ : phase == 3 ? pointer_down_ : !followed) return;
+  if (phase == 0) {
+    pointer_down_ = true;
+    pointer_is_finger_ = finger;
+    pointer_finger_ = id;
+  }
+  if (phase == 2) pointer_down_ = false;
+  pointer_x_ = x;
+  pointer_y_ = y;
+  pointer_changes_.push_back({phase, x, y});
+}
+
 std::vector<PointerChange> Input::TakePointerChanges() {
   std::vector<PointerChange> taken;
   taken.swap(pointer_changes_);
@@ -363,16 +385,44 @@ void Input::HandleEvent(const SDL_Event& event) {
       }
       break;
     case SDL_FINGERDOWN:
-    case SDL_FINGERMOTION:
+    case SDL_FINGERMOTION: {
       // Finger positions come as fractions of the screen.
+      float x = event.tfinger.x * static_cast<float>(screen_width_);
+      float y = event.tfinger.y * static_cast<float>(screen_height_);
       touch_visible_ = true;
-      touch_->Place(event.tfinger.fingerId, event.tfinger.x * static_cast<float>(screen_width_),
-                    event.tfinger.y * static_cast<float>(screen_height_));
+      touch_->Place(event.tfinger.fingerId, x, y);
+      // A finger on none of the controls is the game's own.
+      if (touch_->ForGame(event.tfinger.fingerId)) {
+        GamePointer(true, event.tfinger.fingerId, event.type == SDL_FINGERDOWN ? 0 : 1, x, y);
+      }
       AfterTouch();
       break;
+    }
     case SDL_FINGERUP:
+      if (touch_->ForGame(event.tfinger.fingerId)) {
+        GamePointer(true, event.tfinger.fingerId, 2, event.tfinger.x * static_cast<float>(screen_width_),
+                    event.tfinger.y * static_cast<float>(screen_height_));
+      }
       touch_->Lift(event.tfinger.fingerId);
       AfterTouch();
+      break;
+    // A desktop's mouse is the game's: the left button presses, and the
+    // right one cancels, as the Esc key does. The mouse events SDL makes up
+    // for a finger are left out.
+    case SDL_MOUSEBUTTONDOWN:
+    case SDL_MOUSEBUTTONUP:
+      if (event.button.which == SDL_TOUCH_MOUSEID) break;
+      if (event.button.button == SDL_BUTTON_LEFT) {
+        GamePointer(false, 0, event.type == SDL_MOUSEBUTTONDOWN ? 0 : 2, static_cast<float>(event.button.x),
+                    static_cast<float>(event.button.y));
+      } else if (event.button.button == SDL_BUTTON_RIGHT) {
+        Queue(kKeyEscape, event.type == SDL_MOUSEBUTTONDOWN);
+      }
+      break;
+    case SDL_MOUSEMOTION:
+      if (event.motion.which == SDL_TOUCH_MOUSEID) break;
+      GamePointer(false, 0, pointer_down_ && !pointer_is_finger_ ? 1 : 3, static_cast<float>(event.motion.x),
+                  static_cast<float>(event.motion.y));
       break;
     case SDL_CONTROLLERBUTTONDOWN:
     case SDL_CONTROLLERBUTTONUP: {

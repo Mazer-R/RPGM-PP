@@ -19,7 +19,7 @@
 // Plain functions, no files: boot.js gives them what they need.
 (function () {
   'use strict';
-  var COMMON = ['file-bytes.js', 'css.js', 'video.js', 'dom.js', 'canvas2d.js', 'desktop.js', 'patch-select.js'];
+  var COMMON = ['file-bytes.js', 'css.js', 'video.js', 'dom.js', 'pointer.js', 'canvas2d.js', 'desktop.js', 'patch-select.js'];
   var PROFILES = {
     MV: [],
     MZ: [

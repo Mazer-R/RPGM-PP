@@ -292,6 +292,18 @@ std::set<int> TouchControls::KeysAt(float x, float y) const {
   return {};
 }
 
+// Whether x, y is on a control that has a place: a button, or the pad out to
+// its reach, its middle included.
+bool TouchControls::OnControl(float x, float y) const {
+  for (const TouchCircle& circle : circles_) {
+    if (circle.key_code == kTouchStick) continue;
+    float dx = x - circle.x, dy = y - circle.y;
+    float distance = std::sqrt(dx * dx + dy * dy) / circle.radius;
+    if (distance <= (circle.key_code == kTouchPad ? kPadReach : 1.0f)) return true;
+  }
+  return false;
+}
+
 int TouchControls::StickIndex() const {
   for (size_t i = 0; i < circles_.size(); i++) {
     if (circles_[i].key_code == kTouchStick) return static_cast<int>(i);
@@ -365,10 +377,13 @@ void TouchControls::Place(long long finger, float x, float y) {
       return;
     }
   }
-  held_by_finger_[finger] = KeysAt(x, y);
+  // A finger that lands on no control is the game's, and stays so.
+  if (fresh && !OnControl(x, y)) game_fingers_.insert(finger);
+  held_by_finger_[finger] = game_fingers_.count(finger) ? std::set<int>() : KeysAt(x, y);
 }
 
 void TouchControls::Lift(long long finger) {
+  game_fingers_.erase(finger);
   held_by_finger_.erase(finger);
   if (finger == dragging_finger_) dragging_ = false;
   if (finger == stick_finger_) {

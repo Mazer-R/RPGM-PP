@@ -280,6 +280,9 @@
     firstChild: { get: function () { return this.children[0] || null; } },
     lastChild: { get: function () { return this.children[this.children.length - 1] || null; } },
     childNodes: { get: function () { return this.children; } },
+    // The page is as large as the game's canvas, which starts at its corner.
+    offsetLeft: { get: function () { return 0; } },
+    offsetTop: { get: function () { return 0; } },
     offsetWidth: { get: function () { return this.width || 0; } },
     offsetHeight: { get: function () { return this.height || 0; } },
     clientWidth: { get: function () { return this.width || 0; } },
@@ -325,6 +328,7 @@
   // --- Canvas ---------------------------------------------------------------
   // The one canvas whose WebGL picture is shown on the screen.
   var screenCanvas = null;
+  browser.screenCanvas = function () { return screenCanvas; };
 
   function HTMLCanvasElement() {
     Element.call(this, 'canvas');

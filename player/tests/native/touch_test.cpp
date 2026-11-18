@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "platform/fit.h"
 #include "platform/touch.h"
 #include "platform/touch_layout.h"
 
@@ -227,6 +228,72 @@ std::string StickAt(const mvp::TouchControls& controls) {
 
 int main() {
   const int kLeft = 37, kUp = 38, kRight = 39, kDown = 40, kConfirm = 90, kCancel = 88, kDash = 16;
+  // A finger that lands on none of the player's controls is the game's own:
+  // the engines move the character to a touched place and take touches on
+  // their menus. It stays the game's until it lifts.
+  {
+    mvp::TouchControls pads;
+    pads.SetScreen(2400, 1080);
+    pads.SetMoveStick(false);
+    const mvp::TouchCircle confirm = Control(pads, kConfirm);
+    const mvp::TouchCircle pad = Control(pads, mvp::kTouchPad);
+    pads.Place(1, 1200, 300);
+    Expect("with the pad, a finger on no control is for the game", pads.ForGame(1) ? "game" : "controls", "game");
+    Expect("and presses nothing", Text(pads.TakeChanges()), "");
+    pads.Place(1, confirm.x, confirm.y);
+    Expect("sliding onto a control, it is still the game's and presses nothing",
+           std::string(pads.ForGame(1) ? "game" : "controls") + " [" + Text(pads.TakeChanges()) + "]", "game []");
+    pads.Lift(1);
+    Expect("once lifted it is nobody's", pads.ForGame(1) ? "game" : "none", "none");
+    pads.Place(2, confirm.x, confirm.y);
+    Expect("a finger on a button is for the controls", pads.ForGame(2) ? "game" : "controls", "controls");
+    pads.Place(2, 1200, 300);
+    Expect("and stays theirs when it slides off", pads.ForGame(2) ? "game" : "controls", "controls");
+    pads.Lift(2);
+    pads.TakeChanges();
+    pads.Place(3, pad.x, pad.y);
+    Expect("the middle of the pad is the pad's, though it presses nothing",
+           std::string(pads.ForGame(3) ? "game" : "controls") + " [" + Text(pads.TakeChanges()) + "]", "controls []");
+    pads.Lift(3);
+    pads.Place(4, 300, 300);
+    Expect("with the pad, the left half is free too", pads.ForGame(4) ? "game" : "controls", "game");
+    pads.Lift(4);
+
+    mvp::TouchControls sticks;
+    sticks.SetScreen(2400, 1080);
+    sticks.Place(1, 700, 400);
+    Expect("with the stick, a thumb in the left half is the stick's", sticks.ForGame(1) ? "game" : "controls", "controls");
+    sticks.Place(2, 1500, 300);
+    Expect("and a finger in the right half, on no control, is for the game", sticks.ForGame(2) ? "game" : "controls", "game");
+    sticks.Lift(1);
+    sticks.Lift(2);
+
+    mvp::TouchControls menus;
+    menus.SetScreen(2400, 1080);
+    menus.OfferMenu(true);
+    mvp::TouchShape menu = Shape(menus, "MENU");
+    menus.Place(1, menu.x, menu.y);
+    Expect("the MENU button is not the game's", menus.ForGame(1) ? "game" : "controls", "controls");
+    menus.Lift(1);
+    menus.TakeMenuRequest();
+    menus.StartEditing();
+    menus.Place(2, 1500, 300);
+    Expect("while the controls are being changed, no finger is", menus.ForGame(2) ? "game" : "controls", "controls");
+  }
+  // The game's picture is fitted inside the screen; a place on the screen is
+  // told to the game as a place in its picture.
+  {
+    auto at = [](int sw, int sh, int pw, int ph, float x, float y) {
+      mvp::PicturePoint p = mvp::ScreenToPicture(sw, sh, pw, ph, x, y);
+      return std::to_string(static_cast<int>(std::lround(p.x))) + "," + std::to_string(static_cast<int>(std::lround(p.y)));
+    };
+    Expect("a screen the picture's size: the same place", at(816, 624, 816, 624, 100, 50), "100,50");
+    Expect("a screen twice the size: half the numbers", at(1632, 1248, 816, 624, 200, 100), "100,50");
+    Expect("a wider screen: the bars at the sides are taken off", at(2400, 1080, 816, 624, 1200, 540), "408,312");
+    Expect("the picture's left edge on a wider screen", at(2400, 1080, 816, 624, (2400 - 816 * 1080.0f / 624) / 2, 0), "0,0");
+    Expect("a place on a bar is outside the picture", at(2400, 1080, 816, 624, 0, 540).substr(0, 1), "-");
+    Expect("a taller screen: the bars above and below", at(640, 960, 640, 480, 320, 480), "320,240");
+  }
   // The stick: what moves the character unless the pad is chosen instead. It
   // has no place of its own while playing: it is wherever the thumb lands in
   // the left half of the screen.

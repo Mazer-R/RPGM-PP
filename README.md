@@ -141,6 +141,11 @@ buttons (a game that needs
 the T key gets a T button). Back is cancel; held for a second it returns to
 the list. Videos are decoded by an `ffmpeg` that comes inside the app.
 
+A touch on none of these controls goes to the game itself, where the game
+takes touches: to walk to a place on the map, or to choose from a menu.
+With the stick that is the right half of the screen; with the pad, all of
+it. A game that switches the mouse off ignores these touches too.
+
 To update, install the newer APK over the old one; games, saves and
 settings are kept. To remove the player, uninstall the app; the `RPGMV`
 folder, with the games and their saves, stays until you delete it.
@@ -232,7 +237,9 @@ run in a container, without a screen. Both need glibc 2.35 or newer (Ubuntu
    ended at once.
 
 Keys: arrows to move, Z or Enter to confirm, X or Esc to cancel, F1 for the
-player's settings, F2 for the frames per second. A controller works too.
+player's settings, F2 for the frames per second. A controller works too,
+and so does the mouse where the game takes it: the left button presses,
+the right one cancels.
 The player opens in a window that can be resized; F11 switches between the
 window and the whole screen. The package brings its own SDL2, Cairo and
 FreeType and keeps its files together: always start it through
@@ -495,6 +502,11 @@ botones (un juego que necesita la tecla
 T recibe un botón T). Atrás es cancelar; mantenido un segundo vuelve a la
 lista. Los vídeos los decodifica un `ffmpeg` que viene dentro de la app.
 
+Un toque fuera de estos controles va al propio juego, donde el juego los
+admite: para caminar hasta un punto del mapa o elegir en un menú. Con el
+stick es la mitad derecha de la pantalla; con la cruceta, toda. Un juego
+que desactiva el ratón también ignora estos toques.
+
 Para actualizar, instala el APK nuevo sobre el anterior; los juegos, las
 partidas y los ajustes se conservan. Para quitar el reproductor, desinstala
 la app; la carpeta `RPGMV`, con los juegos y sus partidas, se queda hasta
@@ -589,7 +601,8 @@ posterior (Ubuntu 22.04, Debian 12, Fedora 36, o posteriores).
 
 Teclas: flechas para moverse, Z o Intro para confirmar, X o Esc para
 cancelar, F1 para los ajustes del reproductor, F2 para los fotogramas por
-segundo. También funciona un mando. El reproductor se abre en una ventana
+segundo. También funcionan un mando y, donde el juego lo admite, el ratón:
+el botón izquierdo pulsa y el derecho cancela. El reproductor se abre en una ventana
 que se puede redimensionar; F11 alterna entre la ventana y la pantalla
 completa. El paquete trae sus propias SDL2, Cairo y FreeType y necesita sus
 archivos juntos: arráncalo siempre con `mvplayer.sh`. Hay más detalles en

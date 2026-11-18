@@ -843,6 +843,11 @@ static void DrawTexts(int screen_width, int screen_height, const std::vector<Scr
 
 bool HasDrawingBuffer() { return g_state.buffer_framebuffer != 0; }
 
+void DrawingBufferSize(int* width, int* height) {
+  *width = g_state.buffer_width;
+  *height = g_state.buffer_height;
+}
+
 void PresentDrawingBuffer(int screen_width, int screen_height, const std::vector<ScreenCircle>& circles,
                           const std::vector<ScreenBox>& boxes, const std::vector<ScreenText>& texts, const ScreenVideo* video) {
   // Without a drawing buffer the scripts drew straight to the screen (the
