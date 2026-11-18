@@ -79,10 +79,10 @@ const tests = {
     assert.strictEqual(!!after(line({ hour: 5 })).nightSession, false);
   },
 
-  'coming back is playing again thirty days after the last time'() {
+  'coming back is playing again twenty days after the last time'() {
     const start = 1795032000;
-    assert.strictEqual(!!after(line({ start }), line({ start: start + 29 * DAY })).cameBack, false);
-    assert.strictEqual(!!after(line({ start }), line({ start: start + 30 * DAY })).cameBack, true);
+    assert.strictEqual(!!after(line({ start }), line({ start: start + 19 * DAY })).cameBack, false);
+    assert.strictEqual(!!after(line({ start }), line({ start: start + 20 * DAY })).cameBack, true);
     assert.strictEqual(!!after(line({ start })).cameBack, false);
   },
 

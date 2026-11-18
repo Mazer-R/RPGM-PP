@@ -24,7 +24,7 @@
 //   crashed          a game ended with an error
 //   carriedOn        a game ran without something it asked for
 //   waited           a minute spent on a list with no games
-//   cameBack         played again after 30 days away
+//   cameBack         played again after 20 days away
 //   dug, dressed, named   the achievements were found; the avatar was
 //                         changed; the profile was given a name
 //   notAGame         "Add a game" was pointed at something that is no game
@@ -39,7 +39,7 @@
 
   // id, name, how it is earned (shown to the user), the metal of its frame
   // (bronze: comes by itself; silver: takes some doing; gold: rare), the
-  // hero it belongs to, and the test on the stats. `over` marks the two
+  // hero it belongs to, and the test on the stats. `over` marks the ones
   // that are earned from other achievements instead; a last `true` marks a
   // secret one, which shows neither its name nor how until it is earned.
   var LIST = [
@@ -78,26 +78,36 @@
     ['mashed', 'Mashed', 'Have a game end with an error', 'silver', 'party', flag('crashed')],
     ['missing-ingredients', 'Missing Ingredients', 'Play a game that lacked something and ran anyway', 'silver', 'party', flag('carriedOn')],
     ['good-company', 'Good Company', 'Wait a minute on a list with no games', 'silver', 'party', flag('waited')],
-    ['wrinkled', 'Wrinkled', 'Come back after 30 days away', 'gold', 'party', flag('cameBack')],
+    ['wrinkled', 'Wrinkled', 'Come back after 20 days away', 'gold', 'party', flag('cameBack')],
     ['not-a-potato', 'Notato', 'That\'s not a potato. That\'s not even a game.', 'gold', 'party', flag('notAGame'), null, true],
     ['early-birdtato', 'Early Birdtato', 'Be here before 2028', 'gold', 'party', flag('early')],
     ['aliens', 'Aliens', 'I\'m not saying it was aliens, but you touched the sky ten times', 'gold', 'party', flag('aliens'), null, true],
 
     ['dug-up', 'Dug Up', 'Find the achievements', 'silver', 'wizard', flag('dug')],
     ['whole-party', 'The Whole Party', 'Earn one achievement of each hero', 'gold', 'party', null, 'heroes'],
+    ['sweet-spot', 'Sweet Spot', 'Reach 20 points with your achievements', 'silver', 'party', null, 'points'],
     ['completionist', 'Completionist', 'Earn every other achievement', 'gold', 'party', null, 'all'],
   ].map(function (row) {
     return { id: row[0], name: row[1], how: row[2], metal: row[3], hero: row[4], test: row[5], over: row[6] || null, secret: !!row[7] };
   });
   var HEROES = ['knight', 'wizard', 'archer'];
 
-  // Whether one of the two achievements earned from others is earned, given
-  // the ids held so far.
+  // What an achievement is worth: the rarer its metal, the more.
+  var POINTS = { bronze: 1, silver: 2, gold: 4 }, SWEET_SPOT = 20;
+  function pointsOf(has) {
+    return LIST.reduce(function (sum, each) { return sum + (has(each.id) ? POINTS[each.metal] : 0); }, 0);
+  }
+  function points(earned) { return pointsOf(function (id) { return (earned || []).indexOf(id) >= 0; }); }
+
+  // Whether one of the achievements earned from others is earned, given the
+  // ids held so far. They are looked at in the order of the list: the
+  // whole party counts for the points, and both count for the last one.
   function overOthers(each, held) {
-    var mine = LIST.filter(function (other) { return !other.over && held[other.id]; });
     if (each.over === 'heroes') {
+      var mine = LIST.filter(function (other) { return !other.over && held[other.id]; });
       return HEROES.every(function (hero) { return mine.some(function (other) { return other.hero === hero; }); });
     }
+    if (each.over === 'points') return pointsOf(function (id) { return id !== each.id && held[id]; }) >= SWEET_SPOT;
     return LIST.every(function (other) { return other.id === each.id || held[other.id]; });
   }
 
@@ -134,15 +144,22 @@
   var DRESSED = { clothes: 'burlap-sack' };
   // What an achievement gives the avatar: pieces for its slots.
   var PRIZES = {
+    // Not a hat: the top of the character with its skin peeled off, showing
+    // the flesh under it, in each character's own colour (pale on a
+    // potato, light green on the dark green avocado).
+    'peeled': [{ slot: 'head', item: 'peeled-top' }],
     // The weapon slot is what the avatar holds: a quill goes there too.
     'dear-diary': [{ slot: 'weapon', item: 'quill' }],
     'precious-memories': [{ slot: 'face', item: 'scholar-glasses' }],
     'better-safe': [{ slot: 'accessory', item: 'two-shields' }],
+    'regular-customer': [{ slot: 'weapon', item: 'beer-mug' }],
     'midnight-snack': [{ slot: 'clothes', item: 'pyjamas' }, { slot: 'head', item: 'nightcap' }],
     'movie-night': [{ slot: 'weapon', item: 'popcorn-bucket' }, { slot: 'head', item: 'popcorn-bucket-hat' }],
     'true-potato': [{ slot: 'head', item: 'crown' }, { slot: 'weapon', item: 'sceptre' }],
+    'wrinkled': [{ slot: 'companion', item: 'little-wizard' }],
     'mashed': [{ slot: 'weapon', item: 'spoon' }],
     'loyal-spud': [{ slot: 'accessory', item: 'heart' }],
+    'sweet-spot': [{ slot: 'character', item: 'sweet-potato' }],
     'completionist': [{ slot: 'character', item: 'golden-potato' }],
     'dressed-up': [{ slot: 'clothes', item: 'tuxedo' }],
     'dug-up': [{ slot: 'weapon', item: 'shovel' }],
@@ -150,6 +167,7 @@
     'named': [{ slot: 'head', item: 'pork-pie-hat' }, { slot: 'face', item: 'goatee' }],
     'not-a-potato': [{ slot: 'character', item: 'avocado' }],
     'first-sprout': [{ slot: 'companion', item: 'sprout-pot' }],
+    'two-kinds': [{ slot: 'companion', item: 'little-fry' }],
     'aliens': [{ slot: 'head', item: 'tinfoil-hat' }, { slot: 'companion', item: 'little-alien' }],
     'early-birdtato': [{ slot: 'accessory', item: 'wings' }, { slot: 'companion', item: 'potato-chick' }],
     'good-company': [{ slot: 'companion', item: 'little-knight' }],
@@ -165,5 +183,5 @@
   var EARLY_BEFORE_YEAR = 2028;
   function isEarly(date) { return date.getFullYear() < EARLY_BEFORE_YEAR; }
 
-  globalThis.__achievements = { LIST: LIST, SLOTS: SLOTS, DRESSED: DRESSED, PRIZES: PRIZES, blank: blank, update: update, shown: shown, unlocked: unlocked, isEarly: isEarly };
+  globalThis.__achievements = { LIST: LIST, SLOTS: SLOTS, DRESSED: DRESSED, PRIZES: PRIZES, blank: blank, update: update, shown: shown, unlocked: unlocked, points: points, POINTS: POINTS, isEarly: isEarly };
 })();

@@ -83,7 +83,7 @@ const tests = {
       assert.ok(['bronze', 'silver', 'gold'].includes(each.metal), each.id);
       assert.ok(['knight', 'wizard', 'archer', 'party'].includes(each.hero), each.id);
     }
-    assert.strictEqual(model.LIST.length, 38);
+    assert.strictEqual(model.LIST.length, 39);
   },
 
   'a secret achievement does not say how it is earned until it is'() {
@@ -116,6 +116,10 @@ const tests = {
     assert.deepStrictEqual(plain(model.unlocked(['first-sprout'])), [{ slot: 'companion', item: 'sprout-pot' }]);
     assert.deepStrictEqual(plain(model.unlocked(['dressed-up'])), [{ slot: 'clothes', item: 'tuxedo' }]);
     assert.deepStrictEqual(plain(model.unlocked(['dug-up'])), [{ slot: 'weapon', item: 'shovel' }]);
+    assert.deepStrictEqual(plain(model.unlocked(['two-kinds'])), [{ slot: 'companion', item: 'little-fry' }]);
+    assert.deepStrictEqual(plain(model.unlocked(['regular-customer'])), [{ slot: 'weapon', item: 'beer-mug' }]);
+    assert.deepStrictEqual(plain(model.unlocked(['wrinkled'])), [{ slot: 'companion', item: 'little-wizard' }]);
+    assert.deepStrictEqual(plain(model.unlocked(['peeled'])), [{ slot: 'head', item: 'peeled-top' }]);
     assert.deepStrictEqual(plain(model.unlocked(['aliens'])), [{ slot: 'head', item: 'tinfoil-hat' }, { slot: 'companion', item: 'little-alien' }]);
     assert.deepStrictEqual(plain(model.unlocked(['dear-diary', 'precious-memories', 'better-safe'])),
       [{ slot: 'weapon', item: 'quill' }, { slot: 'face', item: 'scholar-glasses' }, { slot: 'accessory', item: 'two-shields' }]);
@@ -131,6 +135,28 @@ const tests = {
   'the avatar starts dressed in a burlap sack, and with nothing in the other slots'() {
     assert.deepStrictEqual(plain(model.DRESSED), { clothes: 'burlap-sack' });
     for (const slot of Object.keys(model.DRESSED)) assert.ok(plain(model.SLOTS).includes(slot), slot);
+  },
+
+  'achievements are worth points by their metal: bronze one, silver two, gold four'() {
+    assert.strictEqual(model.points([]), 0);
+    assert.strictEqual(model.points(['warm-up']), 1);            // bronze
+    assert.strictEqual(model.points(['warm-up', 'slow-cooked']), 3);   // and a silver
+    assert.strictEqual(model.points(['warm-up', 'slow-cooked', 'baked-through']), 7);   // and a gold
+    assert.strictEqual(model.points(['gone-in-a-later-version']), 0);
+    assert.strictEqual(model.points(model.LIST.map((each) => each.id)), 87);
+  },
+
+  'twenty points from other achievements earn Sweet Spot, which gives the sweet potato'() {
+    // four golds and a silver make 18
+    const eighteen = ['potato-farm', 'baked-through', 'wrinkled', 'whole-party', 'slow-cooked'];
+    assert.strictEqual(model.points(eighteen), 18);
+    assert.ok(!ids({}, eighteen).includes('sweet-spot'));
+    const twenty = ids({}, eighteen.concat(['well-done']));
+    assert.ok(twenty.includes('sweet-spot'));
+    assert.deepStrictEqual(plain(model.update(eighteen, { seconds: 25 * HOUR }).fresh), ['warm-up', 'well-done', 'sweet-spot']);
+    assert.deepStrictEqual(plain(model.unlocked(['sweet-spot'])), [{ slot: 'character', item: 'sweet-potato' }]);
+    // its own points do not count towards itself
+    assert.ok(!ids({}, ['potato-farm', 'baked-through', 'wrinkled', 'whole-party', 'sweet-spot'].slice(0, 4)).includes('sweet-spot'));
   },
 
   'each flag or count earns its own achievement and no other'() {

@@ -12,7 +12,7 @@
 // taken off) the list sets directly.
 (function () {
   'use strict';
-  var MONTH = 30 * 86400, SLOW_OVER = 20 * 60;
+  var AWAY = 20 * 86400, SLOW_OVER = 20 * 60;
 
   function blank() {
     return {
@@ -64,7 +64,7 @@
     // may be a menu left open or a game that did not start.
     if (seconds > SLOW_OVER && (session.frames || 0) / seconds < 20) stats.slowSession = true;
     if (session.hour >= 2 && session.hour < 5) stats.nightSession = true;
-    if (session.start && stats.lastStart && session.start - stats.lastStart >= MONTH) stats.cameBack = true;
+    if (session.start && stats.lastStart && session.start - stats.lastStart >= AWAY) stats.cameBack = true;
     if (session.start) stats.lastStart = Math.max(stats.lastStart, session.start);
     if (session.code) stats.crashed = true;
     Object.keys(FLAGS).forEach(function (key) { if (session[key]) stats[FLAGS[key]] = true; });
