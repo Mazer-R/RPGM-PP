@@ -40,14 +40,16 @@ const tests = {
     assert.strictEqual(model.depthAt(model.undug(), 100), 0);
   },
 
-  'ten touches at the sky, one after another, call the saucer; fewer do not'() {
-    const taps = (n) => Array.from({ length: n }, (_, i) => i * 300).reduce((state, at) => model.knock(state, at), model.unknocked());
-    assert.strictEqual(taps(9).open, false);
-    assert.strictEqual(taps(9).depth, 9);
-    assert.strictEqual(taps(10).open, true);
+  'twenty touches at the sky, or ten presses to the sides, call the saucer; fewer do not'() {
+    const knocks = (n, how) => Array.from({ length: n }, (_, i) => i * 300).reduce((state, at) => model.knock(state, at, how), model.unknocked());
+    assert.strictEqual(knocks(19, 'touch').open, false);
+    assert.strictEqual(knocks(19, 'touch').depth, 19);
+    assert.strictEqual(knocks(20, 'touch').open, true);
+    assert.strictEqual(knocks(9, 'keys').open, false);
+    assert.strictEqual(knocks(10, 'keys').open, true);
     // a pause of three seconds, and the count starts again
-    assert.strictEqual(model.knock(taps(9), 9 * 300 + 3000).open, false);
-    assert.strictEqual(model.knock(taps(9), 9 * 300 + 3000).depth, 1);
+    assert.strictEqual(model.knock(knocks(9, 'keys'), 9 * 300 + 3000, 'keys').open, false);
+    assert.strictEqual(model.knock(knocks(9, 'keys'), 9 * 300 + 3000, 'keys').depth, 1);
   },
 
   'the saucer crosses the window in three seconds and is gone'() {
@@ -56,6 +58,21 @@ const tests = {
     assert.ok(start.x < 0 && middle.x > 250 && middle.x < 390 && end.x > 640, [start.x, middle.x, end.x].join(' '));
     assert.strictEqual(model.saucerAt(4000, 640, 1000), null);
     assert.strictEqual(model.saucerAt(500, 640, 1000), null);
+  },
+
+  'achievements are told one at a time: each comes down, stays and goes back up'() {
+    assert.strictEqual(model.toast(0, 0, 2), null);                  // nothing was started
+    const coming = model.toast(1150, 1000, 2), there = model.toast(2000, 1000, 2), going = model.toast(4050, 1000, 2);
+    assert.strictEqual(coming.index, 0);
+    assert.ok(coming.shown > 0.4 && coming.shown < 0.6, String(coming.shown));
+    assert.strictEqual(there.shown, 1);
+    assert.ok(going.shown > 0.4 && going.shown < 0.6, String(going.shown));
+    // the second one follows the first
+    assert.strictEqual(model.toast(1000 + 3200, 1000, 2).index, 1);
+    assert.strictEqual(model.toast(1000 + 3200 + 1500, 1000, 2).shown, 1);
+    // and after the last there is none
+    assert.strictEqual(model.toast(1000 + 6400, 1000, 2), null);
+    assert.strictEqual(model.toast(900, 1000, 2), null);
   },
 
   'the grid has as many columns as fit and shows whole rows'() {

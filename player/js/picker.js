@@ -163,8 +163,9 @@
   var profiles = globalThis.__profile, achievements = globalThis.__achievements;
   var profileFiles = player.profileFiles || [];
   var profile = profiles.read(profileFiles[0] ? player.readTextFile(profileFiles[0]) : '');
-  // The achievements earned since the list was opened, to be shown.
-  var freshAchievements = [];
+  // The achievements earned and not yet handed to the banner that tells
+  // them (see frame()).
+  var toTell = [];
   // Changes the counts with `change`, sees which achievements that earns and
   // saves the profile if anything is different from before.
   function count(change) {
@@ -173,7 +174,7 @@
     profile.stats.games = games.filter(function (entry) { return entry.www; }).length;
     var result = achievements.update(profile.earned, profile.stats);
     profile.earned = result.earned;
-    freshAchievements = freshAchievements.concat(result.fresh);
+    toTell = toTell.concat(result.fresh);
     if (result.fresh.length) console.info('picker: achievements earned: ' + result.fresh.join(', '));
     var now = profiles.write(profile);
     if (now !== before && player.saveProfile) player.saveProfile(now);
@@ -407,9 +408,10 @@
   // The user's potato is at the top right of the list: "up" from the first
   // line, or a touch, goes to it, and it opens the profile.
   player.loadScript(player.playerDir + '/js/profile-view-model.js');
+  player.loadScript(player.playerDir + '/js/avatar-model.js');
   player.loadScript(player.playerDir + '/js/picker-profile.js');
   var profileScreen = globalThis.__pickerProfile({
-    c2d: c2d, view: globalThis.__profileView, achievements: achievements, profile: profile, count: count, KEY: KEY,
+    c2d: c2d, view: globalThis.__profileView, achievements: achievements, avatars: globalThis.__avatar, profile: profile, count: count, KEY: KEY,
     playerDir: player.playerDir, picture: picture,
     canvas: function () { return canvas; }, width: function () { return W; }, height: function () { return H; },
     text: text, box: box, widthOf: widthOf, fitted: fitted, hint: hint,
@@ -420,19 +422,36 @@
   function chipAt() { return { x: W - MARGIN - CHIP, y: 30 }; }
   function inChip(x, y) { var at = chipAt(); return x >= at.x - 10 && x < at.x + CHIP + 10 && y >= at.y - 10 && y < at.y + CHIP + 10; }
 
+  // The achievements earned are told one at a time by a banner from the
+  // top, over whatever screen is showing (never over a game: the list is
+  // not there while one runs). `told` are the ones of this telling.
+  var told = [], toldSince = 0;
+  function tellAchievements(ids) {
+    if (!ids.length) return;
+    if (!toldSince) { told = []; toldSince = Date.now(); }
+    told = told.concat(ids);
+  }
+  function paintToast() {
+    var toast = toldSince ? globalThis.__profileView.toast(Date.now(), toldSince, told.length) : null;
+    if (toast) profileScreen.paintToast(told[toast.index], toast.shown);
+  }
+  // Called each frame: the banner moves, and one more picture is needed
+  // once the last has gone.
+  function tickToast() {
+    if (!toldSince) return;
+    if (!globalThis.__profileView.toast(Date.now(), toldSince, told.length)) { toldSince = 0; told = []; }
+    changed = true;
+  }
   function paint() {
-    if (profileScreen.isOpen()) return profileScreen.paint();
+    if (profileScreen.isOpen()) profileScreen.paint();
+    else paintList();
+    paintToast();
+  }
+  function paintList() {
     var all = lines(), m = metrics(), VISIBLE = visible(), x = MARGIN;
     paintBackground();
     text('POTATO PLAYER', x, 34, 12, MUTED);
-    if (!browsing) {
-      profileScreen.paintChip(chipAt().x, chipAt().y, CHIP, onChip);
-      // The achievements earned since the list was opened are told once.
-      if (freshAchievements.length) {
-        var news = freshAchievements.length === 1 ? 'New achievement!' : freshAchievements.length + ' new achievements!';
-        text(news, chipAt().x - 16 - widthOf(news, 13), chipAt().y + 26, 13, INK);
-      }
-    }
+    if (!browsing) profileScreen.paintChip(chipAt().x, chipAt().y, CHIP, onChip);
     text(browsing ? 'Add a game' : 'Games', x, 72, 32, INK);
     if (browsing) {
       box(x, 86, COLUMN, 50, 10, PANEL);
@@ -518,6 +537,8 @@
     if (newSize) takeNewSize();
     watchEmptyList();
     profileScreen.tick();
+    if (toTell.length) { tellAchievements(toTell); toTell = []; }
+    tickToast();
     var behind = gameBehind();
     rested = behind === restedOn ? rested + 1 : 0;
     restedOn = behind;
@@ -623,7 +644,6 @@
   function openProfile() {
     onChip = false;
     keepGame();
-    freshAchievements = [];
     profileScreen.open();
   }
   player.onKey = function (keyCode, down) {

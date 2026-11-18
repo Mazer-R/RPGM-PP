@@ -128,11 +128,12 @@
   }
 
   // What the list of achievements shows for one of them, given the ids
-  // earned: a secret one is question marks until it is earned.
+  // earned. How it is earned is said only once it has been: the list gives
+  // no hints. A secret one does not show its name either.
   function shown(id, earned) {
     var each = LIST.filter(function (other) { return other.id === id; })[0];
-    var has = (earned || []).indexOf(id) >= 0, hidden = each.secret && !has;
-    return { id: id, name: hidden ? '???' : each.name, how: hidden ? '???' : each.how, metal: each.metal, earned: has };
+    var has = (earned || []).indexOf(id) >= 0;
+    return { id: id, name: each.secret && !has ? '???' : each.name, how: has ? each.how : '???', metal: each.metal, earned: has };
   }
 
   // The avatar is a character with one piece, or none, in each other slot.
@@ -157,6 +158,12 @@
     'movie-night': [{ slot: 'weapon', item: 'popcorn-bucket' }, { slot: 'head', item: 'popcorn-bucket-hat' }],
     'true-potato': [{ slot: 'head', item: 'crown' }, { slot: 'weapon', item: 'sceptre' }],
     'wrinkled': [{ slot: 'companion', item: 'little-wizard' }],
+    // An ordinary scarf, to look at and by its name, "Perfectly Normal
+    // Scarf". Worn, nothing happens for a while; then, every few seconds
+    // and never at the same interval, the avatar jerks as if something were
+    // missing: slices of it out of place and its colours apart. The player
+    // is not told.
+    'missing-ingredients': [{ slot: 'accessory', item: 'perfectly-normal-scarf' }],
     'mashed': [{ slot: 'weapon', item: 'spoon' }],
     'loyal-spud': [{ slot: 'accessory', item: 'heart' }],
     'sweet-spot': [{ slot: 'character', item: 'sweet-potato' }],

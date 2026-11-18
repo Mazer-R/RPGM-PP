@@ -21,12 +21,28 @@
   function dig(state, now) { return oneMore(state, now, STRIKES); }
 
   // --- The sky ----------------------------------------------------------------
-  // The other way round: ten knocks at the sky in a row (touches on it, or
-  // "up" on the menu's first line) call a flying saucer, which crosses the
-  // window in three seconds and is gone.
-  var KNOCKS = 10, CROSSING_MS = 3000;
+  // The other way round: knocks at the sky in a row call a flying saucer,
+  // which crosses the window in three seconds and is gone. A knock is a
+  // touch on the sky, twenty of them, or a press to either side where
+  // there is nothing to change, ten of them.
+  var KNOCKS = { touch: 20, keys: 10 }, CROSSING_MS = 3000;
   function unknocked() { return undug(); }
-  function knock(state, now) { return oneMore(state, now, KNOCKS); }
+  function knock(state, now, how) { return oneMore(state, now, KNOCKS[how]); }
+
+  // --- Telling the achievements -------------------------------------------------
+  // Each achievement earned is told by a banner that comes down from the
+  // top, stays and goes back up, one after another. `since` is when the
+  // first began and `count` how many there are; the answer is which one is
+  // showing and how far down it is (0 to 1), or null when there is none.
+  var TOAST = { slide: 300, stay: 2600 };
+  TOAST.whole = 2 * TOAST.slide + TOAST.stay;
+  function toast(now, since, count) {
+    if (!since || now < since) return null;
+    var index = Math.floor((now - since) / TOAST.whole), at = (now - since) % TOAST.whole;
+    if (index >= count) return null;
+    var shown = at < TOAST.slide ? at / TOAST.slide : at < TOAST.slide + TOAST.stay ? 1 : (TOAST.whole - at) / TOAST.slide;
+    return { index: index, shown: shown };
+  }
   // Where the saucer is at `now` in a window `width` wide, having been
   // called at `since`: its x, and how far along it is (0 to 1); null when
   // there is none.
@@ -88,6 +104,6 @@
   }
 
   globalThis.__profileView = { undug: undug, dig: dig, depthAt: depthAt, STRIKES: STRIKES, unknocked: unknocked, knock: knock,
-    saucerAt: saucerAt, grid: grid, step: step,
+    saucerAt: saucerAt, toast: toast, TOAST: TOAST, grid: grid, step: step,
     firstRow: firstRow, cellAt: cellAt, played: played };
 })();

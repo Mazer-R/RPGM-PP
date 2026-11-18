@@ -1749,6 +1749,35 @@ adjustments where the game's own code is too expensive for this hardware.
     *   **Not checked**: a game where the fault showed, since none was
         known; on the handheld.
 
+*   **The profile's menu: a name, the avatar's pieces, and telling the
+    achievements (2026-11-18)**: the profile showed a fixed potato and
+    an achievement earned was only a line of text by the list's corner.
+    *   **Change**: the profile's menu has a line for the name and one
+        for each of the avatar's seven slots. To the sides changes the
+        piece of a slot, among the ones everybody starts with and the
+        ones the achievements gave; a touch on the line goes to the
+        next. The name is typed on a board of letters that works with
+        the pad and with a finger. `js/avatar-model.js` holds every
+        piece and decides which ones a user has. The seven characters
+        have pictures (`js/avatar-<id>.png`): potato, wrinkled potato,
+        French fry and potato chip to begin with; sweet potato, avocado
+        and golden potato from achievements. An achievement earned is
+        told by a banner that comes down from the top with its picture
+        and its name, one after another, over the list or the profile
+        and never over a game.
+    *   **No hints**: the list of achievements says how one is earned
+        only once it has been.
+    *   **The sky** now takes twenty touches, or ten presses to the
+        sides on a line with nothing to change.
+    *   **Checked**: tests for the catalogue, the name and the banner's
+        timing. Without a screen, with real key presses, at 640x480 and
+        at 540x960: the banner, the character changing, the name typed,
+        and the achievements for dressing and naming earned.
+    *   **Not built**: the other pieces can be chosen and are saved,
+        but only the character is drawn: clothes, hats, what is held,
+        extras and companions have no pictures yet.
+    *   **Not checked**: with a finger; on the handheld or a phone.
+
 ## Critical User Journeys (CUJs)
 
 ### CUJ 1: First launch

@@ -95,6 +95,12 @@ const tests = {
     assert.strictEqual(model.shown('warm-up', []).name, 'Warm Up');
   },
 
+  'how an achievement is earned is said only once it is: there are no hints'() {
+    assert.strictEqual(model.shown('warm-up', []).how, '???');
+    assert.strictEqual(model.shown('warm-up', ['warm-up']).how, 'Play for 1 hour in all');
+    assert.strictEqual(model.shown('sweet-spot', []).how, '???');
+  },
+
   'some achievements give the avatar something: a hat and a goatee for the name, a character for the secret'() {
     assert.deepStrictEqual(plain(model.unlocked([])), []);
     assert.deepStrictEqual(plain(model.unlocked(['warm-up'])), []);
@@ -120,6 +126,7 @@ const tests = {
     assert.deepStrictEqual(plain(model.unlocked(['regular-customer'])), [{ slot: 'weapon', item: 'beer-mug' }]);
     assert.deepStrictEqual(plain(model.unlocked(['wrinkled'])), [{ slot: 'companion', item: 'little-wizard' }]);
     assert.deepStrictEqual(plain(model.unlocked(['peeled'])), [{ slot: 'head', item: 'peeled-top' }]);
+    assert.deepStrictEqual(plain(model.unlocked(['missing-ingredients'])), [{ slot: 'accessory', item: 'perfectly-normal-scarf' }]);
     assert.deepStrictEqual(plain(model.unlocked(['aliens'])), [{ slot: 'head', item: 'tinfoil-hat' }, { slot: 'companion', item: 'little-alien' }]);
     assert.deepStrictEqual(plain(model.unlocked(['dear-diary', 'precious-memories', 'better-safe'])),
       [{ slot: 'weapon', item: 'quill' }, { slot: 'face', item: 'scholar-glasses' }, { slot: 'accessory', item: 'two-shields' }]);
