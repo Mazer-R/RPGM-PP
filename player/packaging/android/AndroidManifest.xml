@@ -21,7 +21,7 @@
     <uses-feature android:name="android.hardware.gamepad" android:required="false" />
 
     <application
-        android:label="RPG Maker MV Player"
+        android:label="Potato Player"
         android:allowBackup="false"
         android:requestLegacyExternalStorage="true"
         android:extractNativeLibs="true"

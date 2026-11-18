@@ -1,7 +1,7 @@
-mvplayer for Linux, @ARCH@ (internal test build)
-================================================
+Potato Player for Linux, @ARCH@ (internal test build)
+=====================================================
 
-A player for RPG Maker MV games. This build is for testing only.
+A player for RPG Maker MV and MZ games. This build is for testing only.
 
 Run
 ---
@@ -21,7 +21,7 @@ Or start one game directly, giving its folder, its www folder or its .exe:
 
     ./mvplayer.sh --install-launcher
 
-adds "RPG Maker MV Player" to the desktop's application menu.
+adds "Potato Player" to the desktop's application menu.
 
 The player opens in a window of its own that can be resized; the picture
 keeps its proportions. F11 switches between the window and the whole screen

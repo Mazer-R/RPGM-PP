@@ -132,7 +132,7 @@ int PlayerMain(int argc, char** argv) {
     game_dir = ResolveGameDir(game_path);
     if (game_dir.empty()) {
       std::fprintf(stderr,
-                   "mvplayer: no RPG Maker MV game at %s\n"
+                   "mvplayer: no RPG Maker MV or MZ game at %s\n"
                    "Give the game's www folder (the one with index.html), the folder that holds\n"
                    "it, or the game's .exe.\n",
                    game_path.c_str());

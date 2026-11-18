@@ -132,7 +132,7 @@
   function add(path) {
     var www = player.resolveGame(path);
     if (!www) {
-      note = 'No RPG Maker MV game there. Choose the .exe in the game\'s own folder.';
+      note = 'No RPG Maker MV or MZ game there. Choose the .exe in the game\'s own folder.';
       changed = true;
       return;
     }

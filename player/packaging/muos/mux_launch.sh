@@ -1,7 +1,7 @@
 #!/bin/sh
-# HELP: RPG Maker MV games, run without their bundled browser
+# HELP: RPG Maker MV and MZ games, run without their bundled browser
 # ICON: app
-# GRID: RPG Maker MV
+# GRID: Potato Player
 
 # The player as a muOS application. muOS closes its menu before running this
 # script and reopens it when the script ends.

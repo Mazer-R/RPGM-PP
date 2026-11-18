@@ -5,7 +5,7 @@
 #                                     last first; its "add a game" line lets
 #                                     you look through folders for a game
 #   ./mvplayer.sh <path>              play the game at <path>
-#   ./mvplayer.sh --install-launcher  add "RPG Maker MV Player" to the
+#   ./mvplayer.sh --install-launcher  add "Potato Player" to the
 #                                     desktop's application menu
 #   ./mvplayer.sh --check-libs        list the libraries the system is missing
 #   ./mvplayer.sh --<option> ...      anything else goes to the player as it is
@@ -73,8 +73,8 @@ case "${1:-}" in
   --install-launcher)
     APPS="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
     mkdir -p "$APPS"
-    printf '%s\n' '[Desktop Entry]' 'Type=Application' 'Name=RPG Maker MV Player' \
-      'Comment=Play RPG Maker MV games without their bundled browser' \
+    printf '%s\n' '[Desktop Entry]' 'Type=Application' 'Name=Potato Player' \
+      'Comment=Play RPG Maker MV and MZ games without their bundled browser' \
       "Exec=\"$HERE/mvplayer.sh\" %f" 'Terminal=false' 'Categories=Game;' > "$APPS/mvplayer.desktop"
     echo "Added $APPS/mvplayer.desktop"
     exit 0 ;;

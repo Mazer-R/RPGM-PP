@@ -1,6 +1,6 @@
 # RPGM-PP
 
-**RPG Maker Potato Player.**
+**Potato Player**, the RPG Maker Potato Player.
 
 A native player for RPG Maker MV and MZ games, without the Chromium-based NW.js
 player the games ship with. It is written for low-memory Linux handhelds
@@ -131,7 +131,7 @@ The packages are on the project's releases page:
    store and is signed with a test key, so Play Protect may ask once more.
    With a computer and USB debugging the same is done with
    `adb install -r mvplayer-android-arm64.apk`.
-2. Start "RPG Maker MV Player". It opens the system's "all files access"
+2. Start "Potato Player". It opens the system's "all files access"
    screen: allow it and open the app again. Without it the app cannot read
    the games.
 3. Copy each game to the device, with a USB cable or a file manager. The
@@ -171,7 +171,7 @@ folder, with the games and their saves, stays until you delete it.
 
 The package is extracted onto the SD card that holds the `MUOS` and `ROMS`
 folders (the first card), at its top level. It adds
-`MUOS/emulator/mvplayer`, `MUOS/application/RPG Maker MV` and `ROMS/RPGMV`,
+`MUOS/emulator/mvplayer`, `MUOS/application/Potato Player` and `ROMS/RPGMV`,
 and touches nothing else.
 
 1. Switch the console off, take the card out and put it in a computer.
@@ -187,7 +187,7 @@ and touches nothing else.
    inside); drag the `MUOS` and `ROMS` folders onto the card and accept
    merging the folders.
 3. Copy each game to `ROMS/RPGMV/<Game>/www` on the card.
-4. Put the card back and start the console: Apps, then "RPG Maker MV".
+4. Put the card back and start the console: Apps, then "Potato Player".
    Choose a game with A; the games played last come first. A game kept in
    any other folder of the cards is added with the list's "Add a game"
    line: go into the game's own folder and choose its `.exe`. X takes the
@@ -210,7 +210,9 @@ Videos use the `ffmpeg` that muOS already has.
 
 To update, extract the newer archive over the old one; the list of games
 and the saves are kept. To remove the player, delete
-`MUOS/emulator/mvplayer` and `MUOS/application/RPG Maker MV` from the card.
+`MUOS/emulator/mvplayer` and `MUOS/application/Potato Player` from the card.
+Version 0.1 was listed as "RPG Maker MV": when updating from it, delete
+`MUOS/application/RPG Maker MV` too, or the Apps menu shows both.
 
 ### Desktop Linux (x86-64 and 64-bit ARM)
 
@@ -246,7 +248,7 @@ run in a container, without a screen. Both need glibc 2.35 or newer (Ubuntu
    the mouse) takes a game off the list, after asking again; its files
    stay where they are. A game can also be started directly:
    `./mvplayer.sh "/path/to/the game/Game.exe"`.
-4. Optional: `./mvplayer.sh --install-launcher` adds "RPG Maker MV Player"
+4. Optional: `./mvplayer.sh --install-launcher` adds "Potato Player"
    to the desktop's application menu.
 5. Optional, for a game's videos: install `ffmpeg` with the system's
    package manager (`sudo apt install ffmpeg`, `sudo dnf install ffmpeg`,
@@ -374,7 +376,7 @@ this so that I could play his games.
 
 # RPGM-PP (español)
 
-**RPG Maker Potato Player.**
+**Potato Player**, the RPG Maker Potato Player.
 
 Un reproductor nativo de juegos de RPG Maker MV y MZ, sin el reproductor NW.js
 basado en Chromium con el que se distribuyen. Está escrito para consolas
@@ -508,7 +510,7 @@ Los paquetes están en la página de versiones del proyecto:
    ninguna tienda y va firmada con una clave de pruebas, así que Play
    Protect puede preguntar una vez más. Con un ordenador y la depuración
    USB se hace lo mismo con `adb install -r mvplayer-android-arm64.apk`.
-2. Abre "RPG Maker MV Player". Muestra la pantalla del sistema de "acceso a
+2. Abre "Potato Player". Muestra la pantalla del sistema de "acceso a
    todos los archivos": permítelo y vuelve a abrir la app. Sin eso no puede
    leer los juegos.
 3. Copia cada juego al dispositivo, con un cable USB o un gestor de
@@ -549,7 +551,7 @@ que la borres.
 
 El paquete se extrae en la tarjeta SD que contiene las carpetas `MUOS` y
 `ROMS` (la primera tarjeta), en su raíz. Añade `MUOS/emulator/mvplayer`,
-`MUOS/application/RPG Maker MV` y `ROMS/RPGMV`, y no toca nada más.
+`MUOS/application/Potato Player` y `ROMS/RPGMV`, y no toca nada más.
 
 1. Apaga la consola, saca la tarjeta y ponla en un ordenador.
 2. Extrae el archivo en la raíz de la tarjeta, de modo que sus carpetas
@@ -564,8 +566,8 @@ El paquete se extrae en la tarjeta SD que contiene las carpetas `MUOS` y
    de dentro); arrastra las carpetas `MUOS` y `ROMS` a la tarjeta y acepta
    combinar las carpetas.
 3. Copia cada juego a `ROMS/RPGMV/<Juego>/www` en la tarjeta.
-4. Vuelve a poner la tarjeta y enciende la consola: Apps y después "RPG
-   Maker MV". Elige un juego con A; los últimos jugados salen primero. Un
+4. Vuelve a poner la tarjeta y enciende la consola: Apps y después
+   "Potato Player". Elige un juego con A; los últimos jugados salen primero. Un
    juego guardado en cualquier otra carpeta de las tarjetas se añade con la
    línea "Add a game" de la lista: entra en la carpeta del juego y elige su
    `.exe`. X quita el juego elegido de la lista (X otra vez para confirmar,
@@ -587,7 +589,9 @@ Los vídeos usan el `ffmpeg` que muOS ya trae.
 
 Para actualizar, extrae el archivo nuevo sobre el anterior; la lista de
 juegos y las partidas se conservan. Para quitar el reproductor, borra
-`MUOS/emulator/mvplayer` y `MUOS/application/RPG Maker MV` de la tarjeta.
+`MUOS/emulator/mvplayer` y `MUOS/application/Potato Player` de la tarjeta.
+La versión 0.1 aparecía como "RPG Maker MV": al actualizar desde ella, borra
+también `MUOS/application/RPG Maker MV`, o el menú Apps mostrará las dos.
 
 ### Linux de escritorio (x86-64 y ARM de 64 bits)
 
@@ -625,7 +629,7 @@ posterior (Ubuntu 22.04, Debian 12, Fedora 36, o posteriores).
    con el ratón) quita un juego de la lista, tras volver a preguntar; sus
    archivos se quedan donde están. Un juego también se puede arrancar
    directamente: `./mvplayer.sh "/ruta/al juego/Game.exe"`.
-4. Opcional: `./mvplayer.sh --install-launcher` añade "RPG Maker MV Player"
+4. Opcional: `./mvplayer.sh --install-launcher` añade "Potato Player"
    al menú de aplicaciones del escritorio.
 5. Opcional, para los vídeos de un juego: instala `ffmpeg` con el gestor de
    paquetes del sistema (`sudo apt install ffmpeg`, `sudo dnf install

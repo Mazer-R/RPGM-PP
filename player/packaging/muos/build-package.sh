@@ -5,20 +5,20 @@
 # Usage: packaging/muos/build-package.sh
 #        (run from the player/ folder, after building build-device/mvplayer)
 #
-# The package adds one entry to muOS's Apps menu, "RPG Maker MV", which shows
+# The package adds one entry to muOS's Apps menu, "Potato Player", which shows
 # the list of games and runs the one chosen. The games themselves are not
 # part of the package; see the note it writes to ROMS/RPGMV/README.txt.
 #
 # Result, under build-device/muos/:
 #   card/MUOS/emulator/mvplayer/            the player
-#   card/MUOS/application/RPG Maker MV/     its entry in the Apps menu
+#   card/MUOS/application/Potato Player/    its entry in the Apps menu
 #   card/ROMS/RPGMV/                        one of the places games go
 #   mvplayer-muos.tar.gz                    the same, to extract at the card's root
 set -eu
 OUT=build-device/muos
 CARD="$OUT/card"
 PLAYER="$CARD/MUOS/emulator/mvplayer"
-APP="$CARD/MUOS/application/RPG Maker MV"
+APP="$CARD/MUOS/application/Potato Player"
 
 [ -x build-device/mvplayer ] || { echo "build-device/mvplayer is missing: build the player first" >&2; exit 1; }
 
@@ -30,7 +30,7 @@ cp patches/* "$PLAYER/patches/"
 cp packaging/muos/mux_launch.sh "$APP/mux_launch.sh"
 chmod +x "$APP/mux_launch.sh"
 cat > "$CARD/ROMS/RPGMV/README.txt" <<'NOTE'
-RPG Maker MV games for the "RPG Maker MV" entry in the Apps menu.
+RPG Maker MV and MZ games for the "Potato Player" entry in the Apps menu.
 
 Each game is a folder that contains the game's own "www" folder (the one
 with index.html). Games are looked for in two places:

@@ -48,7 +48,7 @@ bool Window::Open(std::string* error) {
         break;
       }
     }
-    window_ = SDL_CreateWindow("RPG Maker MV Player", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height,
+    window_ = SDL_CreateWindow("Potato Player", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height,
                                SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
     if (window_) SDL_SetWindowMinimumSize(window_, 408, 312);
   } else {
