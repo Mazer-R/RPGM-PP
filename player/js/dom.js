@@ -303,14 +303,10 @@
     return ok;
   };
   // A script element the game adds to the page (the engine loads its plugins
-  // this way). It runs at once, and its load or error event follows. As in
-  // a browser, the error event is for a script that could not be read: one
-  // that was read and then failed while running still counts as loaded (its
-  // failure is in the log), and the engine goes on without it.
+  // this way). It runs at once, and its load or error event follows.
   function startScript(element) {
-    var found = player.fileExists(gamePath(element.src));
-    browser.runScript(element.src, element);
-    later(function () { emit(element, found ? 'load' : 'error'); });
+    var ok = browser.runScript(element.src, element);
+    later(function () { emit(element, ok ? 'load' : 'error'); });
   }
 
   // --- Canvas ---------------------------------------------------------------
@@ -684,15 +680,10 @@
     } catch (error) { console.error('key event: ' + describe(error)); }
   };
 
-  // Fires the page's load event, which starts the engine. As in a browser,
-  // it comes after what the page's scripts had already asked for: MZ reads
-  // a file while its scripts load and refuses to start if the answer has
-  // not arrived by the time of the load event.
+  // Fires the page's load event, which starts the engine.
   browser.fireLoad = function () {
-    later(function () {
-      var event = new Event('load', { target: globalThis });
-      if (typeof globalThis.onload === 'function') globalThis.onload(event);
-      windowEvents.dispatchEvent(event);
-    });
+    var event = new Event('load', { target: globalThis });
+    if (typeof globalThis.onload === 'function') globalThis.onload(event);
+    windowEvents.dispatchEvent(event);
   };
 })();

@@ -1,13 +1,19 @@
 // Starts a game. The native player runs this file when it is given --game.
 //
-// It loads the layers that stand in for the browser and for the desktop
-// player (NW.js), then loads the game's own scripts in the order its
+// It tells whether the game is RPG Maker MV or MZ, loads the layers that
+// stand in for the browser and for the desktop player (NW.js) for that
+// engine, then loads the game's own scripts in the order its
 // index.html lists them, and finally fires the page's "load" event, which is
 // what starts the engine.
 (function () {
   'use strict';
-  var layers = ['base64.js', 'file-bytes.js', 'css.js', 'video.js', 'dom.js', 'canvas2d.js', 'desktop.js', 'patch-select.js'];
-  if (player.audio) layers.push('audio.js');
+  // MV and MZ games each get their own set of layers: see engine-select.js.
+  if (!player.loadScript(player.playerDir + '/js/engine-select.js')) {
+    console.error('boot: cannot load engine-select.js');
+    return player.exit(2);
+  }
+  var engine = __engineSelect.engineOf(player.gameDir, player.fileExists);
+  var layers = __engineSelect.layersFor(engine, !!player.audio);
   for (var i = 0; i < layers.length; i++) {
     if (!player.loadScript(player.playerDir + '/js/' + layers[i])) {
       console.error('boot: cannot load ' + layers[i]);
@@ -15,6 +21,7 @@
     }
   }
   var browser = globalThis.__browser;
+  console.info('boot: RPG Maker ' + engine + ' game');
 
   // Every ten seconds of play, one log line says how the game ran: where
   // (scene and map), frames shown, logic steps per frame, and the average

@@ -979,16 +979,26 @@ adjustments where the game's own code is too expensive for this hardware.
         differs from MV's: no `www` folder, the page and `js/` sit next to
         the `.exe`; `index.html` names only `js/main.js`, which adds the
         other scripts to the page itself; PIXI is 5.2.4.
+    *   **Rule**: nothing done for MZ may change how an MV game runs. The
+        player tells the engine from the game's files and loads a
+        different set of layers for each (`js/engine-select.js`): an MV
+        game gets exactly the layers it had before MZ existed here; an MZ
+        game gets those and then its own, loaded last, which may replace
+        parts of the earlier ones. What only MZ needs lives in the MZ
+        layers (`js/mz.js` and the files listed with it), not in the
+        shared ones. A test pins MV's list.
     *   **Done**: a folder with `index.html` and `js/rmmz_core.js` is a
-        game (`ResolveGameDir`, native test). `atob`/`btoa` for scripts
-        (`js/base64.js`, tests): MZ's sound decoder library calls `atob`
-        while loading. The page's load event now comes after work the
-        scripts had already queued: MZ reads a file while loading and
-        refuses to start if the answer is not there at load time. With
-        that order, a script that was read but failed while running must
-        get a `load` event, as in a browser, not `error`: otherwise
-        Fear & Hunger, which has such a plugin, no longer starts (seen,
-        then fixed; it reaches its title again).
+        game (`ResolveGameDir`, native test). For MZ only: `atob`/`btoa`
+        for scripts (`js/base64.js`), which MZ's sound decoder library
+        calls while loading; and the page's load event comes after work
+        the scripts had already queued (`js/mz.js`), because MZ reads a
+        file while loading and refuses to start if the answer is not
+        there at load time.
+    *   **Why the rule**: the load-event change was first made in the
+        shared page code, and Fear & Hunger stopped starting: it has a
+        plugin that fails while loading, and with the new order the
+        engine learned of it in time to refuse. The shared code is back
+        as it was.
     *   **Found, not done**, in the order the engine hits them:
         1.  **WebAssembly.** V8 is built with `v8_enable_webassembly =
             false` on all three targets. MZ needs it for Effekseer (every
