@@ -631,7 +631,8 @@
     Event: Event, EventTarget: EventTarget,
     Element: Element, HTMLElement: Element, Node: Element,
     HTMLCanvasElement: HTMLCanvasElement, HTMLImageElement: HTMLImageElement, Image: HTMLImageElement,
-    HTMLVideoElement: function HTMLVideoElement() {},
+    // video.js, loaded before this file, defines the one that knows its elements.
+    HTMLVideoElement: globalThis.HTMLVideoElement || function HTMLVideoElement() {},
     XMLHttpRequest: XMLHttpRequest,
     WebGLRenderingContext: function WebGLRenderingContext() {},
     devicePixelRatio: 1,

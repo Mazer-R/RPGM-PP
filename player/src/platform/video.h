@@ -70,6 +70,17 @@ class VideoPlayer {
   void Show(bool visible);
   VideoState state();
 
+  // The picture the video is at, whether or not it is shown over the game:
+  // for a game that draws the video itself, as a texture. `serial` is a
+  // number that changes with each new picture. False before the first
+  // picture and once the video is closed.
+  bool Frame(VideoPicture* picture, long* serial);
+  // How far into the video it is, in seconds; 0 when nothing is open.
+  double Time();
+  // The size its pictures have, as asked for in Open; 0 when nothing is open.
+  int width() const;
+  int height() const;
+
   // Moves the video on to the present moment. Returns true, and fills
   // `picture`, when there is a picture to show.
   bool Picture(VideoPicture* picture);

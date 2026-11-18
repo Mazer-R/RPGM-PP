@@ -33,6 +33,7 @@
       'engine-tasks.js',  // V8's queued work: WebAssembly finishes compiling
       'web-media.js',     // video.play() is a promise: every key press
       'web-page.js',      // elements the page declares with an id
+      'web-classes.js',   // element.classList: plugins that set classes on the canvas
       'web-fetch.js',     // fetch, for the game's own files: plugins' tables and settings
       'compat-report.js', // what the game's plugins ask for that is not there, logged at once
       'mz-files.js',      // MZ's names for encrypted images and sounds

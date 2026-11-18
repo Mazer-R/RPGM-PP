@@ -28,6 +28,10 @@ function setup(withNative) {
     setVolume(value) { calls.push('volume ' + value); },
     show(visible) { calls.push('show ' + visible); },
     state() { return this.stateNow; },
+    timeNow: 0,
+    time() { return this.timeNow; },
+    width() { return 816; },
+    height() { return 624; },
   };
   const waiting = [];
   const warnings = [];
@@ -51,10 +55,137 @@ function setup(withNative) {
   // One frame of the player: things queued for "after this script", then the
   // per-frame check.
   const frame = () => { waiting.splice(0).forEach((fn) => fn()); browser.updateVideo(); };
-  return { native, calls, events, video, frame, warnings };
+  return { native, calls, events, video, frame, warnings, sandbox, browser };
+}
+
+// A script that draws the video itself (a plugin that puts videos in sprites)
+// never shows the element: it waits for the data, hands the element to the
+// graphics library as the source of a texture, and plays, pauses and replays
+// it. Its element is not made visible, and it has handlers of its own.
+function drawnByScript() {
+  const t = setup(true);
+  const video = t.browser.makeVideo({ style: {} });
+  const events = [];
+  ['loadedmetadata', 'loadeddata', 'canplay', 'canplaythrough', 'play', 'pause', 'ended'].forEach((type) => {
+    video['on' + type] = () => events.push(type);
+  });
+  video.src = 'movies/Title.webm';
+  video.load();
+  return Object.assign(t, { video, events });
 }
 
 const tests = {
+  'a video element is one for the libraries that ask, and nothing else is'() {
+    const t = setup(true);
+    assert.ok(t.video instanceof t.sandbox.HTMLVideoElement);
+    assert.strictEqual({} instanceof t.sandbox.HTMLVideoElement, false);
+    assert.deepStrictEqual([t.video.HAVE_FUTURE_DATA, t.video.HAVE_ENOUGH_DATA, t.video.playbackRate], [3, 4, 1]);
+  },
+
+  'a script that draws the video itself is told when it can, and how large the picture is'() {
+    const t = drawnByScript();
+    assert.strictEqual(t.video.__videoFrame, false, 'no picture to give yet');
+    t.native.stateNow = READY;
+    t.frame();
+    assert.deepStrictEqual(t.events, ['loadedmetadata', 'loadeddata', 'canplay', 'canplaythrough']);
+    assert.deepStrictEqual([t.video.videoWidth, t.video.videoHeight, t.video.readyState], [816, 624, 4]);
+    assert.strictEqual(t.video.__videoFrame, true, 'its picture is the one a texture gets');
+    t.frame();
+    assert.ok(!t.calls.includes('show true'), 'the picture is not put over the game');
+  },
+
+  'playing and pausing are announced, and the time is the native player\'s'() {
+    const t = drawnByScript();
+    t.native.stateNow = READY;
+    t.frame();
+    t.events.length = 0;
+    t.video.currentTime = 0;
+    t.video.play();
+    assert.deepStrictEqual(t.events, ['play']);
+    assert.strictEqual(t.calls.filter((c) => c === 'open /game/movies/Title.webm 0x0').length, 1, 'setting the time it is at opens nothing');
+    t.native.timeNow = 2.5;
+    assert.strictEqual(t.video.currentTime, 2.5);
+    t.video.pause();
+    assert.deepStrictEqual(t.events, ['play', 'pause']);
+  },
+
+  'a video that has ended plays again from its start when asked to'() {
+    const t = drawnByScript();
+    t.native.stateNow = READY;
+    t.frame();
+    t.video.play();
+    t.native.timeNow = 4;
+    t.native.stateNow = ENDED;
+    t.frame();
+    assert.strictEqual(t.events[t.events.length - 1], 'ended');
+    assert.strictEqual(t.video.duration, 4, 'its length is known once it has played through');
+    t.events.length = 0;
+    t.calls.length = 0;
+
+    t.video.currentTime = 0;
+    t.video.play();
+    t.native.stateNow = LOADING;
+    t.native.timeNow = 0;
+    assert.ok(t.calls.includes('open /game/movies/Title.webm 0x0'), t.calls.join(', '));
+    assert.strictEqual(t.video.ended, false);
+    t.frame();
+    assert.ok(!t.calls.includes('play'), 'not before its first picture is there');
+    t.native.stateNow = READY;
+    t.frame();
+    assert.ok(t.calls.includes('play'));
+    assert.deepStrictEqual(t.events, ['play'], 'the data is not announced a second time');
+    assert.strictEqual(t.video.__videoFrame, true);
+  },
+
+  'playing before the data is there starts the video once it is'() {
+    const t = drawnByScript();
+    t.video.play();
+    assert.ok(!t.calls.includes('play'));
+    t.native.stateNow = READY;
+    t.frame();
+    assert.ok(t.calls.includes('play'));
+    assert.strictEqual(t.video.paused, false);
+  },
+
+  'videos loaded one after another are each told their data is there, and open when played'() {
+    const t = setup(true);
+    const made = ['Burn', 'Title', 'Splash'].map((name) => {
+      const video = t.browser.makeVideo({ style: {} });
+      video.name = name;
+      video.told = [];
+      video.onloadeddata = () => video.told.push('loadeddata');
+      video.src = 'movies/' + name + '.webm';
+      video.load();
+      return video;
+    });
+    t.frame();
+    assert.deepStrictEqual(made.map((v) => v.told.length), [1, 1, 0], 'the two that gave way are answered; the open one waits for its picture');
+    assert.deepStrictEqual([made[1].videoWidth, made[1].videoHeight, made[1].__videoFrame], [816, 624, false]);
+    t.native.stateNow = READY;
+    t.frame();
+    assert.deepStrictEqual(made.map((v) => v.told.length), [1, 1, 1]);
+
+    t.calls.length = 0;
+    t.native.stateNow = LOADING;
+    made[1].play();
+    assert.ok(t.calls.includes('open /game/movies/Title.webm 0x0'), t.calls.join(', '));
+    t.native.stateNow = READY;
+    t.frame();
+    assert.ok(t.calls.includes('play'));
+    assert.deepStrictEqual([made[1].told.length, made[1].__videoFrame, made[2].__videoFrame], [1, true, false], 'told once; the picture is now this one\'s');
+  },
+
+  'setting the time to the end, known or not, ends the video'() {
+    const t = drawnByScript();
+    t.native.stateNow = READY;
+    t.frame();
+    t.video.play();
+    t.video.currentTime = t.video.duration;  // not known yet: not a number
+    assert.strictEqual(t.video.ended, true);
+    assert.strictEqual(t.events[t.events.length - 1], 'ended');
+    assert.strictEqual(t.video.__videoFrame, false);
+  },
+
   'a video plays from load to end'() {
     const t = setup(true);
     t.video.src = 'movies/intro.webm';

@@ -1539,6 +1539,37 @@ adjustments where the game's own code is too expensive for this hardware.
     *   **Checked**: tests for the switch, the file and the list's
         layout. The orientation has no test off the device.
 
+*   **A video drawn by the game itself (2026-11-18)**: a free MZ game
+    with nine videos plays them through a plugin that puts videos in
+    sprites: it hands the video element to PIXI as the source of a
+    texture (the splash before the title, a looping video behind the
+    title menu) and never makes the element visible. The player could
+    only show a video over the game, so PIXI refused the element and the
+    game stopped before its title.
+    *   **Change**: the element is an `HTMLVideoElement`, says its
+        picture's size and how far it has played, and announces what
+        PIXI's video resource waits for. `texImage2D` and
+        `texSubImage2D` given the element of the open video send the
+        picture the native player is at (`VideoPlayer::Frame`), once per
+        new picture. Playing a video that has ended, or setting its time
+        to the start, opens it again; setting the time to the end ends
+        it; there is no seeking. The native player still has one video
+        open at a time: videos loaded one after another (the plugin
+        preloads all nine) are each told their data is there, and opened
+        when played.
+    *   **Another gap the same game showed**: `element.classList`, which
+        a plugin sets on the canvas at every resize; the start-up survey
+        had listed it. Now `web-classes.js`, on MZ's profile.
+    *   **Checked**: tests for the element and the class list. Without a
+        screen the game shows its 5.9 s splash, then its title with the
+        video behind the menu, which ends after 43.4 s and starts again;
+        Fear & Hunger's intro video, shown over the game the old way,
+        plays as before.
+    *   **Limits**: two videos cannot play at once (the later one wins);
+        pictures are the size the native player scales to (816x624
+        unless the element asks otherwise), not the file's own; not
+        tried on a device.
+
 ## Critical User Journeys (CUJs)
 
 ### CUJ 1: First launch

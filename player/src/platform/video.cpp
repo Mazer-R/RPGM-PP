@@ -436,6 +436,27 @@ VideoState VideoPlayer::state() {
   return VideoState::kReady;
 }
 
+bool VideoPlayer::Frame(VideoPicture* picture, long* serial) {
+  Impl& v = *impl_;
+  if (!v.open || !v.has_picture) return false;
+  picture->pixels = v.shown.data();
+  picture->width = v.width;
+  picture->height = v.height;
+  picture->changed = true;
+  *serial = v.next_number;
+  return true;
+}
+
+double VideoPlayer::Time() {
+  Impl& v = *impl_;
+  if (!v.open) return 0;
+  std::lock_guard<std::mutex> lock(v.mutex);
+  return v.NowLocked();
+}
+
+int VideoPlayer::width() const { return impl_->open ? impl_->width : 0; }
+int VideoPlayer::height() const { return impl_->open ? impl_->height : 0; }
+
 bool VideoPlayer::Picture(VideoPicture* picture) {
   Impl& v = *impl_;
   if (!v.open) return false;

@@ -21,6 +21,32 @@ function load(file, sandbox) {
 const plain = (value) => JSON.parse(JSON.stringify(value));
 
 const tests = {
+  'an element has a list of classes, kept in step with its className'() {
+    function Element() {}
+    Element.prototype.setAttribute = function () {};
+    function Canvas() {}
+    Canvas.prototype = Object.create(Element.prototype);
+    const body = new Element(), canvas = new Canvas();
+    load('web-classes.js', { document: { body } });
+    canvas.classList.add('pixelate');
+    canvas.classList.add('pixelate', 'wide');
+    assert.strictEqual(canvas.className, 'pixelate wide', 'a class is there once');
+    assert.strictEqual(canvas.classList.contains('wide'), true);
+    assert.strictEqual(canvas.classList.length, 2);
+    canvas.classList.remove('pixelate');
+    assert.strictEqual(canvas.className, 'wide');
+    canvas.classList.remove('never-there');
+    assert.strictEqual(canvas.classList.toggle('wide'), false);
+    assert.strictEqual(canvas.className, '');
+    assert.strictEqual(canvas.classList.toggle('a', true), true);
+    canvas.className = 'set by hand';
+    assert.strictEqual(canvas.classList.contains('hand'), true, 'the list follows className');
+    assert.strictEqual(canvas.classList.replace('hand', 'script'), true);
+    assert.strictEqual(String(canvas.classList), 'set by script');
+    assert.strictEqual(body.classList.contains('set'), false, 'each element has its own');
+    assert.strictEqual(canvas.classList, canvas.classList);
+  },
+
   'the load event waits for what the page had already asked for'() {
     const order = [], tasks = [];
     const browser = { later: (fn) => tasks.push(fn), fireLoad: () => order.push('load') };

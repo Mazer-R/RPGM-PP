@@ -6,6 +6,7 @@
 #include <GLES2/gl2.h>
 
 #include "bindings/canvas_binding.h"
+#include "bindings/video_binding.h"
 
 #include <cstring>
 #include <map>
@@ -241,6 +242,56 @@ std::vector<uint8_t> PreparePixels(const uint8_t* data, int width, int height) {
   return out;
 }
 
+void NoteTextureSize(int level, int width, int height);
+
+// The last picture of a video sent to a texture.
+struct VideoSent {
+  long serial = -1;
+  GLint texture = 0;
+  int width = 0, height = 0;
+  bool flipped = false;
+};
+VideoSent g_video_sent;
+
+// A video element as the source of a texture: the picture the video is at
+// goes to the texture bound to `target`. A video's pictures are opaque, so
+// only the flip flag matters. The same picture is not sent twice in a row to
+// the same texture: the library asks at every frame of the game, and the
+// video has fewer. Does nothing when `source` is not the open video.
+void UploadVideoFrame(v8::Isolate* isolate, v8::Local<v8::Value> source, GLenum target, GLint level,
+                      GLint internal_format, GLenum format, GLenum type) {
+  const uint8_t* frame = nullptr;
+  int width = 0, height = 0;
+  long serial = 0;
+  if (format != GL_RGBA || type != GL_UNSIGNED_BYTE) return;
+  if (!VideoFrameForUpload(isolate, source, &frame, &width, &height, &serial)) return;
+  GLint texture = 0;
+  glGetIntegerv(target == GL_TEXTURE_2D ? GL_TEXTURE_BINDING_2D : GL_TEXTURE_BINDING_CUBE_MAP, &texture);
+  VideoSent& sent = g_video_sent;
+  if (serial == sent.serial && texture == sent.texture && width == sent.width && height == sent.height &&
+      g_state.flip_y == sent.flipped) {
+    return;
+  }
+  bool same_size = texture == sent.texture && width == sent.width && height == sent.height;
+  const uint8_t* pixels = frame;
+  std::vector<uint8_t> flipped;
+  if (g_state.flip_y) {
+    size_t row = static_cast<size_t>(width) * 4;
+    flipped.resize(row * static_cast<size_t>(height));
+    for (int y = 0; y < height; y++) {
+      std::memcpy(flipped.data() + row * static_cast<size_t>(y), frame + row * static_cast<size_t>(height - 1 - y), row);
+    }
+    pixels = flipped.data();
+  }
+  if (same_size) {
+    glTexSubImage2D(target, level, 0, 0, width, height, format, type, pixels);
+  } else {
+    glTexImage2D(target, level, internal_format, width, height, 0, format, type, pixels);
+    NoteTextureSize(level, width, height);
+  }
+  sent = {serial, texture, width, height, g_state.flip_y};
+}
+
 // Creates or resizes the game's drawing buffer: a colour texture plus a
 // stencil buffer, which PIXI needs for masks.
 void SetDrawingBufferSize(int width, int height) {
@@ -445,6 +496,7 @@ void InstallFunctions(v8::Isolate* isolate, v8::Local<v8::Object> gl) {
     GLuint id = N(0);
     glDeleteTextures(1, &id);
     g_state.texture_bytes.erase(id);
+    if (static_cast<GLuint>(g_video_sent.texture) == id) g_video_sent = VideoSent();  // the number may be given out again
     NoteDeleted(ISO, args[0]);
   });
   // Not part of WebGL: pixel memory held by textures, in bytes.
@@ -471,6 +523,8 @@ void InstallFunctions(v8::Isolate* isolate, v8::Local<v8::Object> gl) {
                                                         g_state.flip_y, &pixels, &width, &height)) {
         glTexImage2D(U(0), I(1), I(2), width, height, 0, U(3), U(4), pixels.data());
         NoteTextureSize(I(1), width, height);
+      } else if (args.Length() >= 6) {
+        UploadVideoFrame(ISO, args[5], U(0), I(1), I(2), U(3), U(4));
       }
       return;
     }
@@ -498,6 +552,8 @@ void InstallFunctions(v8::Isolate* isolate, v8::Local<v8::Object> gl) {
       if (args.Length() >= 7 && SurfacePixelsForUpload(ISO, args[6], g_state.premultiply,
                                                         g_state.flip_y, &pixels, &width, &height)) {
         glTexSubImage2D(U(0), I(1), I(2), I(3), width, height, U(4), U(5), pixels.data());
+      } else if (args.Length() >= 7 && I(2) == 0 && I(3) == 0) {
+        UploadVideoFrame(ISO, args[6], U(0), I(1), static_cast<GLint>(U(4)), U(4), U(5));
       }
       return;
     }
@@ -1099,6 +1155,8 @@ void PresentDrawingBuffer(int screen_width, int screen_height, const std::vector
 // The OpenGL objects named in the state belong to a screen that is closed
 // after this; a later run in the same process starts from nothing.
 void ReleaseWebGLBinding() {
+  g_video_sent = VideoSent();
+  ForgetVideoBinding();
   g_state.name_key.Reset();
   g_state.bound.clear();
   g_state = State();
