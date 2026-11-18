@@ -19,6 +19,12 @@
     return depth >= needed ? { depth: 0, last: now, open: true } : { depth: depth, last: now, open: false };
   }
   function dig(state, now) { return oneMore(state, now, STRIKES); }
+  // The ground gives way in one place only: a strip at the right edge of
+  // the window, clear of the menu and of the avatar. `from` is where the
+  // strip begins and `x` the middle of the hole.
+  var DIG_WIDE = 110;
+  function digSpot(width) { return { from: width - DIG_WIDE, x: width - DIG_WIDE / 2 }; }
+  function inDigSpot(x, width) { return x >= digSpot(width).from && x < width; }
 
   // --- The sky ----------------------------------------------------------------
   // The other way round: knocks at the sky in a row call a flying saucer,
@@ -103,7 +109,7 @@
     return (hours ? hours + ' h' : '') + (hours && minutes ? ' ' : '') + (minutes ? minutes + ' min' : '');
   }
 
-  globalThis.__profileView = { undug: undug, dig: dig, depthAt: depthAt, STRIKES: STRIKES, unknocked: unknocked, knock: knock,
+  globalThis.__profileView = { undug: undug, dig: dig, depthAt: depthAt, STRIKES: STRIKES, digSpot: digSpot, inDigSpot: inDigSpot, unknocked: unknocked, knock: knock,
     saucerAt: saucerAt, toast: toast, TOAST: TOAST, grid: grid, step: step,
     firstRow: firstRow, cellAt: cellAt, played: played };
 })();

@@ -69,9 +69,11 @@
         column: Math.min(W - 2 * MARGIN, tall ? W - 2 * MARGIN : 300),
         avatarX: tall ? W / 2 : Math.max(W * 0.72, W - 190) };
     }
-    var digging = view.undug(), holeX = 0;
-    function strike(x) {
-      holeX = x;
+    var digging = view.undug();
+    // A strike at the one place where the ground gives way. Once the way
+    // down has been dug it stays open, and a strike there goes down it.
+    function strike() {
+      if (found()) return openCellar();
       digging = view.dig(digging, Date.now());
       if (digging.open) {
         digging = view.undug();
@@ -82,10 +84,22 @@
     }
     // The hole: wider and deeper with each strike, earth thrown to its sides.
     var EARTH = [0.30, 0.19, 0.10, 1], DARK_EARTH = [0.16, 0.10, 0.05, 1], CLOD = [0.42, 0.28, 0.15, 1];
+    var WOOD = [0.62, 0.43, 0.22, 1], WOOD_SHADE = [0.40, 0.27, 0.13, 1];
     function paintHole(at) {
-      var depth = view.depthAt(digging, Date.now());
+      var open = found(), depth = open ? view.STRIKES : view.depthAt(digging, Date.now());
       if (!depth) return;
+      var holeX = view.digSpot(at.W).x;
       var w = 26 + depth * 16, h = 6 + depth * 6, x = Math.round(holeX - w / 2), y = Math.round(at.ground + 6);
+      if (open) {
+        // The way down, once dug, stays: a hole with a ladder standing in it.
+        rect(x - 4, y - 2, w + 8, h + 4, EARTH);
+        rect(x, y, w, h, DARK_EARTH);
+        var left = Math.round(holeX - 15), top = y - 30;
+        rect(left, top, 5, h + 30, WOOD);
+        rect(left + 25, top, 5, h + 30, WOOD);
+        for (var rung = 0; rung < 5; rung++) rect(left + 5, top + 6 + rung * 12, 20, 4, rung % 2 ? WOOD : WOOD_SHADE);
+        return;
+      }
       rect(x - 4, y - 2, w + 8, h + 4, EARTH);
       rect(x, y, w, h, DARK_EARTH);
       for (var i = 0; i < depth * 2; i++) {
@@ -171,7 +185,7 @@
       if (keyCode === KEY.up) chosen = Math.max(0, chosen - 1);
       else if (keyCode === KEY.down) {
         // "Down" with nowhere further to go strikes the ground.
-        if (chosen === all.length - 1) return strike(scene().avatarX - 110);
+        if (chosen === all.length - 1) return strike();
         chosen++;
       }
       else if (keyCode === KEY.left || keyCode === KEY.right) {
@@ -192,7 +206,8 @@
         ui.changed();
         return chooseLine();
       }
-      if (y >= at.ground) strike(x);
+      // The ground gives way at one side only; the rest of it is just grass.
+      if (y >= at.ground) { if (view.inDigSpot(x, at.W)) strike(); }
       else knockSky('touch');
     }
 
@@ -256,8 +271,13 @@
       rect(0, 0, W, 8, GRASS_GREEN);
       ui.text('UNDER THE GROUND', MARGIN, 34, 12, MUTED);
       ui.text('Achievements', MARGIN, 72, 32, INK);
+      // The ladder comes down from the profile, at the place it was dug.
+      var ladder = Math.round(view.digSpot(W).x - 15);
+      rect(ladder, 0, 5, 84, WOOD);
+      rect(ladder + 25, 0, 5, 84, WOOD);
+      for (var rung = 0; rung < 7; rung++) rect(ladder + 5, 6 + rung * 12, 20, 4, rung % 2 ? WOOD : WOOD_SHADE);
       var tally = earned.length + ' of ' + list.length;
-      ui.text(tally, W - MARGIN - ui.widthOf(tally, 18), 72, 18, MUTED);
+      ui.text(tally, ladder - 16 - ui.widthOf(tally, 18), 72, 18, MUTED);
       var pitch = grid.cell + grid.gap;
       for (var row = 0; row < grid.shown; row++) {
         for (var column = 0; column < grid.columns; column++) {

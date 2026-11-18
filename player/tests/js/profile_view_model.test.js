@@ -32,6 +32,15 @@ const tests = {
     assert.strictEqual(strikes(0, 500, 1000, 3999).depth, 4);
   },
 
+  'the ground is dug at one side only: a strip at the right edge'() {
+    assert.deepStrictEqual(plain(model.digSpot(640)), { from: 530, x: 585 });
+    assert.strictEqual(model.inDigSpot(529, 640), false);
+    assert.strictEqual(model.inDigSpot(530, 640), true);
+    assert.strictEqual(model.inDigSpot(639, 640), true);
+    assert.strictEqual(model.inDigSpot(300, 540), false);
+    assert.strictEqual(model.inDigSpot(500, 540), true);
+  },
+
   'the hole is as deep as the strikes so far, and closes by itself'() {
     const state = strikes(0, 500);
     assert.strictEqual(model.depthAt(state, 600), 2);
