@@ -1480,6 +1480,23 @@ adjustments where the game's own code is too expensive for this hardware.
         error and shows its title 14.6 s after starting, at 57 frames a
         second with both MZ patches on. Nothing past the title was tried.
 
+*   **Saving in MZ (2026-11-18)**: MZ could save to a slot once. It
+    keeps the previous file aside while it writes the new one
+    (`fs.renameSync` to a backup name, write, remove the backup), the
+    rename did not exist, and every later save to that slot failed:
+    the save menu, the autosave after the first, and the options file
+    from its second change.
+    *   **Change**: `fs.renameSync` in `desktop.js`, over a new native
+        `player.renameSaveFile`, which like the other file writes
+        refuses any name outside `<game>/save`. MV never calls it.
+    *   **Checked**: tests for the calls MZ makes, failing first.
+        `tests/device/save_check.js` saves twice to slot 1 and loads it
+        through the engine's own save code; without a screen it passes
+        on the free and the commercial MZ game and on Fear & Hunger
+        (MV), and fails at the second save without the change.
+    *   **Not checked**: the save and load menus by hand, on a device,
+        or a save made late in a game (larger files).
+
 ## Critical User Journeys (CUJs)
 
 ### CUJ 1: First launch

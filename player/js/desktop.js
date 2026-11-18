@@ -76,6 +76,16 @@
     unlinkSync: function (p) {
       if (!player.removeSaveFile(absolute(p))) throw fail("ENOENT: cannot remove '" + p + "'", 'ENOENT');
     },
+    // MZ keeps the previous save aside under another name while it writes
+    // the new one. Both names have to be inside the save folder.
+    renameSync: function (from, to) {
+      if (!player.fileExists(absolute(from))) {
+        throw fail("ENOENT: no such file or directory, rename '" + from + "' -> '" + to + "'", 'ENOENT');
+      }
+      if (!player.renameSaveFile(absolute(from), absolute(to))) {
+        throw fail("EACCES: the player only renames inside the game's save folder: '" + from + "' -> '" + to + "'", 'EACCES');
+      }
+    },
     mkdirSync: function (p) {
       if (!player.makeSaveDir(absolute(p))) throw fail("EACCES: cannot create folder '" + p + "'", 'EACCES');
     },

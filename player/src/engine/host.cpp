@@ -456,6 +456,17 @@ void Host::RemoveSaveFileCallback(const v8::FunctionCallbackInfo<v8::Value>& arg
   args.GetReturnValue().Set(host->IsSavePath(path) && std::remove(path.c_str()) == 0);
 }
 
+// Gives a file in the save folder another name in the same folder, taking
+// the place of a file that already has that name.
+void Host::RenameSaveFileCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  ForgetFileNames();  // the folder is about to change
+  Host* host = FromArgs(args);
+  std::string from = ToStdString(args.GetIsolate(), args[0]);
+  std::string to = ToStdString(args.GetIsolate(), args[1]);
+  args.GetReturnValue().Set(host->IsSavePath(from) && host->IsSavePath(to) &&
+                            std::rename(from.c_str(), to.c_str()) == 0);
+}
+
 void Host::MakeSaveDirCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
   ForgetFileNames();  // the folder is about to change
   Host* host = FromArgs(args);
@@ -514,6 +525,7 @@ void Host::InstallGlobals(v8::Local<v8::Context> context) {
   set(player, "loadScript", make_function(LoadScriptCallback, "loadScript"));
   set(player, "writeSaveFile", make_function(WriteSaveFileCallback, "writeSaveFile"));
   set(player, "removeSaveFile", make_function(RemoveSaveFileCallback, "removeSaveFile"));
+  set(player, "renameSaveFile", make_function(RenameSaveFileCallback, "renameSaveFile"));
   set(player, "makeSaveDir", make_function(MakeSaveDirCallback, "makeSaveDir"));
   set(player, "listDir", make_function(ListDirCallback, "listDir"));
   set(player, "listFolder", make_function(ListFolderCallback, "listFolder"));

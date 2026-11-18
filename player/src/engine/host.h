@@ -101,6 +101,7 @@ class Host {
   static void LoadScriptCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void WriteSaveFileCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RemoveSaveFileCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RenameSaveFileCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void MakeSaveDirCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ListDirCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ListFolderCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
