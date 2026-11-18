@@ -112,6 +112,19 @@
     return { zoom: zoom, width: width, height: height, column: Math.min(width - 2 * MARGIN, Math.max(520, Math.round(width * 0.5))) };
   }
 
+  // Where the picture of a list with no games goes, in a list drawn width
+  // by height whose words end at `top`: at the bottom right, above the
+  // hints, in its own proportions, made smaller to fit but never enlarged.
+  // null when there is no picture or too little room for it to be seen.
+  var HINTS = 46, SMALLEST_ART = 60;
+  function emptyArt(width, height, top, picture) {
+    if (!picture) return null;
+    var scale = Math.min(1, (width - 2 * MARGIN) / picture.width, (height - HINTS - top) / picture.height);
+    var w = Math.round(picture.width * scale), h = Math.round(picture.height * scale);
+    if (h < SMALLEST_ART) return null;
+    return { x: width - MARGIN - w, y: height - HINTS - h, w: w, h: h };
+  }
+
   // The game in the folder `name` of a games folder, or null: an MV game is
   // the www folder inside it, an MZ game is the folder itself, with the
   // engine's script next to its page. fileExists(path) says what is there.
@@ -129,5 +142,5 @@
     return parts[parts.length - 1] || game;
   }
 
-  globalThis.__pickerModel = { gameIn: gameIn, folderOf: folderOf, order: order, browse: browse, places: places, lineAt: lineAt, dragged: dragged, onRemoveButton: onRemoveButton, REMOVE: REMOVE, REMOVE_GAP: REMOVE_GAP, isTap: isTap, tapOpens: tapOpens, fit: fit, MARGIN: MARGIN };
+  globalThis.__pickerModel = { gameIn: gameIn, folderOf: folderOf, order: order, browse: browse, places: places, lineAt: lineAt, dragged: dragged, onRemoveButton: onRemoveButton, REMOVE: REMOVE, REMOVE_GAP: REMOVE_GAP, isTap: isTap, tapOpens: tapOpens, fit: fit, emptyArt: emptyArt, MARGIN: MARGIN };
 })();

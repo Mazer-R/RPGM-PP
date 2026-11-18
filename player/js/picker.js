@@ -165,7 +165,7 @@
   // A game's icon (www/icon/icon.png) is shown on its line, and the picture
   // of its title screen fills the background while the game is the chosen
   // one. A game that has neither, or keeps them encrypted, does without.
-  var art = {};
+  var art = {}, waiting;
   function picture(file) {
     var size = player.fileExists(file) ? c2d.imageSize(file) : null;
     var handle = size ? c2d.loadImage(file) : 0;
@@ -362,7 +362,7 @@
   function paint() {
     var all = lines(), m = metrics(), VISIBLE = visible(), x = MARGIN;
     paintBackground();
-    text('RPG MAKER MV PLAYER', x, 34, 12, MUTED);
+    text('POTATO PLAYER', x, 34, 12, MUTED);
     text(browsing ? 'Add a game' : 'Games', x, 72, 32, INK);
     if (browsing) {
       box(x, 86, COLUMN, 50, 10, PANEL);
@@ -372,10 +372,15 @@
       if (!all.length) text('Nothing here.', x + 10, m.top + 28, 18, MUTED);
     } else if (!games.some(function (entry) { return entry.www; })) {
       var words = player.canAddGame
-        ? ['No games yet. Choose "Add a game" and point at the game\'s .exe.']
-        : ['No games yet. A game is a folder holding its "www" folder, in:'].concat((player.libraryDirs || []).slice(0, 1));
+        ? ['No games around here yet.', 'Choose "Add a game" and point at the game\'s .exe.']
+        : ['No games around here yet.', 'Copy a game\'s whole folder into:'].concat((player.libraryDirs || []).slice(0, 1));
       if (player.needsFileAccess) words.push('Allow "all files access" for this app, then open it again.');
-      words.forEach(function (each, i) { text(fitted(each, 15, W - 2 * x), x, m.top + m.row * 2 + 34 + i * 22, 15, MUTED); });
+      var wordsTop = m.top + m.row * 2 + 34;
+      words.forEach(function (each, i) { text(fitted(each, 15, W - 2 * x), x, wordsTop + i * 22, 15, MUTED); });
+      // Someone to wait with: the knight, sitting on the grass.
+      if (waiting === undefined) waiting = picture(player.playerDir + '/js/no-games.png');
+      var place = model.emptyArt(W, H, wordsTop + (words.length - 1) * 22 + 14, waiting);
+      if (place) c2d.drawImage(canvas, waiting.handle, 0, 0, waiting.width, waiting.height, place.x, place.y, place.w, place.h, 1);
     }
     for (var shown = 0; shown < VISIBLE && first + shown < all.length; shown++) {
       var index = first + shown, y = m.top + shown * m.row, h = m.row - 8, chosen = index === selected;

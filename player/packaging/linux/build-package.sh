@@ -64,7 +64,7 @@ find_lib() {
 rm -rf "$OUT/package" "$OUT/$NAME.tar.gz"
 mkdir -p "$DIR/js" "$DIR/patches" "$DIR/lib"
 cp "$OUT/mvplayer" "$DIR/mvplayer"
-cp js/*.js "$DIR/js/"
+cp js/*.js js/*.png "$DIR/js/"
 cp patches/* "$DIR/patches/"
 cp packaging/linux/mvplayer.sh "$DIR/"
 cp packaging/icon/potato-player.png "$DIR/icon.png"

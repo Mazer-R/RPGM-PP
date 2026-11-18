@@ -160,6 +160,21 @@ const tests = {
   'a small window gets a narrower column, never one wider than the window'() {
     assert.deepStrictEqual(plain(model.fit(400, 300)), { zoom: 1, width: 400, height: 300, column: 344 });
   },
+
+  'the picture of an empty list sits at the bottom right, under the words, as large as fits'() {
+    const picture = { width: 400, height: 260 };
+    // 134 of height between the words and the hints: the picture is made smaller.
+    assert.deepStrictEqual(plain(model.emptyArt(640, 480, 300, picture)), { x: 406, y: 300, w: 206, h: 134 });
+    // Room to spare, held upright: its own size, never enlarged, resting above the hints.
+    assert.deepStrictEqual(plain(model.emptyArt(540, 1200, 320, picture)), { x: 112, y: 894, w: 400, h: 260 });
+    // Narrower than the picture: as wide as the window allows.
+    assert.deepStrictEqual(plain(model.emptyArt(356, 900, 320, picture)), { x: 28, y: 659, w: 300, h: 195 });
+  },
+
+  'an empty list too small for its picture does without it'() {
+    assert.strictEqual(model.emptyArt(400, 300, 260, { width: 400, height: 260 }), null);
+    assert.strictEqual(model.emptyArt(640, 480, 300, null), null);
+  },
 };
 
 let failed = 0;
