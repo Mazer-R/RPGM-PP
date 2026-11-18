@@ -163,6 +163,7 @@ void Input::OpenMenu() {
   // The stick and the triggers start afresh once the menu closes.
   for (bool& held : stick_) held = false;
   for (bool& held : trigger_) held = false;
+  menu_->SetFpsShown(fps_shown_);
   menu_->Open(touch_visible_);
 }
 
@@ -174,8 +175,8 @@ void Input::MenuEffectDone(int effect) {
   switch (static_cast<MenuEffect>(effect)) {
     case MenuEffect::kToggleFps:
       // The frame counter belongs to the scripts, which switch it on F2.
-      changes_.push_back({kKeyF2, true});
-      changes_.push_back({kKeyF2, false});
+      Queue(kKeyF2, true);
+      Queue(kKeyF2, false);
       break;
     case MenuEffect::kEditTouch:
       touch_visible_ = true;
@@ -267,6 +268,12 @@ void Input::OpenController(int device_index) {
 void Input::Queue(int key_code, bool down) {
   if (!key_code) return;
   changes_.push_back({key_code, down});
+  // The scripts switch the frame counter on each press of F2; the menu's
+  // row follows, however the key was pressed.
+  if (key_code == kKeyF2 && down) {
+    fps_shown_ = !fps_shown_;
+    menu_->SetFpsShown(fps_shown_);
+  }
   auto held = std::find(keys_down_.begin(), keys_down_.end(), key_code);
   if (down && held == keys_down_.end()) keys_down_.push_back(key_code);
   if (!down && held != keys_down_.end()) keys_down_.erase(held);

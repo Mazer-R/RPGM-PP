@@ -66,6 +66,8 @@ class Input {
   // working the on-screen touch controls, which are then not shown. The
   // game list uses it: its lines are touched directly.
   void SetPointerMode(bool on) { pointer_mode_ = on; }
+  // Whether the scripts start with the frame counter showing.
+  void SetFpsShown(bool shown) { fps_shown_ = shown; }
   std::vector<PointerChange> TakePointerChanges();
   // Looks at one SDL event; key changes are queued.
   void HandleEvent(const SDL_Event& event);
@@ -102,6 +104,7 @@ class Input {
   std::unique_ptr<TouchControls> touch_;
   std::unique_ptr<ButtonMap> buttons_;
   std::unique_ptr<SettingsMenu> menu_;
+  bool fps_shown_ = false;  // follows the scripts' frame counter
   std::string settings_dir_;
   std::vector<int> keys_down_;  // keys the game has been told are down
   bool trigger_[2] = {false, false};  // left, right

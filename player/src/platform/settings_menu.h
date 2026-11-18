@@ -45,6 +45,10 @@ class SettingsMenu {
   void Open(bool with_touch);
   bool open() const { return open_; }
 
+  // Whether the frame counter is showing, which its row says. The counter
+  // belongs to the scripts; the caller keeps this in step with it.
+  void SetFpsShown(bool shown) { fps_shown_ = shown; }
+
   MenuEffect Press(MenuInput input);
   // A finger put down at x, y on a screen of this size: on a row it chooses
   // the row, beside the menu it is cancel.
@@ -58,6 +62,7 @@ class SettingsMenu {
   void Picture(int screen_width, int screen_height, std::vector<MenuBox>* boxes, std::vector<MenuText>* texts) const;
 
  private:
+  bool fps_shown_ = false;
   enum class Page { kMain, kButtons, kKeys };
   struct Frame {
     float left, top, cell_width, row_height;

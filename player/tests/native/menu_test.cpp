@@ -87,7 +87,7 @@ void TestMenu() {
   mvp::SettingsMenu menu(&buttons);
   Expect("the menu starts closed", menu.open() ? "open" : "closed", "closed");
   menu.Open(false);
-  Expect("opened without a touch screen it offers", Joined(menu.Rows()), "RESUME | FPS COUNTER | BUTTONS | QUIT GAME");
+  Expect("opened without a touch screen it offers", Joined(menu.Rows()), "RESUME | FPS COUNTER: OFF | BUTTONS | QUIT GAME");
   Expect("the first row is the chosen one", std::to_string(menu.selected()), "0");
   menu.Press(mvp::MenuInput::kUp);
   Expect("up from the first row goes to the last", std::to_string(menu.selected()), "3");
@@ -98,9 +98,14 @@ void TestMenu() {
 
   menu.Open(true);
   Expect("with a touch screen it also offers its controls", Joined(menu.Rows()),
-         "RESUME | FPS COUNTER | BUTTONS | TOUCH CONTROLS | QUIT GAME");
-  Expect("the frame counter is switched without leaving the menu", Name(Choose(&menu, "FPS COUNTER")), "fps");
+         "RESUME | FPS COUNTER: OFF | BUTTONS | TOUCH CONTROLS | QUIT GAME");
+  Expect("the frame counter is switched without leaving the menu", Name(Choose(&menu, "FPS COUNTER: OFF")), "fps");
   Expect("so the menu stays open", menu.open() ? "open" : "closed", "open");
+  menu.SetFpsShown(true);
+  Expect("its row says when the counter is on", menu.Rows()[1], "FPS COUNTER: ON");
+  Expect("and is still the row that switches it", Name(Choose(&menu, "FPS COUNTER: ON")), "fps");
+  menu.SetFpsShown(false);
+  Expect("and when it is off again", menu.Rows()[1], "FPS COUNTER: OFF");
   Expect("editing the touch controls closes the menu", Name(Choose(&menu, "TOUCH CONTROLS")), "touch");
   Expect("which is then closed", menu.open() ? "open" : "closed", "closed");
   menu.Open(false);

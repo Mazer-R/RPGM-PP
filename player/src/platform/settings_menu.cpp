@@ -54,11 +54,16 @@ std::string SettingsMenu::Title() const {
   return "";
 }
 
+namespace {
+// The row of the frame counter starts with this; ": ON" or ": OFF" follows.
+constexpr char kFpsRow[] = "FPS COUNTER";
+}  // namespace
+
 std::vector<std::string> SettingsMenu::Rows() const {
   std::vector<std::string> rows;
   if (!open_) return rows;
   if (page_ == Page::kMain) {
-    rows = {"RESUME", "FPS COUNTER", "BUTTONS"};
+    rows = {"RESUME", std::string(kFpsRow) + (fps_shown_ ? ": ON" : ": OFF"), "BUTTONS"};
     if (with_touch_) rows.push_back("TOUCH CONTROLS");
     rows.push_back("QUIT GAME");
   } else if (page_ == Page::kButtons) {
@@ -91,7 +96,7 @@ MenuEffect SettingsMenu::Confirm() {
   std::vector<std::string> rows = Rows();
   const std::string& row = rows[selected_];
   if (page_ == Page::kMain) {
-    if (row == "FPS COUNTER") return MenuEffect::kToggleFps;
+    if (row.rfind(kFpsRow, 0) == 0) return MenuEffect::kToggleFps;
     if (row == "BUTTONS") {
       Show(Page::kButtons, 0);
       return MenuEffect::kNone;
