@@ -41,6 +41,17 @@ const tests = {
     assert.strictEqual(model.inDigSpot(500, 540), true);
   },
 
+  'the lines of the menu are as tall as the room allows, for a finger to hit, up to a limit'() {
+    // a handheld's 480 lines of height: ten lines just fit
+    assert.deepStrictEqual(plain(model.menuLines(108, 448, 10)), { pitch: 34, line: 30 });
+    assert.deepStrictEqual(plain(model.menuLines(108, 448, 9)), { pitch: 37, line: 33 });
+    // a phone held upright has room to spare: the lines are tall, and no taller than that
+    assert.deepStrictEqual(plain(model.menuLines(108, 720, 10)), { pitch: 60, line: 54 });
+    assert.deepStrictEqual(plain(model.menuLines(108, 1500, 10)), { pitch: 60, line: 54 });
+    // too little room: never smaller than can be read
+    assert.deepStrictEqual(plain(model.menuLines(108, 300, 10)), { pitch: 30, line: 26 });
+  },
+
   'the hole is as deep as the strikes so far, and closes by itself'() {
     const state = strikes(0, 500);
     assert.strictEqual(model.depthAt(state, 600), 2);

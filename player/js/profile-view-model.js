@@ -58,6 +58,17 @@
     return { x: -90 + along * (width + 180), along: along };
   }
 
+  // --- The menu's lines ---------------------------------------------------------
+  // The lines share the room between `top` and `bottom`: as tall as it
+  // allows, so that a finger hits them, up to a limit, and never so small
+  // that they cannot be read. `pitch` is from one line to the next and
+  // `line` how tall each is drawn.
+  var TALLEST = 60, SMALLEST = 30, BETWEEN = 4;
+  function menuLines(top, bottom, count) {
+    var pitch = Math.max(SMALLEST, Math.min(TALLEST, Math.floor((bottom - top) / count)));
+    return { pitch: pitch, line: pitch - (pitch >= 50 ? BETWEEN + 2 : BETWEEN) };
+  }
+
   // --- The grid of achievements -----------------------------------------------
   // The pictures are 96 across and are shown at that size. The grid is
   // centred, with the title above it and the chosen one's words under it.
@@ -109,7 +120,7 @@
     return (hours ? hours + ' h' : '') + (hours && minutes ? ' ' : '') + (minutes ? minutes + ' min' : '');
   }
 
-  globalThis.__profileView = { undug: undug, dig: dig, depthAt: depthAt, STRIKES: STRIKES, digSpot: digSpot, inDigSpot: inDigSpot, unknocked: unknocked, knock: knock,
+  globalThis.__profileView = { undug: undug, dig: dig, depthAt: depthAt, STRIKES: STRIKES, digSpot: digSpot, inDigSpot: inDigSpot, menuLines: menuLines, unknocked: unknocked, knock: knock,
     saucerAt: saucerAt, toast: toast, TOAST: TOAST, grid: grid, step: step,
     firstRow: firstRow, cellAt: cellAt, played: played };
 })();

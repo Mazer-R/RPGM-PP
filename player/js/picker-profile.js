@@ -56,7 +56,7 @@
       return all;
     }
     function avatar() { return avatars.dressed(ui.profile.avatar, ui.profile.earned); }
-    var TOP = 108, PITCH = 34, ROW = 30;
+    var TOP = 108;
     // The sky picture covers the window, its grass along the bottom. The
     // grass is the lowest eighth of the picture.
     var GRASS = 0.126;
@@ -65,9 +65,12 @@
       var scale = sky ? Math.max(W / sky.width, H / sky.height) : 1;
       var side = sky ? sky.width * scale : W, ground = H - (sky ? sky.height * scale * GRASS : 60);
       var tall = H > W;
-      return { W: W, H: H, scale: scale, side: side, ground: ground, tall: tall,
-        column: Math.min(W - 2 * MARGIN, tall ? W - 2 * MARGIN : 300),
-        avatarX: tall ? W / 2 : Math.max(W * 0.72, W - 190) };
+      // Held upright the lines end above the avatar; on its side they have
+      // the whole height, with the avatar beside them.
+      var rows = view.menuLines(TOP, tall ? ground - 220 : H - 32, lines().length);
+      return { W: W, H: H, scale: scale, side: side, ground: ground, tall: tall, pitch: rows.pitch, row: rows.line,
+        column: Math.min(W - 2 * MARGIN, tall ? W - 2 * MARGIN : Math.max(300, Math.round(W * 0.53))),
+        avatarX: tall ? W / 2 : Math.max(W * 0.76, W - 150) };
     }
     var digging = view.undug();
     // A strike at the one place where the ground gives way. Once the way
@@ -166,8 +169,8 @@
         achievements.points(profile.earned) + ' points';
       ui.text(ui.fitted(facts, 13, W - 2 * x), x, 94, 13, MUTED);
       lines().forEach(function (line, i) {
-        var y = TOP + i * PITCH, on = i === chosen;
-        ui.box(x, y, at.column, ROW, 9, on ? ui.colours.CHOSEN : PANEL);
+        var y = TOP + i * at.pitch, on = i === chosen, middle = Math.round(at.row / 2) + 5;
+        ui.box(x, y, at.column, at.row, 9, on ? ui.colours.CHOSEN : PANEL);
         var label, value = '', choices = 0;
         if (line.kind === 'name') { label = 'Name'; value = profile.name || 'not set'; }
         else if (line.kind === 'slot') {
@@ -178,11 +181,11 @@
         else if (line.kind === 'achievements') { label = 'Achievements'; value = profile.earned.length + ' of ' + achievements.LIST.length; }
         else label = 'Back to the games';
         var wide = line.kind === 'back' || line.kind === 'achievements';
-        ui.text(label, x + 12, y + 20, wide ? 15 : 13, wide || on ? INK : MUTED);
+        ui.text(label, x + 12, y + middle, wide ? 15 : 13, wide || on ? INK : MUTED);
         var room = at.column - (wide ? 150 : 116);
-        if (value) ui.text(ui.fitted(value, 15, room), x + (wide ? 136 : 96), y + 21, 15, INK);
+        if (value) ui.text(ui.fitted(value, 15, room), x + (wide ? 136 : 96), y + middle + 1, 15, INK);
         // More than one piece to choose from: the arrows say so.
-        if (on && choices > 1 && !ui.touching()) ui.text('<  >', x + at.column - 12 - ui.widthOf('<  >', 13), y + 20, 13, INK);
+        if (on && choices > 1 && !ui.touching()) ui.text('<  >', x + at.column - 12 - ui.widthOf('<  >', 13), y + middle, 13, INK);
       });
       if (ui.touching()) ui.text('Touch a line to change it', x, H - 18, 15, MUTED);
       else ui.hint(ui.hint(x, H - 18, 'A', 'Choose'), H - 18, 'B', 'Back');
@@ -222,8 +225,10 @@
     }
     function profilePointer(phase, x, y) {
       if (phase !== 0) return;
-      var at = scene(), line = Math.floor((y - TOP) / PITCH);
-      if (x >= MARGIN && x < MARGIN + at.column && line >= 0 && line < lines().length && y - TOP - line * PITCH < ROW) {
+      // The gap between two lines belongs to the line above it: a finger
+      // that lands between them still chooses one.
+      var at = scene(), line = Math.floor((y - TOP) / at.pitch);
+      if (x >= MARGIN - 8 && x < MARGIN + at.column + 8 && line >= 0 && line < lines().length) {
         chosen = line;
         ui.changed();
         return chooseLine();
