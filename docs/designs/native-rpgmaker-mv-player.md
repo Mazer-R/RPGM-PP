@@ -1016,6 +1016,42 @@ adjustments where the game's own code is too expensive for this hardware.
         container; past point 1 with a scratch copy whose two WebAssembly
         libraries were replaced by empty stand-ins. Nothing was drawn yet.
 
+*   **RPG Maker MZ on Android: title screen with the real libraries (2026-11-18).**
+    *   **One V8 for both engines, with WebAssembly.** Built for Android
+        (`v8_enable_webassembly = true`; the library grows from 69 to 88
+        MB, the player inside the APK from 32.3 to 40.1 MB, the APK from
+        11.8 to 13.9 MB). Before replacing the old one, Fear & Hunger 2
+        was measured on a Zebra TC53E with two APKs built from the same
+        source, one with each V8, on a new game walking on map 1 for 40 s:
+
+        | | V8 without WebAssembly | V8 with WebAssembly |
+        | --- | --- | --- |
+        | Frames per second | 60 | 60 |
+        | Logic step | 2.44 ms | 2.40 ms |
+        | JavaScript heap at the end | 66.9 MB | 66.8 MB |
+        | Memory (PSS) 50 s in, first pair of runs | 254 MB | 260 MB |
+
+        Speed is the same. Memory is about 5 MB higher, also seen in the
+        game list (77 against 82 MB); runs of the same build differ by
+        more than that (one run without WebAssembly read 223 MB), so the
+        figure is rough. The handheld and desktop V8 are not rebuilt yet,
+        and the handheld, with 1 GB, is where those 5 MB must be checked.
+    *   **What the real libraries needed**, all in the MZ layer
+        (`js/mz.js`): a `Worker` that can be made and never runs (the
+        sound decoder library starts one while loading; the engine only
+        uses that decoder where Ogg cannot be played, and the player
+        plays Ogg itself); and V8's queued tasks run once a frame
+        (`player.runEngineTasks`, new in the host): the promise of
+        `WebAssembly.instantiate()` is settled by such a task, and
+        Effekseer waits on it before the game starts. An MV game is never
+        given either.
+    *   **Seen on the phone**: the MZ test game, unmodified, loads its
+        twelve scripts, both fonts and Effekseer, and shows its title
+        screen correctly (screen capture). Sound is not confirmed by ear.
+    *   **Not checked**: anything past the title (new game, maps, battles
+        and their Effekseer animations, saving), and MZ on the handheld
+        or a desktop.
+
 ## Critical User Journeys (CUJs)
 
 ### CUJ 1: First launch

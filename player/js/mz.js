@@ -78,3 +78,38 @@
   if (!gui.App.argv) gui.App.argv = [];
   globalThis.nw = gui;
 })();
+
+// --- Workers -----------------------------------------------------------------
+// MZ's sound decoder library (js/libs/vorbisdecoder.js) starts a Worker while
+// it loads, to decode Ogg Vorbis in browsers that cannot play it. The engine
+// uses that decoder only when the browser says it cannot play Ogg, and the
+// player plays Ogg itself, so the worker is never given work. It can be
+// made, and does nothing: no script is run and no message is ever answered.
+(function () {
+  'use strict';
+  if (typeof globalThis.Worker === 'function') return;
+  function Worker(url) { this.url = String(url); this.onmessage = null; this.onerror = null; }
+  Worker.prototype.addEventListener = function () {};
+  Worker.prototype.removeEventListener = function () {};
+  Worker.prototype.postMessage = function () {};
+  Worker.prototype.terminate = function () {};
+  globalThis.Worker = Worker;
+})();
+
+// --- Work the engine queues --------------------------------------------------
+// V8 finishes some things through tasks it queues for the main thread, and
+// they only run when the player runs them. Compiling WebAssembly is one:
+// MZ's animation library (Effekseer) waits on WebAssembly.instantiate(),
+// whose promise is settled by such a task, and the game does not start
+// until it is. They are run once a frame. MV games never needed this and
+// are not given it.
+(function () {
+  'use strict';
+  if (typeof player === 'undefined' || typeof player.runEngineTasks !== 'function') return;
+  if (typeof requestAnimationFrame !== 'function') return;
+  function everyFrame() {
+    player.runEngineTasks();
+    requestAnimationFrame(everyFrame);
+  }
+  requestAnimationFrame(everyFrame);
+})();

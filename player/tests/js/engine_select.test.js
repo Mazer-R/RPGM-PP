@@ -94,6 +94,39 @@ const tests = {
     assert.deepStrictEqual(plain(page.nw.App.argv), []);
     assert.strictEqual(typeof page.nw.App.quit, 'function', 'what the desktop layer already offers is kept');
   },
+
+  'under MZ a Worker can be made, as the sound decoder library does while loading, and never runs'() {
+    const page = load('mz.js', { __browser: { later() {}, fireLoad() {} }, document: {} });
+    const worker = new page.Worker('js/libs/vorbisdecoder.js');
+    let heard = 0;
+    worker.addEventListener('message', () => heard++);
+    worker.onmessage = () => heard++;
+    worker.postMessage({ id: 1 }, []);
+    worker.terminate();
+    assert.strictEqual(heard, 0);
+  },
+
+  'under MZ a page\'s own Worker is left alone'() {
+    const theirs = function () {};
+    const page = load('mz.js', { __browser: { later() {}, fireLoad() {} }, document: {}, Worker: theirs });
+    assert.strictEqual(page.Worker, theirs);
+  },
+
+  'under MZ the engine\'s queued work is run once every frame'() {
+    let ran = 0;
+    const frames = [];
+    const page = load('mz.js', {
+      __browser: { later() {}, fireLoad() {} }, document: {},
+      player: { runEngineTasks: () => { ran++; return 0; } },
+      requestAnimationFrame: (fn) => frames.push(fn),
+    });
+    assert.ok(page);
+    assert.strictEqual(frames.length, 1, 'asked for the next frame');
+    frames.shift()(16);
+    frames.shift()(32);
+    assert.strictEqual(ran, 2);
+    assert.strictEqual(frames.length, 1, 'and for the one after');
+  },
 };
 
 let failed = 0;

@@ -58,9 +58,13 @@ use_glib = false
 v8_enable_pointer_compression = false
 v8_enable_sandbox = false
 
+# RPG Maker MZ games need WebAssembly: their animation library (Effekseer)
+# is compiled to it. MV games do not use it; measured on a phone, having it
+# costs them nothing in speed and about 5 MB of memory.
+v8_enable_webassembly = true
+
 # Not needed by the player; leaving them out makes the library smaller.
 v8_enable_i18n_support = false
-v8_enable_webassembly = false
 v8_enable_test_features = false
 v8_enable_gdbjit = false
 

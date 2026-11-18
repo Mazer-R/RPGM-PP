@@ -43,6 +43,8 @@ namespace {
 // V8 is started once per process and never shut down: after V8::Dispose it
 // cannot be started again, and on Android one process runs the game list and
 // then the game, each with a Host of its own. The system reclaims it at exit.
+v8::Platform* g_platform = nullptr;
+
 void StartV8Once() {
   static v8::Platform* platform = [] {
     v8::Platform* created = v8::platform::NewDefaultPlatform().release();
@@ -50,7 +52,7 @@ void StartV8Once() {
     v8::V8::Initialize();
     return created;
   }();
-  (void)platform;
+  g_platform = platform;
 }
 }  // namespace
 
@@ -317,6 +319,19 @@ void Host::MemoryPausesCallback(const v8::FunctionCallbackInfo<v8::Value>& args)
   args.GetReturnValue().Set(result);
 }
 
+// player.runEngineTasks(): runs the work V8 has queued for this thread and
+// returns how many tasks ran. V8 finishes some things that way, among them
+// compiling WebAssembly: the promise of WebAssembly.instantiate() is only
+// settled by such a task. Nothing calls this for an MV game, which has
+// always run without it; the MZ layer calls it once a frame (js/mz.js).
+void Host::RunEngineTasksCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::Isolate* isolate = args.GetIsolate();
+  int ran = 0;
+  // Bounded, so a task that queues another cannot hold a frame for ever.
+  while (ran < 64 && g_platform && v8::platform::PumpMessageLoop(g_platform, isolate)) ran++;
+  args.GetReturnValue().Set(ran);
+}
+
 // player.startProfile(): starts sampling where the scripts spend their time.
 void Host::StartProfileCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Host* host = FromArgs(args);
@@ -510,6 +525,7 @@ void Host::InstallGlobals(v8::Local<v8::Context> context) {
   set(player, "startProfile", make_function(StartProfileCallback, "startProfile"));
   set(player, "stopProfile", make_function(StopProfileCallback, "stopProfile"));
   set(player, "memoryPauses", make_function(MemoryPausesCallback, "memoryPauses"));
+  set(player, "runEngineTasks", make_function(RunEngineTasksCallback, "runEngineTasks"));
   set(player, "v8Version", ToV8String(isolate_, v8::V8::GetVersion()));
   set(global, "player", player);
 }

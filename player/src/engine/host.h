@@ -114,6 +114,7 @@ class Host {
   static void PrintCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void StartProfileCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void MemoryPausesCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RunEngineTasksCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void StopProfileCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   // True if `path` is inside the game's save folder and has no "..".
