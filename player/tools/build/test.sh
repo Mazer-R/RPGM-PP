@@ -16,5 +16,6 @@ run files_test src/platform/files.cpp
 run gl_limits_test src/bindings/gl_limits.cpp
 run library_test src/platform/game_library.cpp
 run touch_test src/platform/touch.cpp src/platform/touch_layout.cpp
+run pad_cursor_test src/platform/pad_cursor.cpp
 run menu_test src/platform/button_map.cpp src/platform/settings_menu.cpp src/platform/touch_layout.cpp
 run video_test src/platform/video.cpp

@@ -34,6 +34,7 @@ const char* Name(mvp::MenuEffect effect) {
     case mvp::MenuEffect::kToggleFps: return "fps";
     case mvp::MenuEffect::kToggleMove: return "move";
     case mvp::MenuEffect::kToggleControls: return "controls";
+    case mvp::MenuEffect::kTogglePointer: return "pointer";
     case mvp::MenuEffect::kEditTouch: return "touch";
     case mvp::MenuEffect::kQuit: return "quit";
     case mvp::MenuEffect::kButtonsChanged: return "buttons";
@@ -89,14 +90,22 @@ void TestMenu() {
   mvp::SettingsMenu menu(&buttons);
   Expect("the menu starts closed", menu.open() ? "open" : "closed", "closed");
   menu.Open(false);
-  Expect("opened without a touch screen it offers", Joined(menu.Rows()), "RESUME | FPS COUNTER: OFF | BUTTONS | QUIT GAME");
+  Expect("opened without a touch screen it offers", Joined(menu.Rows()), "RESUME | FPS COUNTER: OFF | BUTTONS | POINTER: OFF | QUIT GAME");
   Expect("the first row is the chosen one", std::to_string(menu.selected()), "0");
   menu.Press(mvp::MenuInput::kUp);
-  Expect("up from the first row goes to the last", std::to_string(menu.selected()), "3");
+  Expect("up from the first row goes to the last", std::to_string(menu.selected()), "4");
   menu.Press(mvp::MenuInput::kDown);
   Expect("down from the last row goes to the first", std::to_string(menu.selected()), "0");
   Expect("RESUME closes the menu", Name(menu.Press(mvp::MenuInput::kConfirm)), "close");
   Expect("and it is closed", menu.open() ? "open" : "closed", "closed");
+
+  menu.Open(false);
+  Expect("the pointer worked with the pad is switched on without leaving the menu", Name(Choose(&menu, "POINTER: OFF")), "pointer");
+  menu.SetPointerOn(true);
+  Expect("its row says it is on", menu.Rows()[3], "POINTER: ON");
+  Expect("and switches it off again", Name(Choose(&menu, "POINTER: ON")), "pointer");
+  menu.SetPointerOn(false);
+  menu.Press(mvp::MenuInput::kCancel);
 
   menu.Open(true);
   Expect("with a touch screen it also offers its controls", Joined(menu.Rows()),

@@ -11,6 +11,7 @@
 #include "platform/button_map.h"
 #include "platform/log.h"
 #include "platform/settings_menu.h"
+#include "platform/pad_cursor.h"
 #include "platform/touch.h"
 
 namespace mvp {
@@ -96,7 +97,7 @@ int KeyForKeyboard(SDL_Keycode key) {
 }  // namespace
 
 Input::Input(Log& log)
-    : log_(log), touch_(new TouchControls), buttons_(new ButtonMap), menu_(new SettingsMenu(buttons_.get())) {
+    : log_(log), touch_(new TouchControls), cursor_(new PadCursor), buttons_(new ButtonMap), menu_(new SettingsMenu(buttons_.get())) {
 #ifdef __ANDROID__
   // A phone has no other controls until a controller or keyboard shows up.
   touch_visible_ = true;
@@ -107,6 +108,7 @@ void Input::SetScreenSize(int width, int height) {
   screen_width_ = width;
   screen_height_ = height;
   touch_->SetScreen(width, height);
+  cursor_->SetScreen(width, height);
 }
 
 void Input::SetSettingsDir(const std::string& dir) {
@@ -119,6 +121,8 @@ void Input::SetSettingsDir(const std::string& dir) {
     touch_->SetShown(TouchControlsShown(text));
     log_.Write(LogLevel::kInfo, "input", std::to_string(touch_->layout().size()) + " touch controls from " + dir);
   }
+  text = ReadFile(dir + "/pointer.txt", &found);
+  if (found && text.rfind("on", 0) == 0) cursor_->SetOn(true, &pointer_changes_);
   text = ReadFile(dir + "/buttons.txt", &found);
   if (found) {
     *buttons_ = ButtonMap::Parse(text);
@@ -172,6 +176,8 @@ void Input::OpenMenu() {
   menu_->SetFpsShown(fps_shown_);
   menu_->SetMoveStick(touch_->move_stick());
   menu_->SetControlsShown(touch_->shown());
+  menu_->SetPointerOn(cursor_->on());
+  cursor_->Release(&pointer_changes_);
   menu_->Open(touch_visible_);
 }
 
@@ -196,6 +202,13 @@ void Input::MenuEffectDone(int effect) {
       menu_->SetControlsShown(touch_->shown());
       if (!settings_dir_.empty()) {
         Save(log_, settings_dir_ + "/touch-controls.txt", FormatTouchLayout(touch_->layout(), touch_->shown()), "touch controls");
+      }
+      break;
+    case MenuEffect::kTogglePointer:
+      cursor_->SetOn(!cursor_->on(), &pointer_changes_);
+      menu_->SetPointerOn(cursor_->on());
+      if (!settings_dir_.empty()) {
+        Save(log_, settings_dir_ + "/pointer.txt", cursor_->on() ? "on\n" : "off\n", "pointer setting");
       }
       break;
     case MenuEffect::kEditTouch:
@@ -287,6 +300,8 @@ void Input::OpenController(int device_index) {
 
 void Input::Queue(int key_code, bool down) {
   if (!key_code) return;
+  // With the pointer on, the directions and confirm work it instead.
+  if (cursor_->Key(key_code, down, &pointer_changes_)) return;
   changes_.push_back({key_code, down});
   // The scripts switch the frame counter on each press of F2; the menu's
   // row follows, however the key was pressed.
@@ -321,6 +336,17 @@ void Input::GamePointer(bool finger, long long id, int phase, float x, float y) 
   pointer_x_ = x;
   pointer_y_ = y;
   pointer_changes_.push_back({phase, x, y});
+}
+
+void Input::Advance(double seconds) {
+  if (!menu_->open()) cursor_->Advance(seconds, &pointer_changes_);
+}
+
+bool Input::Cursor(float* x, float* y) const {
+  if (!cursor_->on() || menu_->open() || pointer_mode_) return false;
+  *x = cursor_->x();
+  *y = cursor_->y();
+  return true;
 }
 
 std::vector<PointerChange> Input::TakePointerChanges() {

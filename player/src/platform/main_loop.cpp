@@ -51,6 +51,7 @@ int RunMainLoop(Window& window, Input& input, Host& host, const Clock& clock, Lo
   long frames = 0;
   double started = clock.NowMs();
   bool idle = false;
+  double last_ms = started;
   while (!host.exit_requested() && !g_terminate) {
     host.Heartbeat();
     if (!window.PumpEvents(input)) break;
@@ -67,6 +68,9 @@ int RunMainLoop(Window& window, Input& input, Host& host, const Clock& clock, Lo
     // Key changes reach the game before this frame's work, as a browser
     // delivers key events between frames.
     for (const KeyChange& change : input.TakeChanges()) host.DispatchKey(change.key_code, change.down);
+    double now_ms = clock.NowMs();
+    input.Advance((now_ms - last_ms) / 1000.0);
+    last_ms = now_ms;
     for (const PointerChange& change : input.TakePointerChanges()) {
       // A game is told the place in its own picture, which is fitted inside
       // the screen; the game list draws straight to the screen.
@@ -107,6 +111,17 @@ int RunMainLoop(Window& window, Input& input, Host& host, const Clock& clock, Lo
     std::vector<ScreenBox> boxes;
     for (const MenuBox& box : menu_boxes) boxes.push_back({box.x, box.y, box.width, box.height, box.shade, box.alpha});
     for (const MenuText& text : menu_texts) texts.push_back({text.x, text.y, text.height, text.text});
+    // The pointer worked with the pad: a white cross edged in black, which
+    // shows on any picture.
+    float cursor_x = 0, cursor_y = 0;
+    if (input.Cursor(&cursor_x, &cursor_y)) {
+      float arm = static_cast<float>(std::min(window.width(), window.height())) * 0.022f;
+      float thick = std::max(2.0f, arm * 0.22f), edge = std::max(1.0f, thick * 0.5f);
+      boxes.push_back({cursor_x - arm - edge, cursor_y - thick / 2 - edge, 2 * (arm + edge), thick + 2 * edge, 0.0f, 1.0f});
+      boxes.push_back({cursor_x - thick / 2 - edge, cursor_y - arm - edge, thick + 2 * edge, 2 * (arm + edge), 0.0f, 1.0f});
+      boxes.push_back({cursor_x - arm, cursor_y - thick / 2, 2 * arm, thick, 1.0f, 1.0f});
+      boxes.push_back({cursor_x - thick / 2, cursor_y - arm, thick, 2 * arm, 1.0f, 1.0f});
+    }
     VideoPicture picture;
     ScreenVideo screen_video;
     bool has_video = video.Picture(&picture);

@@ -21,6 +21,7 @@ enum class MenuEffect {
   kToggleFps,       // show or hide the frame counter
   kToggleMove,      // switch between the stick and the pad on a touch screen
   kToggleControls,  // show or hide the on-screen controls on a touch screen
+  kTogglePointer,   // switch the pointer worked with the pad on or off
   kEditTouch,       // the menu has closed; start editing the touch controls
   kQuit,            // leave the game
   kButtonsChanged,  // the button map changed: save it
@@ -54,6 +55,9 @@ class SettingsMenu {
   void SetMoveStick(bool stick) { move_stick_ = stick; }
   // Whether the on-screen controls are shown, which their row says.
   void SetControlsShown(bool shown) { controls_shown_ = shown; }
+  // Whether the pointer worked with the pad is on, which its row says. The
+  // row is offered where there is no touch screen to point with.
+  void SetPointerOn(bool on) { pointer_on_ = on; }
 
   MenuEffect Press(MenuInput input);
   // A finger put down at x, y on a screen of this size: on a row it chooses
@@ -71,6 +75,7 @@ class SettingsMenu {
   bool fps_shown_ = false;
   bool move_stick_ = true;
   bool controls_shown_ = true;
+  bool pointer_on_ = false;
   enum class Page { kMain, kButtons, kKeys };
   struct Frame {
     float left, top, cell_width, row_height;

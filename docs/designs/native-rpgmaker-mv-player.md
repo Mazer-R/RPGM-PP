@@ -1570,6 +1570,24 @@ adjustments where the game's own code is too expensive for this hardware.
         unless the element asks otherwise), not the file's own; not
         tried on a device.
 
+*   **A pointer worked with the pad (2026-11-18)**: on the handheld the
+    buttons did nothing in a game whose title menu is three pictures
+    that only answer a click; it has no keyboard navigation, by its own
+    design, and the handheld has neither mouse nor touch screen.
+    *   **Change**: a row "POINTER: ON/OFF" in the settings menu, offered
+        where there is no touch screen, kept per game in `pointer.txt`.
+        While on, the directions move a cursor (a white cross edged in
+        black) instead of reaching the game, slowly at first and faster
+        while held, and the confirm button is the left mouse button at
+        the cursor's place. Cancel and the other buttons stay the
+        game's. `platform/pad_cursor` holds the logic.
+    *   **Checked**: tests for the cursor and the menu row. Without a
+        screen, with real key presses: the arrows move the cross and do
+        not reach the game, confirm arrives as a press and a release at
+        the cross's place, cancel arrives as its key.
+    *   **Not checked**: by hand on the handheld; whether the speeds
+        suit small targets.
+
 ## Critical User Journeys (CUJs)
 
 ### CUJ 1: First launch

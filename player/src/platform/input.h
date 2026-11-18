@@ -17,6 +17,7 @@ class Log;
 class ButtonMap;
 class SettingsMenu;
 class TouchControls;
+class PadCursor;
 struct MenuBox;
 struct MenuText;
 struct TouchShape;
@@ -69,6 +70,11 @@ class Input {
   // Whether the scripts start with the frame counter showing.
   void SetFpsShown(bool shown) { fps_shown_ = shown; }
   std::vector<PointerChange> TakePointerChanges();
+  // Time passing, once per frame: moves the pointer worked with the pad.
+  void Advance(double seconds);
+  // Where that pointer is, to draw it; false while it is off or the menu
+  // is open.
+  bool Cursor(float* x, float* y) const;
   // Looks at one SDL event; key changes are queued.
   void HandleEvent(const SDL_Event& event);
   // Returns the queued key changes, oldest first, and empties the queue.
@@ -102,6 +108,7 @@ class Input {
   void SetTrigger(int index, bool down);
 
   std::unique_ptr<TouchControls> touch_;
+  std::unique_ptr<PadCursor> cursor_;
   std::unique_ptr<ButtonMap> buttons_;
   std::unique_ptr<SettingsMenu> menu_;
   bool fps_shown_ = false;  // follows the scripts' frame counter

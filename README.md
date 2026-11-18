@@ -190,7 +190,7 @@ internal storage, which loads faster.
 | Buttons | What they do |
 | --- | --- |
 | Menu held + Start | Leave the game, back to the list |
-| Menu held + X | The player's settings: frame counter, which key each button presses |
+| Menu held + X | The player's settings: frame counter, which key each button presses, and a pointer for games made for the mouse |
 | Menu held + Select | Show or hide the frames per second |
 
 Videos use the `ffmpeg` that muOS already has.
@@ -555,7 +555,7 @@ almacenamiento interno, donde carga más rápido.
 | Botones | Qué hacen |
 | --- | --- |
 | Menú mantenido + Start | Salir del juego, de vuelta a la lista |
-| Menú mantenido + X | Ajustes del reproductor: contador de fotogramas, qué tecla pulsa cada botón |
+| Menú mantenido + X | Ajustes del reproductor: contador de fotogramas, qué tecla pulsa cada botón y un puntero para juegos hechos para ratón |
 | Menú mantenido + Select | Mostrar u ocultar los fotogramas por segundo |
 
 Los vídeos usan el `ffmpeg` que muOS ya trae.
