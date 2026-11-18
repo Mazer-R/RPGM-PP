@@ -8,9 +8,11 @@
 
 namespace mvp {
 
-// The www folder of the game at `path`, or "" if there is none. `path` may
-// be the game's www folder (the one with index.html), the folder that holds
-// www, or any file directly inside either, such as the game's .exe.
+// The folder of the game at `path` (the one with index.html and the
+// engine's scripts), or "" if there is none. For an MV game that is its www
+// folder, and `path` may be that folder, the folder that holds it, or any
+// file directly inside either, such as the game's .exe. An MZ game has no
+// www: its folder is the one that holds the .exe.
 std::string ResolveGameDir(std::string path);
 
 // The remembered games are a text file of www folders, one per line, the

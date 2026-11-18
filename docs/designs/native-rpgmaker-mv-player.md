@@ -973,6 +973,39 @@ adjustments where the game's own code is too expensive for this hardware.
     *   **Not checked**: the fork-and-exec path, which needs a phone with
         Android 8.
 
+*   **RPG Maker MZ: first run and what it needs (2026-11-18).**
+    *   **Test game**: a free MZ game with the engine's stock scripts and
+        assets ("Escaper", from itch.io; kept outside git). MZ's layout
+        differs from MV's: no `www` folder, the page and `js/` sit next to
+        the `.exe`; `index.html` names only `js/main.js`, which adds the
+        other scripts to the page itself; PIXI is 5.2.4.
+    *   **Done**: a folder with `index.html` and `js/rmmz_core.js` is a
+        game (`ResolveGameDir`, native test). `atob`/`btoa` for scripts
+        (`js/base64.js`, tests): MZ's sound decoder library calls `atob`
+        while loading. The page's load event now comes after work the
+        scripts had already queued: MZ reads a file while loading and
+        refuses to start if the answer is not there at load time. With
+        that order, a script that was read but failed while running must
+        get a `load` event, as in a browser, not `error`: otherwise
+        Fear & Hunger, which has such a plugin, no longer starts (seen,
+        then fixed; it reaches its title again).
+    *   **Found, not done**, in the order the engine hits them:
+        1.  **WebAssembly.** V8 is built with `v8_enable_webassembly =
+            false` on all three targets. MZ needs it for Effekseer (every
+            battle and skill animation) and its Vorbis decoder library
+            fails while loading without it. Needs V8 rebuilt three times.
+        2.  **Web Audio check.** The engine stops with "Your browser does
+            not support Web Audio API": it wants `AudioContext`, and its
+            `WebAudio` class is not MV's.
+        3.  **Fonts.** MZ loads `.woff` files through `FontFace` and
+            `document.fonts`; neither exists here, and no font is found.
+        4.  **IndexedDB check**, made at start even though a desktop game
+            saves through Node's `fs`.
+        5.  **PIXI 5 on the WebGL binding**: not reached yet.
+    *   **How it was probed**: the game run without a screen in the ARM
+        container; past point 1 with a scratch copy whose two WebAssembly
+        libraries were replaced by empty stand-ins. Nothing was drawn yet.
+
 ## Critical User Journeys (CUJs)
 
 ### CUJ 1: First launch

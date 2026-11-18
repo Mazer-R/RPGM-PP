@@ -55,10 +55,18 @@ int main() {
   Expect("the game's .exe leads to it", mvp::ResolveGameDir(root + "/Game/Game.exe"), www);
   Expect("and the page inside www", mvp::ResolveGameDir(www + "/index.html"), www);
   Expect("a page without the engine is no game", mvp::ResolveGameDir(root + "/NotAGame"), "");
+
+  // An MZ game has no www folder: its page and scripts sit next to the .exe.
+  for (const char* dir : {"/MzGame", "/MzGame/js", "/MzGame/www"}) mkdir((root + dir).c_str(), 0755);
+  Touch(root + "/MzGame/Game.exe");
+  Touch(root + "/MzGame/index.html");
+  Touch(root + "/MzGame/js/rmmz_core.js");
+  Expect("an MZ game is its own folder", mvp::ResolveGameDir(root + "/MzGame"), root + "/MzGame");
+  Expect("and its .exe leads to it", mvp::ResolveGameDir(root + "/MzGame/Game.exe"), root + "/MzGame");
   Expect("nor is a path that is not there", mvp::ResolveGameDir(root + "/Nowhere"), "");
 
   Expect("a folder is listed with its folders marked, hidden names left out",
-         Joined(mvp::ListFolder(root)), "Game/ NotAGame/ notes.txt");
+         Joined(mvp::ListFolder(root)), "Game/ MzGame/ NotAGame/ notes.txt");
   Expect("folders first, then files, each by name whatever the case",
          Joined(mvp::ListFolder(root + "/Game")), "locales/ www/ Game.exe");
   Expect("a folder that cannot be read is empty", Joined(mvp::ListFolder(root + "/Nowhere")), "");

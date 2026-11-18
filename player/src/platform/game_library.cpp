@@ -34,8 +34,11 @@ std::string ResolveGameDir(std::string path) {
     size_t slash = path.rfind('/');
     path = slash == std::string::npos ? "." : path.substr(0, slash);
   }
+  // MV keeps the game in a www folder next to the .exe; MZ keeps it in the
+  // folder of the .exe itself. Each is known by its engine's core script.
   for (const std::string& candidate : {path, path + "/www"}) {
-    if (IsFile(candidate + "/index.html") && IsFile(candidate + "/js/rpg_core.js")) return candidate;
+    if (!IsFile(candidate + "/index.html")) continue;
+    if (IsFile(candidate + "/js/rpg_core.js") || IsFile(candidate + "/js/rmmz_core.js")) return candidate;
   }
   return "";
 }
