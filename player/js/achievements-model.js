@@ -85,7 +85,7 @@
 
     ['dug-up', 'Dug Up', 'Find the achievements', 'silver', 'wizard', flag('dug')],
     ['whole-party', 'The Whole Party', 'Earn one achievement of each hero', 'gold', 'party', null, 'heroes'],
-    ['sweet-spot', 'Sweet Spot', 'Reach 20 points with your achievements', 'silver', 'party', null, 'points'],
+    ['sweet-spot', 'Sweet Spot', 'Reach 25 points with your achievements', 'silver', 'party', null, 'points'],
     ['completionist', 'Completionist', 'Earn every other achievement', 'gold', 'party', null, 'all'],
   ].map(function (row) {
     return { id: row[0], name: row[1], how: row[2], metal: row[3], hero: row[4], test: row[5], over: row[6] || null, secret: !!row[7] };
@@ -93,7 +93,7 @@
   var HEROES = ['knight', 'wizard', 'archer'];
 
   // What an achievement is worth: the rarer its metal, the more.
-  var POINTS = { bronze: 1, silver: 2, gold: 4 }, SWEET_SPOT = 20;
+  var POINTS = { bronze: 1, silver: 2, gold: 4 }, SWEET_SPOT = 25;
   function pointsOf(has) {
     return LIST.reduce(function (sum, each) { return sum + (has(each.id) ? POINTS[each.metal] : 0); }, 0);
   }

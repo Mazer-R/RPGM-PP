@@ -153,17 +153,15 @@ const tests = {
     assert.strictEqual(model.points(model.LIST.map((each) => each.id)), 87);
   },
 
-  'twenty points from other achievements earn Sweet Spot, which gives the sweet potato'() {
-    // four golds and a silver make 18
-    const eighteen = ['potato-farm', 'baked-through', 'wrinkled', 'whole-party', 'slow-cooked'];
-    assert.strictEqual(model.points(eighteen), 18);
-    assert.ok(!ids({}, eighteen).includes('sweet-spot'));
-    const twenty = ids({}, eighteen.concat(['well-done']));
-    assert.ok(twenty.includes('sweet-spot'));
-    assert.deepStrictEqual(plain(model.update(eighteen, { seconds: 25 * HOUR }).fresh), ['warm-up', 'well-done', 'sweet-spot']);
-    assert.deepStrictEqual(plain(model.unlocked(['sweet-spot'])), [{ slot: 'character', item: 'sweet-potato' }]);
-    // its own points do not count towards itself
-    assert.ok(!ids({}, ['potato-farm', 'baked-through', 'wrinkled', 'whole-party', 'sweet-spot'].slice(0, 4)).includes('sweet-spot'));
+  'twenty-five points from other achievements earn Sweet Spot, which gives the sweet potato'() {
+    // six golds make 24
+    const almost = ['potato-farm', 'baked-through', 'loyal-spud', 'precious-memories', 'wrinkled', 'whole-party'];
+    assert.strictEqual(model.points(almost), 24);
+    assert.ok(!ids({}, almost).includes('sweet-spot'));
+    // a bronze more, earned in the same pass, and it comes with it
+    assert.deepStrictEqual(plain(model.update(almost, { seconds: HOUR }).fresh), ['warm-up', 'sweet-spot']);
+    assert.ok(plain(model.unlocked(['sweet-spot'])).some((piece) => piece.slot === 'character' && piece.item === 'sweet-potato'));
+    assert.strictEqual(model.shown('sweet-spot', ['sweet-spot']).how, 'Reach 25 points with your achievements');
   },
 
   'each flag or count earns its own achievement and no other'() {

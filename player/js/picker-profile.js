@@ -85,6 +85,27 @@
     // The hole: wider and deeper with each strike, earth thrown to its sides.
     var EARTH = [0.30, 0.19, 0.10, 1], DARK_EARTH = [0.16, 0.10, 0.05, 1], CLOD = [0.42, 0.28, 0.15, 1];
     var WOOD = [0.62, 0.43, 0.22, 1], WOOD_SHADE = [0.40, 0.27, 0.13, 1];
+    // A red arrow beside the ladder, pointing the way it leads (`down` or
+    // up), with its tip at x, y. It bobs, so that it is noticed.
+    var ARROW = [0.93, 0.20, 0.20, 1], ARROW_EDGE = [0.25, 0.03, 0.03, 1];
+    function bob() { return Math.floor(Date.now() / 420) % 2; }
+    function paintArrow(x, y, down) {
+      var way = down ? 1 : -1, tip = y + way * bob() * 4, canvas = ui.canvas();
+      function shape(grow, colour) {
+        c2d.beginPath(canvas);
+        c2d.moveTo(canvas, x, tip + way * grow);
+        c2d.lineTo(canvas, x - 11 - grow, tip - way * 12);
+        c2d.lineTo(canvas, x - 4 - grow, tip - way * 12);
+        c2d.lineTo(canvas, x - 4 - grow, tip - way * (26 + grow));
+        c2d.lineTo(canvas, x + 4 + grow, tip - way * (26 + grow));
+        c2d.lineTo(canvas, x + 4 + grow, tip - way * 12);
+        c2d.lineTo(canvas, x + 11 + grow, tip - way * 12);
+        c2d.closePath(canvas);
+        c2d.fill(canvas, colour, 1);
+      }
+      shape(2, ARROW_EDGE);
+      shape(0, ARROW);
+    }
     function paintHole(at) {
       var open = found(), depth = open ? view.STRIKES : view.depthAt(digging, Date.now());
       if (!depth) return;
@@ -98,6 +119,7 @@
         rect(left, top, 5, h + 30, WOOD);
         rect(left + 25, top, 5, h + 30, WOOD);
         for (var rung = 0; rung < 5; rung++) rect(left + 5, top + 6 + rung * 12, 20, 4, rung % 2 ? WOOD : WOOD_SHADE);
+        paintArrow(holeX - 34, top + 22, true);
         return;
       }
       rect(x - 4, y - 2, w + 8, h + 4, EARTH);
@@ -276,8 +298,9 @@
       rect(ladder, 0, 5, 84, WOOD);
       rect(ladder + 25, 0, 5, 84, WOOD);
       for (var rung = 0; rung < 7; rung++) rect(ladder + 5, 6 + rung * 12, 20, 4, rung % 2 ? WOOD : WOOD_SHADE);
+      paintArrow(ladder - 18, 20, false);
       var tally = earned.length + ' of ' + list.length;
-      ui.text(tally, ladder - 16 - ui.widthOf(tally, 18), 72, 18, MUTED);
+      ui.text(tally, ladder - 44 - ui.widthOf(tally, 18), 72, 18, MUTED);
       var pitch = grid.cell + grid.gap;
       for (var row = 0; row < grid.shown; row++) {
         for (var column = 0; column < grid.columns; column++) {
@@ -368,7 +391,7 @@
       ui.text('ACHIEVEMENT', x + 70, y + 26, 11, MUTED);
       ui.text(ui.fitted(name, 19, w - 84), x + 70, y + 50, 19, INK);
     }
-    var closing = 0;
+    var closing = 0, bobbed = 0;
     return {
       isOpen: function () { return !!screen; },
       open: open,
@@ -378,6 +401,8 @@
       // Called each frame: the hole closes by itself, which needs one more
       // picture when it does.
       tick: function () {
+        // The arrow by the ladder bobs, wherever a ladder is showing.
+        if ((screen === 'cellar' || (screen === 'profile' && found())) && bob() !== bobbed) { bobbed = bob(); ui.changed(); }
         if (screen !== 'profile') return;
         var depth = view.depthAt(digging, Date.now());
         if (depth !== closing) { closing = depth; ui.changed(); }
