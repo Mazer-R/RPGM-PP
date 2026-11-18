@@ -1357,6 +1357,30 @@ adjustments where the game's own code is too expensive for this hardware.
         reaches its title with the same picture. Not checked: the game
         it was reported on.
 
+*   **A plugin that sets up the desktop window (2026-11-18).**
+    *   **Reported** from a desktop PC, with a third MZ game:
+        "win.setResizable is not a function" in a plugin that sets the
+        game's resolution, then "Failed to load" for that plugin, and the
+        game did not start. The window stand-in answered only what the
+        engine itself asks; a plugin asks for more.
+    *   **Now**: `nw-window.js`, a piece of MZ's profile, accepts the
+        rest of the desktop player's window calls (setResizable, the size
+        limits, setPosition, maximize and the like, kiosk mode, always on
+        top, and others), which have nothing to change here, and gives
+        the list of screens one entry: the area the game is shown in.
+        What the window already answered is left as it was.
+    *   **Checked**: tests; without a screen, a script calling
+        setResizable, setMinimumSize and setPosition on an MZ game is
+        accepted and reads the screen's size. Not checked on the game it
+        was reported with, which is not on this machine.
+    *   **A survey to get ahead of such cases**: a scan of the three
+        games at hand for the browser, desktop-player and Node features
+        their own scripts name found 61, of which the player lacks 15:
+        Steam's interface in nine forms, `confirm()`, Node's `os` and
+        `events`, `requestFullscreen`, and three other wrappers. A scan
+        only says whether the player has something by that name, and it
+        would have found neither this case nor the missing page script.
+
 ## Critical User Journeys (CUJs)
 
 ### CUJ 1: First launch

@@ -28,6 +28,7 @@
       'web-fonts.js',     // FontFace, document.fonts: the engine's fonts
       'web-storage.js',   // indexedDB is there: a start-up check
       'nw-global.js',     // the global nw: game options, developer tools
+      'nw-window.js',     // the rest of the desktop window: plugins that set it up
       'web-workers.js',   // Worker can be made: the sound decoder library
       'engine-tasks.js',  // V8's queued work: WebAssembly finishes compiling
       'web-media.js',     // video.play() is a promise: every key press

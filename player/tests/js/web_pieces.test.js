@@ -175,6 +175,42 @@ const tests = {
       'frame 1234 Scene_Map', 'tick 1', 'step', 'update', 'step', 'update', 'draw', 'render'], 'drawing is measured once per frame, not wrapped twice');
     assert.strictEqual(app.render(), 'drawn');
   },
+
+  'the desktop player\'s window answers the rest of what a plugin may ask of it'() {
+    const moveTo = () => 'the player\'s own';
+    const win = { moveTo, isFullscreen: true };
+    const gui = { Window: { get: () => win }, Screen: { Init() {}, screens: [] } };
+    load('nw-window.js', { __browser: {}, document: { title: 'A Game' }, innerWidth: 1280, innerHeight: 720,
+      require: (name) => (name === 'nw.gui' ? gui : null) });
+    // A plugin that sets the game's resolution: none of this may throw.
+    win.setResizable(false);
+    win.setMinimumSize(816, 624);
+    win.setMaximumSize(1920, 1080);
+    win.setPosition('center');
+    win.maximize(); win.unmaximize(); win.minimize(); win.restore();
+    win.setAlwaysOnTop(true);
+    win.removeListener('resize', () => {});
+    assert.strictEqual(win.moveTo, moveTo, 'what the player already answers is left as it is');
+    assert.strictEqual(win.isFullscreen, true);
+    assert.strictEqual(win.isKioskMode, false);
+    assert.strictEqual(win.canSetVisibleOnAllWorkspaces(), false);
+    assert.strictEqual(win.title, 'A Game');
+  },
+
+  'the desktop player\'s list of screens holds the one the game is shown on'() {
+    const gui = { Window: { get: () => ({}) }, Screen: { Init() {}, screens: [] } };
+    load('nw-window.js', { __browser: {}, document: {}, innerWidth: 1280, innerHeight: 720,
+      require: (name) => (name === 'nw.gui' ? gui : null) });
+    assert.strictEqual(gui.Screen.screens.length, 1);
+    assert.deepStrictEqual(plain(gui.Screen.screens[0].bounds), { x: 0, y: 0, width: 1280, height: 720 });
+    assert.deepStrictEqual(plain(gui.Screen.screens[0].work_area), { x: 0, y: 0, width: 1280, height: 720 });
+    assert.strictEqual(gui.Screen.screens[0].scaleFactor, 1);
+  },
+
+  'without the desktop player\'s interface the window piece does nothing'() {
+    load('nw-window.js', { __browser: {}, document: {} });
+    load('nw-window.js', { __browser: {}, document: {}, require: () => null });
+  },
 };
 
 let failed = 0;
