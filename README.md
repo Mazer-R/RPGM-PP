@@ -259,6 +259,8 @@ in the game's `save/mvplayer-patches.json`.
 | `leanState` | MV | Writes that change nothing do not trigger a map refresh |
 | `commonEventThrottle` | MV | Parallel common events that are pure checks, and cost enough, run once every six steps |
 | `equipCache` | MV | An actor's equipment list is rebuilt only after a slot changed |
+| `idleColorFilters` | MZ | A colour filter that changes nothing is not run |
+| `windowClip` | MZ | A window's contents are clipped with a rectangle instead of a filter |
 
 ## Repository layout
 
@@ -615,6 +617,8 @@ en el `save/mvplayer-patches.json` del juego.
 | `leanState` | MV | Las escrituras que no cambian nada no provocan un refresco del mapa |
 | `commonEventThrottle` | MV | Los eventos comunes paralelos que son comprobaciones puras, y cuestan lo bastante, se ejecutan una vez cada seis pasos |
 | `equipCache` | MV | La lista de equipo de un personaje solo se rehace cuando cambia un hueco |
+| `idleColorFilters` | MZ | Un filtro de color que no cambia nada no se ejecuta |
+| `windowClip` | MZ | El contenido de una ventana se recorta con un rectángulo en lugar de un filtro |
 
 ## Estructura del repositorio
 
