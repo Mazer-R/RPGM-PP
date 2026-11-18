@@ -51,8 +51,12 @@ cp "$STAGE/dex/classes.dex" "$STAGE/root/"
 )
 
 echo "== package =="
+# The icon: one picture for every screen density; the launcher scales it.
+mkdir -p "$STAGE/res/mipmap-xxxhdpi"
+cp "$HERE/packaging/icon/potato-player.png" "$STAGE/res/mipmap-xxxhdpi/icon.png"
+"$TOOLS/aapt2" compile --dir "$STAGE/res" -o "$STAGE/res.zip"
 "$TOOLS/aapt2" link -o "$STAGE/base.apk" -I "$PLATFORM" \
-  --manifest "$HERE/packaging/android/AndroidManifest.xml"
+  --manifest "$HERE/packaging/android/AndroidManifest.xml" "$STAGE/res.zip"
 cp "$STAGE/base.apk" "$STAGE/unaligned.apk"
 (cd "$STAGE/root" && zip -q -r "$STAGE/unaligned.apk" classes.dex lib assets)
 rm -f "$WORK/mvplayer.apk"

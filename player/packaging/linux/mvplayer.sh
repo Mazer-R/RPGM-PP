@@ -75,7 +75,7 @@ case "${1:-}" in
     mkdir -p "$APPS"
     printf '%s\n' '[Desktop Entry]' 'Type=Application' 'Name=Potato Player' \
       'Comment=Play RPG Maker MV and MZ games without their bundled browser' \
-      "Exec=\"$HERE/mvplayer.sh\" %f" 'Terminal=false' 'Categories=Game;' > "$APPS/mvplayer.desktop"
+      "Exec=\"$HERE/mvplayer.sh\" %f" "Icon=$HERE/icon.png" 'Terminal=false' 'Categories=Game;' > "$APPS/mvplayer.desktop"
     echo "Added $APPS/mvplayer.desktop"
     exit 0 ;;
   -*) exec "$PLAYER" "$@" ;;

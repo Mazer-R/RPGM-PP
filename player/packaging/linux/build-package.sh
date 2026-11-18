@@ -67,6 +67,7 @@ cp "$OUT/mvplayer" "$DIR/mvplayer"
 cp js/*.js "$DIR/js/"
 cp patches/* "$DIR/patches/"
 cp packaging/linux/mvplayer.sh "$DIR/"
+cp packaging/icon/potato-player.png "$DIR/icon.png"
 sed "s/@ARCH@/$LABEL/g" packaging/linux/README.txt > "$DIR/README.txt"
 chmod 755 "$DIR/mvplayer" "$DIR/mvplayer.sh"
 

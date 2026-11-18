@@ -22,6 +22,7 @@
 
     <application
         android:label="Potato Player"
+        android:icon="@mipmap/icon"
         android:allowBackup="false"
         android:requestLegacyExternalStorage="true"
         android:extractNativeLibs="true"

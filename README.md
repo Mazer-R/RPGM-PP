@@ -1,5 +1,7 @@
 # RPGM-PP
 
+<img src="player/packaging/icon/potato-player.png" alt="Three potato heroes: a knight, a wizard and an archer" width="200">
+
 **Potato Player**, the RPG Maker Potato Player.
 
 A native player for RPG Maker MV and MZ games, without the Chromium-based NW.js
@@ -375,6 +377,8 @@ this so that I could play his games.
 ---
 
 # RPGM-PP (español)
+
+<img src="player/packaging/icon/potato-player.png" alt="Tres patatas heroicas: un caballero, una maga y una arquera" width="200">
 
 **Potato Player**, the RPG Maker Potato Player.
 
