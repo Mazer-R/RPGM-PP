@@ -323,7 +323,8 @@ void Host::MemoryPausesCallback(const v8::FunctionCallbackInfo<v8::Value>& args)
 // returns how many tasks ran. V8 finishes some things that way, among them
 // compiling WebAssembly: the promise of WebAssembly.instantiate() is only
 // settled by such a task. Nothing calls this for an MV game, which has
-// always run without it; the MZ layer calls it once a frame (js/mz.js).
+// always run without it; a profile that needs it runs it once a frame
+// (js/engine-tasks.js).
 void Host::RunEngineTasksCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   int ran = 0;

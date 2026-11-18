@@ -1,9 +1,11 @@
-// Tests for js/engine-select.js and js/mz.js, run with Node:
+// Tests for js/engine-select.js, run with Node:
 //   node tests/js/engine_select.test.js
 //
 // A game is either RPG Maker MV or MZ. The player tells which from the
-// game's files and loads a different set of layers for each, so that what
-// is done for MZ cannot change how an MV game runs.
+// game's files. Every game gets the common layers; on top of them each
+// engine has a profile, the list of extra browser pieces switched on for
+// it. MV's profile is empty, so what is added for another engine cannot
+// change how an MV game runs until a piece is put on MV's list on purpose.
 'use strict';
 const assert = require('assert');
 const fs = require('fs');
@@ -42,109 +44,32 @@ const tests = {
     assert.deepStrictEqual(plain(select().layersFor('MV', true)), MV_LAYERS.concat('audio.js'));
   },
 
-  'an MZ game gets the same layers and then its own, last'() {
+  'an MZ game gets MV\'s layers and then the pieces of its profile'() {
     const layers = plain(select().layersFor('MZ', true));
     assert.deepStrictEqual(layers.slice(0, MV_LAYERS.length + 1), MV_LAYERS.concat('audio.js'));
-    const own = layers.slice(MV_LAYERS.length + 1);
-    assert.ok(own.length > 0 && own[own.length - 1] === 'mz.js', 'mz.js is loaded last');
-    own.forEach((layer) => assert.ok(!MV_LAYERS.includes(layer), layer + ' is not one of MV\'s'));
+    assert.deepStrictEqual(layers.slice(MV_LAYERS.length + 1), plain(select().PROFILES.MZ));
+    assert.ok(select().PROFILES.MZ.length > 0);
   },
 
-  'under MZ the load event waits for what the page had already asked for'() {
-    const order = [], tasks = [];
-    const browser = { later: (fn) => tasks.push(fn), fireLoad: () => order.push('load') };
-    load('mz.js', { __browser: browser, document: {} });
-    browser.later(() => order.push('file answer'));
-    browser.fireLoad();
-    assert.deepStrictEqual(order, [], 'nothing fires at once');
-    while (tasks.length) tasks.shift()();
-    assert.deepStrictEqual(order, ['file answer', 'load']);
+  'MV\'s profile switches no piece on'() {
+    assert.deepStrictEqual(plain(select().PROFILES.MV), []);
   },
 
-  async 'under MZ a font is loaded through FontFace, from the file its url() names'() {
-    const asked = [];
-    const browser = { later() {}, fireLoad() {}, registerFont: (family, url) => { asked.push([family, url]); return url !== 'fonts/missing.woff'; } };
-    const page = load('mz.js', { __browser: browser, document: {} });
-    assert.ok(page.document.fonts && page.document.fonts.ready, 'the engine checks for document.fonts.ready');
-    await page.document.fonts.ready;
-
-    const font = new page.FontFace('rmmz-mainfont', 'url(fonts/mplus-1m-regular.woff)');
-    assert.strictEqual(font.status, 'unloaded');
-    assert.strictEqual(await font.load(), font);
-    assert.strictEqual(font.status, 'loaded');
-    assert.deepStrictEqual(asked, [['rmmz-mainfont', 'fonts/mplus-1m-regular.woff']]);
-    page.document.fonts.add(font);
-    assert.strictEqual(page.document.fonts.check('20px rmmz-mainfont'), true);
-
-    const quoted = new page.FontFace('other', 'url("fonts/missing.woff")');
-    await assert.rejects(() => quoted.load());
-    assert.strictEqual(quoted.status, 'error');
-    assert.deepStrictEqual(asked[1], ['other', 'fonts/missing.woff']);
+  'every piece of every profile is a file of the player, and none is one of the common layers'() {
+    const { PROFILES } = select();
+    Object.keys(PROFILES).forEach((engine) => plain(PROFILES[engine]).forEach((piece) => {
+      assert.ok(fs.existsSync(path.join(__dirname, '..', '..', 'js', piece)), engine + ': ' + piece + ' does not exist');
+      assert.ok(!MV_LAYERS.includes(piece) && piece !== 'audio.js', piece + ' is a common layer');
+    }));
   },
 
-  'under MZ the engine\'s check for IndexedDB passes'() {
-    const page = load('mz.js', { __browser: { later() {}, fireLoad() {} }, document: {} });
-    assert.ok(page.indexedDB);
+  'no piece is left out of every profile'() {
+    const used = new Set([].concat(...Object.values(plain(select().PROFILES))));
+    const pieces = fs.readdirSync(path.join(__dirname, '..', '..', 'js'))
+      .filter((file) => /^(web-.*|nw-global|engine-tasks)\.js$/.test(file));
+    pieces.forEach((piece) => assert.ok(used.has(piece), piece + ' is in no profile'));
   },
 
-  'under MZ the desktop player\'s object is the global nw, started without options'() {
-    const gui = { Window: { get: () => 'the window' }, App: { quit() {} } };
-    const page = load('mz.js', { __browser: { later() {}, fireLoad() {} }, document: {}, require: (name) => (name === 'nw.gui' ? gui : null) });
-    assert.strictEqual(page.nw.Window.get(), 'the window');
-    assert.deepStrictEqual(plain(page.nw.App.argv), []);
-    assert.strictEqual(typeof page.nw.App.quit, 'function', 'what the desktop layer already offers is kept');
-  },
-
-  'under MZ a Worker can be made, as the sound decoder library does while loading, and never runs'() {
-    const page = load('mz.js', { __browser: { later() {}, fireLoad() {} }, document: {} });
-    const worker = new page.Worker('js/libs/vorbisdecoder.js');
-    let heard = 0;
-    worker.addEventListener('message', () => heard++);
-    worker.onmessage = () => heard++;
-    worker.postMessage({ id: 1 }, []);
-    worker.terminate();
-    assert.strictEqual(heard, 0);
-  },
-
-  'under MZ a page\'s own Worker is left alone'() {
-    const theirs = function () {};
-    const page = load('mz.js', { __browser: { later() {}, fireLoad() {} }, document: {}, Worker: theirs });
-    assert.strictEqual(page.Worker, theirs);
-  },
-
-  'under MZ the engine\'s queued work is run once every frame'() {
-    let ran = 0;
-    const frames = [];
-    const page = load('mz.js', {
-      __browser: { later() {}, fireLoad() {} }, document: {},
-      player: { runEngineTasks: () => { ran++; return 0; } },
-      requestAnimationFrame: (fn) => frames.push(fn),
-    });
-    assert.ok(page);
-    assert.strictEqual(frames.length, 1, 'asked for the next frame');
-    frames.shift()(16);
-    frames.shift()(32);
-    assert.strictEqual(ran, 2);
-    assert.strictEqual(frames.length, 1, 'and for the one after');
-  },
-
-  async 'under MZ playing a video element gives a promise, as the engine expects on every key press'() {
-    const played = [];
-    const browser = { later() {}, fireLoad() {}, makeVideo: (video) => { video.play = function () { played.push(this); }; return video; } };
-    load('mz.js', { __browser: browser, document: {} });
-    const video = browser.makeVideo({ tag: 'video' });
-    const result = video.play();
-    assert.strictEqual(typeof result.catch, 'function');
-    await result;
-    assert.deepStrictEqual(played, [video], 'the player\'s own play still runs, on the element');
-  },
-
-  async 'under MZ a video that cannot be played gives a promise that fails, not an error thrown'() {
-    const browser = { later() {}, fireLoad() {}, makeVideo: (video) => { video.play = () => { throw new Error('no'); }; return video; } };
-    load('mz.js', { __browser: browser, document: {} });
-    const video = browser.makeVideo({});
-    await assert.rejects(() => video.play(), /no/);
-  },
 };
 
 let failed = 0;

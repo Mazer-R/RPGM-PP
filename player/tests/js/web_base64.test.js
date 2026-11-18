@@ -1,5 +1,5 @@
-// Tests for js/base64.js, run with Node:
-//   node tests/js/base64.test.js
+// Tests for js/web-base64.js, run with Node:
+//   node tests/js/web_base64.test.js
 //
 // The module gives scripts the browser's atob and btoa. RPG Maker MZ's sound
 // decoder library carries its WebAssembly code as base64 text and calls atob
@@ -14,7 +14,7 @@ function setup() {
   const sandbox = {};
   sandbox.globalThis = sandbox;
   vm.createContext(sandbox);
-  const file = path.join(__dirname, '..', '..', 'js', 'base64.js');
+  const file = path.join(__dirname, '..', '..', 'js', 'web-base64.js');
   vm.runInContext(fs.readFileSync(file, 'utf8'), sandbox, { filename: file });
   return sandbox;
 }
@@ -58,7 +58,7 @@ const tests = {
     const sandbox = { atob: () => 'theirs' };
     sandbox.globalThis = sandbox;
     vm.createContext(sandbox);
-    const file = path.join(__dirname, '..', '..', 'js', 'base64.js');
+    const file = path.join(__dirname, '..', '..', 'js', 'web-base64.js');
     vm.runInContext(fs.readFileSync(file, 'utf8'), sandbox, { filename: file });
     assert.strictEqual(sandbox.atob('aGk='), 'theirs');
     assert.strictEqual(sandbox.btoa('hi'), 'aGk=');

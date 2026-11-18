@@ -1,6 +1,9 @@
 // The browser's atob and btoa: base64 text to and from a string that holds
 // one byte in each character.
 //
+// One of the browser pieces a game's profile can switch on (engine-select.js).
+// It knows nothing of the game's engine.
+//
 // RPG Maker MZ's sound decoder (js/libs/vorbisdecoder.js) carries its
 // WebAssembly code as base64 text and calls atob while it loads.
 (function () {

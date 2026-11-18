@@ -984,9 +984,9 @@ adjustments where the game's own code is too expensive for this hardware.
         different set of layers for each (`js/engine-select.js`): an MV
         game gets exactly the layers it had before MZ existed here; an MZ
         game gets those and then its own, loaded last, which may replace
-        parts of the earlier ones. What only MZ needs lives in the MZ
-        layers (`js/mz.js` and the files listed with it), not in the
-        shared ones. A test pins MV's list.
+        parts of the earlier ones. What only MZ needs is not put in the
+        shared ones. A test pins MV's list. (Later the same day the MZ
+        layers became pieces listed in a profile: see below.)
     *   **Done**: a folder with `index.html` and `js/rmmz_core.js` is a
         game (`ResolveGameDir`, native test). For MZ only: `atob`/`btoa`
         for scripts (`js/base64.js`), which MZ's sound decoder library
@@ -1071,6 +1071,65 @@ adjustments where the game's own code is too expensive for this hardware.
         `--fps` setting. Native test for the row; seen on the phone.
     *   **Not checked**: MZ battles and their animations, saving and
         loading, sound by ear.
+
+*   **MZ battles: the WebGL calls Effekseer makes (2026-11-18).**
+    *   **Seen**: on the phone, the MZ game stopped when a battle began,
+        with "GLctx.isEnabled is not a function". Effekseer is compiled
+        to WebAssembly and brings its own GL layer, which uses parts of
+        WebGL that PIXI never does.
+    *   **Added to the binding**: `isEnabled`; the `is*` queries;
+        `uniform2i`–`4i` and their array forms; `vertexAttrib1f`–`4f`;
+        `hint`, `lineWidth`, `polygonOffset`, `depthRange`,
+        `sampleCoverage`; the three `stencil*Separate`; `validateProgram`,
+        `detachShader`; `copyTexImage2D`, `copyTexSubImage2D`; and the
+        getters for texture, buffer and renderbuffer parameters, shader
+        source and attribute offset. These are new functions on the one
+        WebGL object; an MV game calls none of them.
+    *   **Still missing** of what Effekseer's GL layer names: compressed
+        textures, `getUniform`, `getVertexAttrib`, `getAttachedShaders`,
+        `getFramebufferAttachmentParameter`, and the WebGL 2 and extension
+        calls, which it only uses where the extension is offered.
+    *   **Checked**: `tests/device/webgl_state_check.js`, new, calls every
+        added function on a real context (it failed on each group before,
+        passes now, without a screen). On the phone, a scripted battle
+        against the game's first troop runs from start to end: two turns,
+        the enemy defeated, back to the map; captures show the
+        background, the enemy, the damage number and the status window.
+    *   **Not checked**: the Effekseer animations themselves, by eye;
+        sound; videos (this game has none).
+
+*   **Layers by capability, switched on by a profile per engine (2026-11-18).**
+    *   **Why**: a review of the MZ work found that the "MZ layer" held
+        almost nothing about MZ. `atob`, `FontFace`, `Worker`,
+        `indexedDB`, a video's `play()` promise and the order of the load
+        event are parts of any browser; running V8's queued work is the
+        duty of any program that embeds V8; `nw` is the desktop player's
+        interface. MZ only happened to be the first to ask. Kept under
+        MZ's name they would be rewritten, or missed, for the next game
+        that needs one of them, including an MV game with a plugin that
+        calls `atob`.
+    *   **Now**: each is a file of its own that knows nothing of the
+        game's engine (`web-base64.js`, `web-load.js`, `web-fonts.js`,
+        `web-storage.js`, `web-workers.js`, `web-media.js`,
+        `nw-global.js`, `engine-tasks.js`). `engine-select.js` holds one
+        profile per engine: the pieces switched on for its games, loaded
+        after the common layers. MZ's profile lists all eight. MV's is
+        empty and pinned by a test, so the rule above still holds: a
+        piece reaches MV games only when it is put on MV's list on
+        purpose, after an MV game has been run with it. Tests also check
+        that every piece named exists and that no piece is in no profile.
+    *   **What stays tied to an engine**, and so does not belong in a
+        piece: the patches, the performance line's hooks, the shortcuts
+        for encrypted files and the reading of the engine's error screen.
+        Today these exist for MV only; MZ gets none of them yet.
+    *   **Checked**: no behaviour was meant to change, and none did.
+        Fear & Hunger reaches its title with the same picture (lit
+        fraction 0.634); the MZ game starts a new game and walks, as
+        before; all JavaScript tests pass.
+    *   **Limit of "any game"**: the aim is any RPG Maker MV or MZ game,
+        with its plugins. It is not any game built on web technology:
+        there is no HTML or CSS layout, WebGL 1 only, and parts of Canvas
+        and Web Audio.
 
 ## Critical User Journeys (CUJs)
 
