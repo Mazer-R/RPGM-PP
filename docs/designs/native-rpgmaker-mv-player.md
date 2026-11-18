@@ -1262,6 +1262,87 @@ adjustments where the game's own code is too expensive for this hardware.
         only once there is a font. Seen on the phone: "60 fps" over an MZ
         game. The counter is small on a phone's screen.
 
+*   **Why MZ draws slowly on the handheld, and two patches for it (2026-11-18).**
+    *   **Found by reading the engine**, after the performance line
+        showed drawing as the cost: MZ draws through filters that MV does
+        not have. A filter makes PIXI draw what it covers into a texture
+        and copy it back. MZ keeps three colour filters switched on for
+        every frame whatever they are set to (on the scene, for fades; on
+        the map's or battle's sprites, for brightness; on the layer under
+        them, for the tone), gives a sprite one more for good the first
+        time it is tinted, and clips every window's contents with a
+        filter of its own. A map costs three passes over the whole
+        picture; a menu or a battle, those plus one for each open window.
+    *   **`idleColorFilters`**: PIXI skips a filter whose `enabled` is
+        false, and draws straight to the screen when none is enabled. The
+        patch sets it from what the filter was last told: off while its
+        hue is 0, its tone all zeros, its blend colour without strength
+        and its brightness full, which is when its shader gives back the
+        colour it got. It cannot see a script that writes a filter's
+        uniforms directly.
+    *   **`windowClip`**: the window's filter changes no colour; only its
+        bounds matter. The patch takes it off and masks the client area
+        with a rectangle of the window's inner size, cut with a scissor.
+        It has to be a scissor: PIXI's other mask is the stencil, which
+        MZ's window layer already uses for itself.
+    *   **Measured without a screen** (software drawing, so only the
+        ratio means anything), "Escaper": on its first map, drawing went
+        from 18.6 to 9.2 ms a frame, and frames from 47 to 94 a second,
+        with the first patch alone. In a battle, with both, 32 to 22 ms
+        and 62 to 31 ms in two of three periods; the third, while an
+        Effekseer animation plays, stays near 80 ms there. Captures of
+        the map and of the battle look as before: text, window contents
+        and the fading enemy are in place.
+    *   **On the handheld**, the same scripted new game and battle of
+        "Escaper", without and with the two patches:
+
+        | | Without | With |
+        | --- | --- | --- |
+        | First map, frames a second | 29 | 60 |
+        | First map, drawing a frame | 15.4 ms | 13.8 ms |
+        | Battle, frames a second | 25, then 16 | 34, then 28 |
+        | Battle, drawing a frame | 22.9, then 45.1 ms | 17.5, then 24.1 ms |
+
+        The map's drawing time falls little, but it was just over what
+        fits in a frame beside the logic, and now it fits: every frame is
+        shown instead of every other. Battles gain most in drawing time
+        and are still short of 60. Nine captures of each run show the
+        same pictures: windows, texts, the enemy flashing white when
+        hit, and the Effekseer animations.
+    *   **Not checked**: the patches on "Look Outside", whose plugins
+        include a filter controller and layered graphics.
+
+*   **Black squares in MZ battles: what is bound must be given back as itself (2026-11-18).**
+    *   **Reported**: on the handheld, during battles, black squares over
+        the enemies and over the life bars, for a moment.
+    *   **Reproduced** with a scripted battle against three enemies and a
+        capture of the screen twice a second: one capture in 44 had a
+        black square over each enemy (their state icons) and the inside
+        of the status window black. It falls between the moment Effekseer
+        loads an animation's files and the first time that animation is
+        drawn, about a third of a second. The patches were not involved:
+        it happens without them.
+    *   **Cause**, in the WebGL binding, not in the game: Effekseer's GL
+        layer uploads its textures between frames. Around each upload it
+        asks which texture is bound, binds its own, and binds the earlier
+        one again. `getParameter(TEXTURE_BINDING_2D)` answered with the
+        driver's number for the texture, not with the texture object the
+        page had bound; binding a number binds nothing. PIXI, which
+        remembers what it bound and does not bind it twice, then drew
+        with no texture on that unit, which draws black, until MZ told it
+        to forget its bindings after the next animation was drawn. The
+        logged drawing state (blending, masks, tests) was never disturbed.
+    *   **Fix**: the binding remembers the objects the scripts bind
+        (textures for each unit, both buffers, the framebuffer, the
+        renderbuffer, the program) and gives those back; deleting an
+        object unbinds it. An MV game never asks.
+    *   **Checked**: the device check gained these cases (each failed
+        first). On the handheld, 34 captures 0.12 s apart across the
+        first attacks: before, one capture with the squares; after, none,
+        with the patches and without (pure black pixels stay at the 1440
+        to 1457 of the screen's own borders, against 1740 and 18962 in
+        the faulty captures). Fear & Hunger still reaches its title.
+
 ## Critical User Journeys (CUJs)
 
 ### CUJ 1: First launch

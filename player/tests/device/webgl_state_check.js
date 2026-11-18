@@ -73,6 +73,46 @@
       check('a detached shader is still a shader', gl.isShader(vs) === true);
     });
 
+    attempt('what is bound can be asked for and put back', function () {
+      // A library with its own GL layer saves what is bound, binds its own
+      // object, and binds the saved one again: it must get back the object
+      // itself, or the page's texture is left unbound and draws black.
+      var first = gl.createTexture(), second = gl.createTexture();
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, first);
+      check('the bound texture is given back as itself', gl.getParameter(gl.TEXTURE_BINDING_2D) === first);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, null);
+      check('each texture unit has its own', gl.getParameter(gl.TEXTURE_BINDING_2D) === null);
+      gl.activeTexture(gl.TEXTURE0);
+      var saved = gl.getParameter(gl.TEXTURE_BINDING_2D);
+      gl.bindTexture(gl.TEXTURE_2D, second);
+      gl.bindTexture(gl.TEXTURE_2D, saved);
+      check('putting the saved one back binds it again', gl.getParameter(gl.TEXTURE_BINDING_2D) === first && gl.isTexture(first));
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 2, 2, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(16));
+      check('and it is the one written to', gl.getError() === gl.NO_ERROR);
+      gl.deleteTexture(first);
+      check('a deleted texture is no longer bound', gl.getParameter(gl.TEXTURE_BINDING_2D) === null);
+
+      var buffer = gl.createBuffer(), indices = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indices);
+      check('the bound buffers are given back as themselves',
+        gl.getParameter(gl.ARRAY_BUFFER_BINDING) === buffer && gl.getParameter(gl.ELEMENT_ARRAY_BUFFER_BINDING) === indices);
+      var frame = gl.createFramebuffer(), render = gl.createRenderbuffer();
+      check('the screen is no framebuffer object', gl.getParameter(gl.FRAMEBUFFER_BINDING) === null);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, frame);
+      gl.bindRenderbuffer(gl.RENDERBUFFER, render);
+      check('the bound framebuffer and renderbuffer are given back as themselves',
+        gl.getParameter(gl.FRAMEBUFFER_BINDING) === frame && gl.getParameter(gl.RENDERBUFFER_BINDING) === render);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.bindRenderbuffer(gl.RENDERBUFFER, null);
+      check('and null once unbound', gl.getParameter(gl.FRAMEBUFFER_BINDING) === null && gl.getParameter(gl.RENDERBUFFER_BINDING) === null);
+      var program = gl.createProgram();
+      gl.useProgram(null);
+      check('no program in use is null', gl.getParameter(gl.CURRENT_PROGRAM) === null);
+    });
+
     attempt('other state setters', function () {
       gl.hint(gl.GENERATE_MIPMAP_HINT, gl.NICEST);
       gl.lineWidth(1);

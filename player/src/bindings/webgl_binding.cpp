@@ -63,8 +63,40 @@ struct State {
   // Pixel memory of each texture, by OpenGL name, to report the total.
   std::map<GLuint, long long> texture_bytes;
   v8::Global<v8::Private> name_key;  // hidden property holding an object's GL name
+  // What the scripts have bound, as the objects they bound, so that asking
+  // for a binding gives the object back: by binding name, and for textures
+  // by binding name and texture unit (see BindingKey).
+  std::map<uint32_t, v8::Global<v8::Value>> bound;
+  GLenum active_unit = GL_TEXTURE0;
 };
 State g_state;
+
+// The names WebGL has for asking what is bound.
+constexpr GLenum kArrayBufferBinding = 0x8894, kElementArrayBufferBinding = 0x8895, kFramebufferBinding = 0x8CA6,
+                 kRenderbufferBinding = 0x8CA7, kTextureBinding2D = 0x8069, kTextureBindingCubeMap = 0x8514,
+                 kCurrentProgram = 0x8B8D;
+
+// Where g_state.bound keeps a binding: a texture binding is kept for each
+// texture unit, the others once.
+uint32_t BindingKey(GLenum binding) {
+  bool per_unit = binding == kTextureBinding2D || binding == kTextureBindingCubeMap;
+  return binding | (per_unit ? (g_state.active_unit - GL_TEXTURE0 + 1) << 16 : 0);
+}
+
+// Notes that `value` is now what `binding` names; anything but an object
+// (null, to unbind) leaves it naming nothing.
+void NoteBound(v8::Isolate* isolate, GLenum binding, v8::Local<v8::Value> value) {
+  if (value->IsObject()) g_state.bound[BindingKey(binding)].Reset(isolate, value);
+  else g_state.bound.erase(BindingKey(binding));
+}
+
+// A deleted object is no longer bound anywhere.
+void NoteDeleted(v8::Isolate* isolate, v8::Local<v8::Value> value) {
+  for (auto entry = g_state.bound.begin(); entry != g_state.bound.end();) {
+    if (entry->second.Get(isolate)->StrictEquals(value)) entry = g_state.bound.erase(entry);
+    else ++entry;
+  }
+}
 
 using Args = v8::FunctionCallbackInfo<v8::Value>;
 
@@ -336,6 +368,22 @@ void InstallFunctions(v8::Isolate* isolate, v8::Local<v8::Object> gl) {
         RET(Str(ISO, text ? reinterpret_cast<const char*>(text) : ""));
         break;
       }
+      // What is bound is given back as the object the script bound, not as
+      // the driver's number for it: a script that saves a binding and puts
+      // it back (a WebAssembly library's GL layer does, around its own
+      // texture uploads) would otherwise unbind the page's object.
+      case kArrayBufferBinding:
+      case kElementArrayBufferBinding:
+      case kFramebufferBinding:
+      case kRenderbufferBinding:
+      case kTextureBinding2D:
+      case kTextureBindingCubeMap:
+      case kCurrentProgram: {
+        auto found = g_state.bound.find(BindingKey(name));
+        if (found == g_state.bound.end()) args.GetReturnValue().SetNull();
+        else RET(found->second.Get(ISO));
+        break;
+      }
       default: {
         // The driver writes as many values as the name has; only names
         // whose number of values is known are asked for (gl_limits.h).
@@ -373,8 +421,11 @@ void InstallFunctions(v8::Isolate* isolate, v8::Local<v8::Object> gl) {
 
   // --- Buffers -------------------------------------------------------------
   FN(createBuffer, { GLuint id = 0; glGenBuffers(1, &id); RET(Wrap(ISO, id)); });
-  FN(deleteBuffer, { GLuint id = N(0); glDeleteBuffers(1, &id); });
-  FN(bindBuffer, glBindBuffer(U(0), N(1)));
+  FN(deleteBuffer, { GLuint id = N(0); glDeleteBuffers(1, &id); NoteDeleted(ISO, args[0]); });
+  FN(bindBuffer, {
+    glBindBuffer(U(0), N(1));
+    NoteBound(ISO, U(0) == GL_ELEMENT_ARRAY_BUFFER ? kElementArrayBufferBinding : kArrayBufferBinding, args[1]);
+  });
   FN(bufferData, {
     if (args[1]->IsNumber()) {
       glBufferData(U(0), static_cast<GLsizeiptr>(args[1]->NumberValue(CTX).FromMaybe(0)), nullptr, U(2));
@@ -390,15 +441,23 @@ void InstallFunctions(v8::Isolate* isolate, v8::Local<v8::Object> gl) {
 
   // --- Textures ------------------------------------------------------------
   FN(createTexture, { GLuint id = 0; glGenTextures(1, &id); RET(Wrap(ISO, id)); });
-  FN(deleteTexture, { GLuint id = N(0); glDeleteTextures(1, &id); g_state.texture_bytes.erase(id); });
+  FN(deleteTexture, {
+    GLuint id = N(0);
+    glDeleteTextures(1, &id);
+    g_state.texture_bytes.erase(id);
+    NoteDeleted(ISO, args[0]);
+  });
   // Not part of WebGL: pixel memory held by textures, in bytes.
   FN(textureBytes, {
     long long total = 0;
     for (const auto& entry : g_state.texture_bytes) total += entry.second;
     RET(static_cast<double>(total));
   });
-  FN(bindTexture, glBindTexture(U(0), N(1)));
-  FN(activeTexture, glActiveTexture(U(0)));
+  FN(bindTexture, {
+    glBindTexture(U(0), N(1));
+    NoteBound(ISO, U(0) == GL_TEXTURE_CUBE_MAP ? kTextureBindingCubeMap : kTextureBinding2D, args[1]);
+  });
+  FN(activeTexture, { glActiveTexture(U(0)); g_state.active_unit = U(0); });
   FN(texParameteri, glTexParameteri(U(0), U(1), I(2)));
   FN(texParameterf, glTexParameterf(U(0), U(1), F(2)));
   FN(generateMipmap, glGenerateMipmap(U(0)));
@@ -457,10 +516,11 @@ void InstallFunctions(v8::Isolate* isolate, v8::Local<v8::Object> gl) {
 
   // --- Framebuffers and renderbuffers --------------------------------------
   FN(createFramebuffer, { GLuint id = 0; glGenFramebuffers(1, &id); RET(Wrap(ISO, id)); });
-  FN(deleteFramebuffer, { GLuint id = N(0); glDeleteFramebuffers(1, &id); });
+  FN(deleteFramebuffer, { GLuint id = N(0); glDeleteFramebuffers(1, &id); NoteDeleted(ISO, args[0]); });
   FN(bindFramebuffer, {
     GLuint name = N(1);
     glBindFramebuffer(U(0), name ? name : g_state.buffer_framebuffer);
+    NoteBound(ISO, kFramebufferBinding, args[1]);
   });
   // Not part of WebGL: setOverlay(canvas, x, y) shows a canvas over the game
   // at that position of the screen, in screen pixels from the top left;
@@ -481,8 +541,8 @@ void InstallFunctions(v8::Isolate* isolate, v8::Local<v8::Object> gl) {
   FN(framebufferTexture2D, glFramebufferTexture2D(U(0), U(1), U(2), N(3), I(4)));
   FN(checkFramebufferStatus, RET(static_cast<uint32_t>(glCheckFramebufferStatus(U(0)))));
   FN(createRenderbuffer, { GLuint id = 0; glGenRenderbuffers(1, &id); RET(Wrap(ISO, id)); });
-  FN(deleteRenderbuffer, { GLuint id = N(0); glDeleteRenderbuffers(1, &id); });
-  FN(bindRenderbuffer, glBindRenderbuffer(U(0), N(1)));
+  FN(deleteRenderbuffer, { GLuint id = N(0); glDeleteRenderbuffers(1, &id); NoteDeleted(ISO, args[0]); });
+  FN(bindRenderbuffer, { glBindRenderbuffer(U(0), N(1)); NoteBound(ISO, kRenderbufferBinding, args[1]); });
   FN(renderbufferStorage, {
     // WebGL's combined depth-stencil format is the packed 24/8 format here.
     GLenum format = U(1);
@@ -528,11 +588,11 @@ void InstallFunctions(v8::Isolate* isolate, v8::Local<v8::Object> gl) {
     RET(Str(ISO, log));
   });
   FN(createProgram, RET(Wrap(ISO, glCreateProgram())));
-  FN(deleteProgram, glDeleteProgram(N(0)));
+  FN(deleteProgram, { glDeleteProgram(N(0)); NoteDeleted(ISO, args[0]); });
   FN(attachShader, glAttachShader(N(0), N(1)));
   FN(bindAttribLocation, glBindAttribLocation(N(0), U(1), ToStd(ISO, args[2]).c_str()));
   FN(linkProgram, glLinkProgram(N(0)));
-  FN(useProgram, glUseProgram(N(0)));
+  FN(useProgram, { glUseProgram(N(0)); NoteBound(ISO, kCurrentProgram, args[0]); });
   FN(getProgramParameter, {
     GLenum name = U(1);
     GLint value = 0;
@@ -1035,6 +1095,7 @@ void PresentDrawingBuffer(int screen_width, int screen_height, const std::vector
 // after this; a later run in the same process starts from nothing.
 void ReleaseWebGLBinding() {
   g_state.name_key.Reset();
+  g_state.bound.clear();
   g_state = State();
 }
 
