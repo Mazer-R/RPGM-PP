@@ -52,6 +52,19 @@ const tests = {
     assert.deepStrictEqual(plain(model.menuLines(108, 300, 10)), { pitch: 30, line: 26 });
   },
 
+  'the button that goes back is at the top right, or to the left of whatever is there'() {
+    assert.deepStrictEqual(plain(model.backButton(640)), { x: 516, y: 22, w: 96, h: 44 });
+    assert.deepStrictEqual(plain(model.backButton(540, 430)), { x: 334, y: 22, w: 96, h: 44 });
+    const box = model.backButton(640);
+    assert.strictEqual(model.inside(box, 516, 22), true);
+    assert.strictEqual(model.inside(box, 611, 65), true);
+    assert.strictEqual(model.inside(box, 515, 40), false);
+    assert.strictEqual(model.inside(box, 560, 66), false);
+    // a finger is not a point: a little around the button counts too
+    assert.strictEqual(model.inside(box, 510, 70, 8), true);
+    assert.strictEqual(model.inside(box, 500, 40, 8), false);
+  },
+
   'the hole is as deep as the strikes so far, and closes by itself'() {
     const state = strikes(0, 500);
     assert.strictEqual(model.depthAt(state, 600), 2);

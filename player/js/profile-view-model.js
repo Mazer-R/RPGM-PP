@@ -58,6 +58,21 @@
     return { x: -90 + along * (width + 180), along: along };
   }
 
+  // --- Going back -----------------------------------------------------------------
+  // Where a finger is used there is a button to go back, since there is no
+  // key for it: at the top right of the window, or ending at `right` where
+  // something else is in that corner.
+  var EDGE = 28;
+  function backButton(width, right) {
+    var w = 96, end = right === undefined ? width - EDGE : right;
+    return { x: end - w, y: 22, w: w, h: 44 };
+  }
+  // Whether x, y is in a box, or within `around` of it.
+  function inside(box, x, y, around) {
+    var more = around || 0;
+    return x >= box.x - more && x < box.x + box.w + more && y >= box.y - more && y < box.y + box.h + more;
+  }
+
   // --- The menu's lines ---------------------------------------------------------
   // The lines share the room between `top` and `bottom`: as tall as it
   // allows, so that a finger hits them, up to a limit, and never so small
@@ -120,7 +135,7 @@
     return (hours ? hours + ' h' : '') + (hours && minutes ? ' ' : '') + (minutes ? minutes + ' min' : '');
   }
 
-  globalThis.__profileView = { undug: undug, dig: dig, depthAt: depthAt, STRIKES: STRIKES, digSpot: digSpot, inDigSpot: inDigSpot, menuLines: menuLines, unknocked: unknocked, knock: knock,
+  globalThis.__profileView = { undug: undug, dig: dig, depthAt: depthAt, STRIKES: STRIKES, digSpot: digSpot, inDigSpot: inDigSpot, menuLines: menuLines, backButton: backButton, inside: inside, unknocked: unknocked, knock: knock,
     saucerAt: saucerAt, toast: toast, TOAST: TOAST, grid: grid, step: step,
     firstRow: firstRow, cellAt: cellAt, played: played };
 })();

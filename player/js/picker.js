@@ -451,7 +451,10 @@
     var all = lines(), m = metrics(), VISIBLE = visible(), x = MARGIN;
     paintBackground();
     text('POTATO PLAYER', x, 34, 12, MUTED);
+    // Top right: the user's potato over the list of games; over the
+    // folders, the way back for a finger.
     if (!browsing) profileScreen.paintChip(chipAt().x, chipAt().y, CHIP, onChip);
+    else profileScreen.paintBack();
     text(browsing ? 'Add a game' : 'Games', x, 72, 32, INK);
     if (browsing) {
       box(x, 86, COLUMN, 50, 10, PANEL);
@@ -598,6 +601,7 @@
     if (!touching) { touching = true; changed = true; }
     if (profileScreen.isOpen()) return profileScreen.pointer(phase, x, y);
     if (!browsing && phase === 0 && inChip(x, y)) { press = null; return openProfile(); }
+    if (browsing && phase === 0 && profileScreen.onBack(x, y)) { press = null; note = ''; return backToList(''); }
     if (phase === 0) {
       press = { x: x, y: y, layout: layout(), line: model.lineAt(x, y, layout()), moved: false };
       press.wasChosen = press.line === selected;

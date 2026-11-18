@@ -44,6 +44,17 @@
       c2d.drawImage(ui.canvas(), image.handle, sx, sy, sw, sh, dx, dy, dw, dh, alpha === undefined ? 1 : alpha);
     }
     function rect(x, y, w, h, colour) { c2d.fillRect(ui.canvas(), x, y, w, h, colour, 1); }
+    // The button that goes back, for fingers: shown once a finger or the
+    // mouse has been used. `right` is where it ends when the corner is taken.
+    var BUTTON = [0.16, 0.17, 0.24, 0.94];
+    function paintBack(right) {
+      if (!ui.touching()) return;
+      var at = view.backButton(ui.width(), right), label = '<  Back';
+      ui.box(at.x - 1, at.y - 1, at.w + 2, at.h + 2, 12, PANEL_EDGE);
+      ui.box(at.x, at.y, at.w, at.h, 11, BUTTON);
+      ui.text(label, at.x + (at.w - ui.widthOf(label, 16)) / 2, at.y + 28, 16, INK);
+    }
+    function onBack(x, y, right) { return view.inside(view.backButton(ui.width(), right), x, y, 8); }
 
     // --- The profile ---------------------------------------------------------
     // The menu: the name, a line for each slot of the avatar, the
@@ -189,6 +200,7 @@
       });
       if (ui.touching()) ui.text('Touch a line to change it', x, H - 18, 15, MUTED);
       else ui.hint(ui.hint(x, H - 18, 'A', 'Choose'), H - 18, 'B', 'Back');
+      paintBack();
     }
     // Puts the next piece (`by` 1) or the one before in a slot.
     function change(slot, by) {
@@ -225,6 +237,7 @@
     }
     function profilePointer(phase, x, y) {
       if (phase !== 0) return;
+      if (onBack(x, y)) return close();
       // The gap between two lines belongs to the line above it: a finger
       // that lands between them still chooses one.
       var at = scene(), line = Math.floor((y - TOP) / at.pitch);
@@ -266,6 +279,7 @@
         });
       });
       if (!ui.touching()) ui.hint(ui.hint(MARGIN, H - 18, 'A', 'Type'), H - 18, 'B', 'Cancel');
+      paintBack();
     }
     function press(which) {
       if (which !== 'ok') { typing = avatars.typed(typing, which); return ui.changed(); }
@@ -282,6 +296,7 @@
     }
     function namePointer(phase, x, y) {
       if (phase !== 0) return;
+      if (onBack(x, y)) { screen = 'profile'; return ui.changed(); }
       var at = board(), found = y >= at.top ? avatars.boardAt(Math.floor((y - at.top) / at.h), (x - at.left) / at.w) : null;
       if (!found) return;
       key = found;
@@ -299,7 +314,7 @@
       rect(0, 0, W, H, DEEP_SOIL);
       rect(0, 0, W, 84, SOIL);
       rect(0, 0, W, 8, GRASS_GREEN);
-      ui.text('UNDER THE GROUND', MARGIN, 34, 12, MUTED);
+      ui.text('UNDER THE GROUND     ' + earned.length + ' OF ' + list.length, MARGIN, 34, 12, MUTED);
       ui.text('Achievements', MARGIN, 72, 32, INK);
       // The ladder comes down from the profile, at the place it was dug.
       var ladder = Math.round(view.digSpot(W).x - 15);
@@ -307,8 +322,7 @@
       rect(ladder + 25, 0, 5, 84, WOOD);
       for (var rung = 0; rung < 7; rung++) rect(ladder + 5, 6 + rung * 12, 20, 4, rung % 2 ? WOOD : WOOD_SHADE);
       paintArrow(ladder - 18, 20, false);
-      var tally = earned.length + ' of ' + list.length;
-      ui.text(tally, ladder - 44 - ui.widthOf(tally, 18), 72, 18, MUTED);
+      paintBack(ladder - 40);
       var pitch = grid.cell + grid.gap;
       for (var row = 0; row < grid.shown; row++) {
         for (var column = 0; column < grid.columns; column++) {
@@ -359,7 +373,10 @@
         drag = { y: y, first: firstRow, moved: false };
         var cell = view.cellAt(x, y, grid, firstRow, achievements.LIST.length);
         if (cell >= 0) pick(cell);
-        else if (y < 84) { screen = 'profile'; drag = null; ui.changed(); }
+        // The button, or the ladder and its arrow, lead back up.
+        else if (onBack(x, y, view.digSpot(ui.width()).x - 55) || (y < 84 && x >= view.digSpot(ui.width()).x - 60)) {
+          screen = 'profile'; drag = null; ui.changed();
+        }
       } else if (drag && phase === 1) {
         var rows = Math.round((drag.y - y) / pitch);
         var top = Math.max(0, Math.min(grid.rows - grid.shown, drag.first + rows));
@@ -421,6 +438,8 @@
         }
       },
       paintChip: paintChip,
+      paintBack: paintBack,
+      onBack: onBack,
       paintToast: paintToast,
     };
   };
