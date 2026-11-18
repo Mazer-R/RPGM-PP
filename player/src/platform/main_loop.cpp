@@ -52,6 +52,10 @@ int RunMainLoop(Window& window, Input& input, Host& host, const Clock& clock, Lo
   double started = clock.NowMs();
   bool idle = false;
   double last_ms = started;
+  // What showing a frame costs beyond the game's own work: copying its
+  // picture to the screen, and handing the screen over (which waits for the
+  // display where it is in step with it).
+  double present_ms = 0, swap_ms = 0;
   while (!host.exit_requested() && !g_terminate) {
     host.Heartbeat();
     if (!window.PumpEvents(input)) break;
@@ -126,8 +130,12 @@ int RunMainLoop(Window& window, Input& input, Host& host, const Clock& clock, Lo
     ScreenVideo screen_video;
     bool has_video = video.Picture(&picture);
     if (has_video) screen_video = {picture.pixels, picture.width, picture.height, picture.changed};
+    double before_present = clock.NowMs();
     PresentDrawingBuffer(window.width(), window.height(), circles, boxes, texts, has_video ? &screen_video : nullptr);
+    double before_swap = clock.NowMs();
     window.Swap();
+    present_ms += before_swap - before_present;
+    swap_ms += clock.NowMs() - before_swap;
     frames++;
   }
   double seconds = (clock.NowMs() - started) / 1000.0;
@@ -138,6 +146,10 @@ int RunMainLoop(Window& window, Input& input, Host& host, const Clock& clock, Lo
   }
   log.Write(LogLevel::kInfo, "loop",
             std::to_string(frames) + " frames in " + std::to_string(seconds) + " s" +
+                (frames > 0 ? "; per frame, " + std::to_string(present_ms / static_cast<double>(frames)) +
+                                  " ms copying the picture to the screen and " +
+                                  std::to_string(swap_ms / static_cast<double>(frames)) + " ms handing it over"
+                            : "") +
                 (g_terminate ? " (stopped by a signal)" : "") +
                 (idle ? " (nothing left to run)" : ""));
   if (host.had_script_error()) return 2;

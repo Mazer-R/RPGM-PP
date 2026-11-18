@@ -1588,6 +1588,93 @@ adjustments where the game's own code is too expensive for this hardware.
     *   **Not checked**: by hand on the handheld; whether the speeds
         suit small targets.
 
+*   **What the lighting costs on the handheld now (2026-11-18)**: asked
+    whether a setting to handle the lights differently would help weak
+    devices. Measured standing still from a save, 20 s with the lights
+    as they are (drawn by the GPU, updated every third step) and 20 s
+    with the plugin's update skipped and its mask hidden, twice each.
+    *   **Fear & Hunger, map 74 (156 events)**: 45.8 and 46.8 frames per
+        second with lights, 49.4 and 49.8 without: about 1.3 ms of a
+        21 ms frame.
+    *   **Fear & Hunger 2, map 19 (224 events)**: 23.3 and 23.4 with,
+        27.5 and 27.9 without: about 6.5 ms of a 43 ms frame, nearly
+        all of it outside the scripts (logic is 10.6 ms per counted step
+        either way), so it is the GPU filling the mask and the multiply
+        pass, paid when the frame is handed over.
+    *   **Reading**: switching the lights off gives 7% and 19%. It also
+        removes the darkness these games are built on. The larger part
+        of a frame is still the scripts: two logic steps of about 13.7
+        ms in Fear & Hunger 2.
+    *   **A switch was tried and removed the same day**: a row "LIGHTS:
+        ON/OFF" in the handheld's settings menu, over a patch that made
+        the plugin's update do nothing and hid its mask. Through it,
+        Fear & Hunger 2 on map 19 gave 23.5 and 23.9 frames per second
+        on and 27.6 and 27.0 off. It worked, and it was a different
+        game: without the darkness there is no fear. Removed; no code
+        of it is left.
+    *   **A fixed darkness would give half of that**: with the mask no
+        longer recalculated but still laid over the picture, the same
+        map gave 25.4 and 25.6 (23.0 and 24.2 as it is, 27.1 and 28.0
+        without). Half the cost is deciding and painting the lights,
+        half is blending a full-screen layer, which any darkness needs.
+        A mode with one ready-made layer and a light around the player
+        would therefore gain about 8% and lose the lights of the map.
+        Not built.
+    *   **The loop's last log line now says** what showing a frame costs
+        beyond the game's work: on the handheld 0.3 ms to copy the
+        picture to the screen and 4.9 ms to hand it over (which is where
+        the GPU's work and the wait for the display are paid).
+    *   **Also measured**: the MZ game with videos holds 49 to 55 frames
+        per second in a room and 30 once a scene there shows two
+        full-screen pictures over a looping video; where that time goes
+        was not separated.
+
+*   **Where the scripts' time goes in the heaviest game (2026-11-18)**:
+    Fear & Hunger 2, map 19 (224 events, 80 parallel common events), on
+    the handheld, standing still from a save, 25 s of V8's profiler with
+    every patch on. Shares are of the samples, by where the time is
+    spent itself.
+    *   **By file**: the engine's objects 35%, PIXI 24%, the engine's
+        sprites 9%, the engine's core 5%, a horror-effects plugin 3%,
+        the patches themselves about 6% together, the lighting plugin
+        under 1%.
+    *   **By function**: `Game_CommonEvent.update` 10.6% (and 2.1% in
+        the throttle around it), the interpreter's conditional branch
+        4.7% and its search for the end of a branch 4.3%,
+        `Sprite_Character.update` 3.8%; in PIXI, sending a batch's
+        vertices to the driver 5.4% and binding framebuffers 3.1%.
+    *   **Reading**: the parallel common events are still the largest
+        single thing, about a quarter with the interpreter under them,
+        though the pure checks among them already run every sixth step.
+        Sprites of events are updated whether or not they are on the
+        screen. Nothing was changed.
+
+*   **Running checks only when what they read changes: built, no gain
+    in the game it was meant for (2026-11-18)**: a pure check that looks
+    at nothing but switches and variables was made to run once and then
+    only after one of those is written with a new value, with a run
+    every 60 steps as a safety net and its old way given back to any
+    event that changes something on such a run. Chosen from the game's
+    own command lists, nothing per game.
+    *   **Measured on the handheld**, Fear & Hunger 2, map 19: 23.7 and
+        23.6 frames per second with it, 23.6 and 23.8 without. It
+        worked as designed (about 10,000 runs slept through, 8 woken,
+        none given back) on 4 of the 51 active parallel common events:
+        only 12 are pure checks, and 8 of those look at actors or items.
+    *   **Where the cost is**: twelve "outfit change" events of about
+        900 commands each, more than half of it; each walks a tree of
+        conditions on an actor's equipment and always ends by setting
+        the actor's picture through a script, every seventh step. In
+        the first game these are slowed by name; the list is by title
+        and does not reach the second. Then about twenty events that
+        start with "is this actor in the party?", end at once when not,
+        and start again on the next step.
+    *   **Not done**: watching the party, equipment, states, skills,
+        items and gold as well, and letting an event sleep after a run
+        that only evaluated conditions, would cover the second family
+        (an estimated 8 to 10% of the logic). The first has no clean
+        automatic answer: its runs execute scripts.
+
 ## Critical User Journeys (CUJs)
 
 ### CUJ 1: First launch

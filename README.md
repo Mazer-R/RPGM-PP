@@ -2,7 +2,7 @@
 
 **RPG Maker Potato Player.**
 
-A native player for RPG Maker MV games, without the Chromium-based NW.js
+A native player for RPG Maker MV and MZ games, without the Chromium-based NW.js
 player the games ship with. It is written for low-memory Linux handhelds
 (reference device: Anbernic RG35XX SP, 1 GB RAM, muOS) and is also built for
 desktop Linux (x86-64 and 64-bit ARM) and Android. Ready-made packages are
@@ -16,11 +16,13 @@ not: the Chromium wrapper the games come with ate all of the console's
 memory. Through other systems the games did start, but they could not be
 played: 5 frames per second at most.
 
-**Status: experimental.** Two games have been played on the reference
-console, Fear & Hunger and Fear & Hunger 2: Termina, neither of them to
-the end, and the player has been tried on one Android phone and on one
+**Status: experimental.** Four games have been played on the reference
+console, none of them to the end: two made with MV, Fear & Hunger and
+Fear & Hunger 2: Termina, and two made with MZ, Look Outside and a small
+free game. The player has been tried on one Android phone and on one
 desktop PC. Other games are untested, and the 64-bit ARM desktop package
-has not been tried on a real machine yet. RPG Maker MZ games do not run.
+has not been tried on a real machine yet. MZ is the newer of the two: see
+[What does not](#what-does-not).
 
 ![The game list on an Android phone](docs/images/game-list-android.jpg)
 
@@ -72,10 +74,15 @@ measurements are in `docs/history/feasibility-study.md`.
 ## What works
 
 - MV games on the WebGL renderer, with their plugins, unchanged.
-- Saves in the game's own format, in the game's `www/save` folder; a save
-  made on a PC continues on the console.
+- MZ games, with their plugins, unchanged, WebAssembly included.
+- Saves in the game's own format, in the game's `www/save` folder (`save`
+  in an MZ game); a save made on a PC continues on the console.
 - Encrypted images and sounds (`.rpgmvp`, `.rpgmvo`).
 - Videos, where the system has `ffmpeg`; the Android app brings its own.
+  A video the game draws itself, as a background or a picture, is shown
+  too.
+- Touches and the mouse reach the game, for games played by pointing; the
+  on-screen controls can be switched off.
 - Controllers, keyboard and touch. A settings menu inside the game (menu
   button + X, or F1, or the MENU button on a touch screen): frame counter,
   which key each controller button presses, and an on-screen editor for
@@ -85,7 +92,11 @@ measurements are in `docs/history/feasibility-study.md`.
 
 ## What does not
 
-- RPG Maker MZ.
+- MZ games are less tried than MV ones: one showed its dialogue text
+  twice, and the patches that make MV faster are mostly not written for
+  MZ yet.
+- A video drawn as a background costs frames on the console: about 30 per
+  second in the one scene measured.
 - `.m4a` sound, encrypted or not.
 - Sound effects that rely on pitch or exact loop points are approximated.
 
@@ -93,10 +104,12 @@ measurements are in `docs/history/feasibility-study.md`.
 
 The player is distributed ready to run; nothing has to be compiled.
 
-You need your own copy of a game. The player uses only the game's `www`
-folder (the one with `index.html`), which the Windows and Linux downloads of
-an MV game contain. Copy the whole game folder: the list also finds a game
-by its `.exe`.
+You need your own copy of a game. The player uses only the folder with the
+game's `index.html`: the `www` folder of an MV game, or the game's own
+folder for an MZ game, which has no `www`. The Windows and Linux downloads
+of a game contain it. Copy the whole game folder: the list also finds a
+game by its `.exe`. Where the steps below say `<Game>/www`, an MZ game is
+just `<Game>`.
 
 ### Download
 
@@ -363,7 +376,7 @@ this so that I could play his games.
 
 **RPG Maker Potato Player.**
 
-Un reproductor nativo de juegos de RPG Maker MV, sin el reproductor NW.js
+Un reproductor nativo de juegos de RPG Maker MV y MZ, sin el reproductor NW.js
 basado en Chromium con el que se distribuyen. Está escrito para consolas
 Linux con poca memoria (dispositivo de referencia: Anbernic RG35XX SP, 1 GB
 de RAM, muOS) y se compila también para Linux de escritorio (x86-64 y ARM de
@@ -378,12 +391,13 @@ podía: el envoltorio de Chromium con el que vienen los juegos se comía toda
 la memoria de la consola. Con otros sistemas los juegos arrancaban, pero
 eran injugables: 5 fotogramas por segundo como mucho.
 
-**Estado: experimental.** En la consola de referencia se ha jugado a dos
-juegos, Fear & Hunger y Fear & Hunger 2: Termina, ninguno de los dos hasta
-el final, y el reproductor se ha probado en un móvil Android y en un PC de
-escritorio. Los demás juegos están sin probar, y el paquete de escritorio
-para ARM de 64 bits no se ha probado todavía en una máquina real. Los
-juegos de RPG Maker MZ no funcionan.
+**Estado: experimental.** En la consola de referencia se ha jugado a
+cuatro juegos, ninguno hasta el final: dos hechos con MV, Fear & Hunger y
+Fear & Hunger 2: Termina, y dos hechos con MZ, Look Outside y un juego
+gratuito pequeño. El reproductor se ha probado en un móvil Android y en un
+PC de escritorio. Los demás juegos están sin probar, y el paquete de
+escritorio para ARM de 64 bits no se ha probado todavía en una máquina
+real. MZ es el más reciente de los dos: mira [Qué no](#qué-no).
 
 ![La lista de juegos en un móvil Android](docs/images/game-list-android.jpg)
 
@@ -436,10 +450,15 @@ viabilidad anteriores están en `docs/history/feasibility-study.md`.
 ## Qué funciona
 
 - Juegos de MV con el renderizador WebGL, con sus plugins, sin tocarlos.
-- Partidas en el formato del propio juego, en su carpeta `www/save`; una
-  partida guardada en un PC continúa en la consola.
+- Juegos de MZ, con sus plugins, sin tocarlos, WebAssembly incluido.
+- Partidas en el formato del propio juego, en su carpeta `www/save` (`save`
+  en un juego de MZ); una partida guardada en un PC continúa en la consola.
 - Imágenes y sonidos cifrados (`.rpgmvp`, `.rpgmvo`).
 - Vídeos, donde el sistema tenga `ffmpeg`; la app de Android trae el suyo.
+  También se ve un vídeo que el juego dibuja por su cuenta, como fondo o
+  como imagen.
+- Los toques y el ratón llegan al juego, para los juegos que se juegan
+  señalando; los controles en pantalla se pueden desactivar.
 - Mandos, teclado y pantalla táctil. Un menú de ajustes dentro del juego
   (botón menú + X, o F1, o el botón MENU en pantalla táctil): contador de
   fotogramas, qué tecla pulsa cada botón del mando y un editor en pantalla
@@ -449,7 +468,11 @@ viabilidad anteriores están en `docs/history/feasibility-study.md`.
 
 ## Qué no
 
-- RPG Maker MZ.
+- Los juegos de MZ están menos probados que los de MV: uno mostraba el
+  texto de los diálogos dos veces, y los parches que aceleran MV aún no
+  están escritos, en su mayoría, para MZ.
+- Un vídeo dibujado como fondo cuesta fotogramas en la consola: unos 30
+  por segundo en la única escena medida.
 - Sonido `.m4a`, cifrado o no.
 - Los efectos de sonido que dependen del tono o de puntos de bucle exactos
   se aproximan.
@@ -459,9 +482,11 @@ viabilidad anteriores están en `docs/history/feasibility-study.md`.
 El reproductor se distribuye listo para ejecutar; no hay que compilar nada.
 
 Hace falta tu propia copia del juego. El reproductor solo usa la carpeta
-`www` del juego (la que tiene `index.html`), que viene en las descargas
-para Windows y para Linux de un juego de MV. Copia la carpeta entera del
-juego: la lista también encuentra un juego por su `.exe`.
+que tiene el `index.html` del juego: la carpeta `www` de un juego de MV, o
+la propia carpeta del juego si es de MZ, que no tiene `www`. Viene en las
+descargas para Windows y para Linux del juego. Copia la carpeta entera del
+juego: la lista también encuentra un juego por su `.exe`. Donde los pasos
+de abajo dicen `<Juego>/www`, un juego de MZ es solo `<Juego>`.
 
 ### Descarga
 
