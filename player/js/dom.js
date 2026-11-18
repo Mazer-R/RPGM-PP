@@ -203,7 +203,13 @@
     var bundled = 'fonts/mplus-1m-regular.ttf';
     if (player.fileExists(gamePath(bundled)) && c2d.registerFont('__fallback', gamePath(bundled))) name = '__fallback';
     else name = Object.keys(fontFamilies)[0] || '';
-    if (!name) browser.missing('any usable font: text will not be drawn');
+    // With no font yet, the answer is not kept: a game may load its fonts
+    // after its first text is asked for (MZ does), and the next call finds
+    // them.
+    if (!name) {
+      browser.missing('any usable font: text will not be drawn');
+      return { name: '', widthFactor: 1.001 };
+    }
     return (fallbackFamily = { name: name, widthFactor: 1.001 });
   }
   browser.resolveFontFamily = function (families) {

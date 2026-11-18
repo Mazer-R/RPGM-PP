@@ -1202,6 +1202,66 @@ adjustments where the game's own code is too expensive for this hardware.
         build script now reuses a checkout already at the right version,
         which a second run used to trip over.
 
+*   **V8 with WebAssembly on Linux ARM; MZ games with their real libraries (2026-11-18).**
+    *   **Built**: V8 for 64-bit ARM Linux with WebAssembly (library 72.6
+        to 92.7 MB, player 29.9 to 38.0 MB). It is the one the handheld
+        and the ARM desktop package will carry.
+    *   **MV first**: Fear & Hunger, a new game walking for 40 s without
+        a screen, with a player built on each V8: 2.27 ms a logic step
+        without WebAssembly, 2.37 with (the walk is random and the two
+        runs took different paths; drawing, done in software there, is
+        the same). No difference to act on. The handheld's memory is
+        still to be measured.
+    *   **MZ, unmodified, without a screen**: "Escaper" runs a whole
+        battle with Effekseer loaded through WebAssembly. "Look Outside"
+        reaches its title, starts a new game and enters its first map
+        with a message showing; no error. A capture taken there is
+        black, and it is not known whether that is the game's own dark
+        opening or a drawing fault: to be looked at on a screen.
+    *   **On the handheld** (RG35XX SP), with the muOS package rebuilt on
+        the new V8. Fear & Hunger 2 continued from a save and walked for
+        40 s, measured with the old player and the new one:
+
+        | | V8 without WebAssembly | V8 with WebAssembly |
+        | --- | --- | --- |
+        | Logic step | 9.97 and 10.42 ms (two runs) | 10.37 ms |
+        | Memory in use 55 s in | 441 MB | 445 MB |
+        | Highest memory | 458 MB | 459 MB |
+
+        Speed is within what two runs of the same player differ by, and
+        memory is 4 MB up: the same as on the phone. The new V8 stays.
+    *   **MZ on the handheld**: "Escaper", unmodified, reaches its title
+        in 2.4 s, starts a new game and runs a whole scripted battle; no
+        error; 295 MB of memory. It showed 1502 frames in 60 s, 25 a
+        second, which is low for so light a game, and there is no way
+        yet to say why: the performance line is not written for MZ.
+    *   **x86-64**: V8 rebuilt with WebAssembly too (library 92.4 MB),
+        and the three Linux packages made from the new libraries: x86-64
+        16 MB, ARM desktop 15 MB, muOS 12 MB; each passes its package
+        checks and needs glibc 2.35 as before. The x86-64 player was not
+        run here: this machine has no way to run it without a screen.
+*   **The performance line for MZ; the frame counter in MZ games (2026-11-18).**
+    *   **Performance line.** It was hooked to MV's functions and never
+        written for MZ. The measuring is now a meter (a frame begins; run
+        and time a logic step; run and time a drawing) that boot.js
+        hooks to MV as before, or hands to a piece of the game's profile:
+        `mz-perf.js` hooks it to MZ, where a frame is a tick of PIXI's
+        ticker and drawing is the PIXI application's render. MV's line is
+        unchanged (checked without a screen).
+    *   **What it shows on the handheld**, "Escaper" on its first map: 30
+        frames a second, two logic steps a frame at 1.5 ms each, and 15
+        ms of drawing a frame; in battle 16 to 28 frames a second with 19
+        to 43 ms of drawing. So the game is held back by drawing, not by
+        its scripts: 3 ms of logic and 15 of drawing do not fit in the
+        16.7 ms of a frame, and the screen then shows every other one.
+        Fear & Hunger 2, far heavier in scripts, draws in 9 to 12 ms on
+        the same machine. Why PIXI 5 costs more here is not known yet.
+    *   **Frame counter.** In an MZ game it showed nothing: asked for a
+        font before the game had loaded any, the player kept "no font"
+        for good and drew an empty black box. It now keeps the answer
+        only once there is a font. Seen on the phone: "60 fps" over an MZ
+        game. The counter is small on a phone's screen.
+
 ## Critical User Journeys (CUJs)
 
 ### CUJ 1: First launch

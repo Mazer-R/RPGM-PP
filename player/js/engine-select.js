@@ -33,6 +33,7 @@
       'web-media.js',     // video.play() is a promise: every key press
       'web-page.js',      // elements the page declares with an id
       'mz-files.js',      // MZ's names for encrypted images and sounds
+      'mz-perf.js',       // where MZ's frames, steps and drawing are
     ],
   };
 

@@ -146,6 +146,35 @@ const tests = {
       player: { gameDir: '/g', readTextFile: () => null } });
     assert.deepStrictEqual(made, []);
   },
+
+  'MZ\'s frame, logic step and drawing are told to the performance meter'() {
+    const browser = { later() {}, fireLoad() {} };
+    const seen = [];
+    const app = { render() { seen.push('render'); return 'drawn'; } };
+    const page = load('mz-perf.js', {
+      __browser: browser, document: {}, performance: { now: () => 1234 },
+      SceneManager: { _scene: { constructor: { name: 'Scene_Map' } }, updateScene() { seen.push('update'); return 'updated'; } },
+      Graphics: { _app: null, _onTick(delta) { seen.push('tick ' + delta); this.SM.updateScene(); this.SM.updateScene(); if (this._app) this._app.render(); } },
+    });
+    page.Graphics.SM = page.SceneManager;
+    const meter = {
+      frame: (now, scene) => seen.push('frame ' + now + ' ' + scene),
+      step: (fn, self, args) => { seen.push('step'); return fn.apply(self, args); },
+      draw: (fn, self, args) => { seen.push('draw'); return fn.apply(self, args); },
+    };
+    assert.strictEqual(typeof browser.hookPerformance, 'function');
+    browser.hookPerformance(meter);
+
+    page.Graphics._onTick(1);
+    assert.deepStrictEqual(seen, ['frame 1234 Scene_Map', 'tick 1', 'step', 'update', 'step', 'update'], 'before the engine has made its drawing surface');
+    seen.length = 0;
+    page.Graphics._app = app;
+    page.Graphics._onTick(2);
+    page.Graphics._onTick(1);
+    assert.deepStrictEqual(seen, ['frame 1234 Scene_Map', 'tick 2', 'step', 'update', 'step', 'update', 'draw', 'render',
+      'frame 1234 Scene_Map', 'tick 1', 'step', 'update', 'step', 'update', 'draw', 'render'], 'drawing is measured once per frame, not wrapped twice');
+    assert.strictEqual(app.render(), 'drawn');
+  },
 };
 
 let failed = 0;

@@ -41,7 +41,7 @@
   // happens at most MAX_PROFILES times per run. It is not done otherwise:
   // starting the sampler stops a handheld for over a second.
   function installPerformanceLog() {
-    if (!globalThis.SceneManager || !SceneManager.updateScene || !SceneManager.renderScene) return;
+    if (!globalThis.SceneManager || !SceneManager.updateScene) return;
     var PERIOD_MS = 10000, SLOW_FPS = 22, MAX_PROFILES = 4, LONG_FRAME_MS = 60;
     var profiling = false, profiles = 0;
     var since = performance.now(), frames = 0, steps = 0, logic = 0, draw = 0, worst = 0, lastFrameEnd = 0;
@@ -49,35 +49,37 @@
     // began), the slowest one of the period, and how many were long.
     var frameLogic = 0, frameDraw = 0, frameSteps = 0, frameMemory = 0, longFrames = 0, worstParts = '';
     function memoryMs() { return player.memoryPauses ? player.memoryPauses()[1] : 0; }
-    var updateScene = SceneManager.updateScene, renderScene = SceneManager.renderScene, updateMain = SceneManager.updateMain;
-    SceneManager.updateScene = function () {
-      var before = performance.now();
-      try { return updateScene.apply(this, arguments); }
-      finally { var took = performance.now() - before; logic += took; frameLogic += took; steps++; frameSteps++; }
-    };
-    SceneManager.renderScene = function () {
-      var before = performance.now();
-      try { return renderScene.apply(this, arguments); }
-      finally { var took = performance.now() - before; draw += took; frameDraw += took; }
-    };
-    SceneManager.updateMain = function () {
-      var now = performance.now();
-      // This runs at the start of a frame: the numbers are the frame before's.
-      var memoryNow = memoryMs();
-      if (lastFrameEnd) {
-        var frame = now - lastFrameEnd;
-        if (frame > LONG_FRAME_MS) longFrames++;
-        if (frame > worst) {
-          worst = frame;
-          var memory = memoryNow - frameMemory;
-          worstParts = 'logic ' + frameLogic.toFixed(0) + ' ms in ' + frameSteps + ' steps, drawing ' + frameDraw.toFixed(0) +
-            ' ms, memory ' + memory.toFixed(0) + ' ms, the rest ' + Math.max(0, frame - frameLogic - frameDraw - memory).toFixed(0) + ' ms';
+    // What the engine's own functions are wrapped with. Where a frame
+    // starts, and which functions are a logic step and a drawing, differs
+    // between engines: MV's are hooked below, another engine's by a piece of
+    // its profile through browser.hookPerformance.
+    var meter = {
+      step: function (fn, self, args) {
+        var before = performance.now();
+        try { return fn.apply(self, args); }
+        finally { var took = performance.now() - before; logic += took; frameLogic += took; steps++; frameSteps++; }
+      },
+      draw: function (fn, self, args) {
+        var before = performance.now();
+        try { return fn.apply(self, args); }
+        finally { var took = performance.now() - before; draw += took; frameDraw += took; }
+      },
+      // Called at the start of a frame: the numbers are the frame before's.
+      frame: function (now, scene) {
+        var memoryNow = memoryMs();
+        if (lastFrameEnd) {
+          var frame = now - lastFrameEnd;
+          if (frame > LONG_FRAME_MS) longFrames++;
+          if (frame > worst) {
+            worst = frame;
+            var memory = memoryNow - frameMemory;
+            worstParts = 'logic ' + frameLogic.toFixed(0) + ' ms in ' + frameSteps + ' steps, drawing ' + frameDraw.toFixed(0) +
+              ' ms, memory ' + memory.toFixed(0) + ' ms, the rest ' + Math.max(0, frame - frameLogic - frameDraw - memory).toFixed(0) + ' ms';
+          }
         }
-      }
-      lastFrameEnd = now; frameLogic = 0; frameDraw = 0; frameSteps = 0; frameMemory = memoryNow;
-      frames++;
-      if (now - since >= PERIOD_MS) {
-        var scene = this._scene ? this._scene.constructor.name : 'none';
+        lastFrameEnd = now; frameLogic = 0; frameDraw = 0; frameSteps = 0; frameMemory = memoryNow;
+        frames++;
+        if (now - since < PERIOD_MS) return;
         var where = scene + (globalThis.$gameMap && /Map/.test(scene) ? ' map ' + $gameMap.mapId() + ' (' + $gameMap.events().length + ' events)' : '');
         console.info('perf: ' + where + ': ' + (frames * 1000 / (now - since)).toFixed(0) + ' frames per second, ' +
           (steps / frames).toFixed(1) + ' steps per frame, logic ' + (logic / Math.max(1, steps)).toFixed(1) + ' ms per step, draw ' +
@@ -92,7 +94,15 @@
           player.startProfile();
         }
         since = now; frames = 0; steps = 0; logic = 0; draw = 0; worst = 0; longFrames = 0; worstParts = '';
-      }
+      },
+    };
+    if (browser.hookPerformance) return browser.hookPerformance(meter);
+    if (!SceneManager.renderScene) return;
+    var updateScene = SceneManager.updateScene, renderScene = SceneManager.renderScene, updateMain = SceneManager.updateMain;
+    SceneManager.updateScene = function () { return meter.step(updateScene, this, arguments); };
+    SceneManager.renderScene = function () { return meter.draw(renderScene, this, arguments); };
+    SceneManager.updateMain = function () {
+      meter.frame(performance.now(), this._scene ? this._scene.constructor.name : 'none');
       return updateMain.apply(this, arguments);
     };
   }
