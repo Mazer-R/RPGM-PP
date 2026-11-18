@@ -585,11 +585,61 @@ void InstallFunctions(v8::Isolate* isolate, v8::Local<v8::Object> gl) {
   FN(uniformMatrix2fv, { auto v = Floats(ISO, args[2]); glUniformMatrix2fv(LOC(0), static_cast<GLsizei>(v.size() / 4), GL_FALSE, v.data()); });
   FN(uniformMatrix3fv, { auto v = Floats(ISO, args[2]); glUniformMatrix3fv(LOC(0), static_cast<GLsizei>(v.size() / 9), GL_FALSE, v.data()); });
   FN(uniformMatrix4fv, { auto v = Floats(ISO, args[2]); glUniformMatrix4fv(LOC(0), static_cast<GLsizei>(v.size() / 16), GL_FALSE, v.data()); });
+  FN(uniform2i, glUniform2i(LOC(0), I(1), I(2)));
+  FN(uniform3i, glUniform3i(LOC(0), I(1), I(2), I(3)));
+  FN(uniform4i, glUniform4i(LOC(0), I(1), I(2), I(3), I(4)));
+  FN(uniform2iv, { auto v = Ints(ISO, args[1]); glUniform2iv(LOC(0), static_cast<GLsizei>(v.size() / 2), v.data()); });
+  FN(uniform3iv, { auto v = Ints(ISO, args[1]); glUniform3iv(LOC(0), static_cast<GLsizei>(v.size() / 3), v.data()); });
+  FN(uniform4iv, { auto v = Ints(ISO, args[1]); glUniform4iv(LOC(0), static_cast<GLsizei>(v.size() / 4), v.data()); });
 #undef LOC
   FN(enableVertexAttribArray, glEnableVertexAttribArray(U(0)));
   FN(disableVertexAttribArray, glDisableVertexAttribArray(U(0)));
   FN(vertexAttribPointer, glVertexAttribPointer(U(0), I(1), U(2), B(3), I(4),
                                                 reinterpret_cast<const void*>(static_cast<intptr_t>(I(5)))));
+
+  FN(vertexAttrib1f, glVertexAttrib1f(U(0), F(1)));
+  FN(vertexAttrib2f, glVertexAttrib2f(U(0), F(1), F(2)));
+  FN(vertexAttrib3f, glVertexAttrib3f(U(0), F(1), F(2), F(3)));
+  FN(vertexAttrib4f, glVertexAttrib4f(U(0), F(1), F(2), F(3), F(4)));
+  FN(getVertexAttribOffset, {
+    void* offset = nullptr;
+    glGetVertexAttribPointerv(U(0), U(1), &offset);
+    RET(static_cast<double>(reinterpret_cast<intptr_t>(offset)));
+  });
+
+  // --- Asked for less often --------------------------------------------------
+  // PIXI does without these. A library compiled to WebAssembly brings a GL
+  // layer of its own that uses them: RPG Maker MZ's animation library asks
+  // whether a capability is enabled before every draw.
+  FN(isEnabled, RET(glIsEnabled(U(0)) == GL_TRUE));
+  FN(isBuffer, RET(args[0]->IsObject() && glIsBuffer(N(0)) == GL_TRUE));
+  FN(isTexture, RET(args[0]->IsObject() && glIsTexture(N(0)) == GL_TRUE));
+  FN(isFramebuffer, RET(args[0]->IsObject() && glIsFramebuffer(N(0)) == GL_TRUE));
+  FN(isRenderbuffer, RET(args[0]->IsObject() && glIsRenderbuffer(N(0)) == GL_TRUE));
+  FN(isShader, RET(args[0]->IsObject() && glIsShader(N(0)) == GL_TRUE));
+  FN(isProgram, RET(args[0]->IsObject() && glIsProgram(N(0)) == GL_TRUE));
+  FN(hint, glHint(U(0), U(1)));
+  FN(lineWidth, glLineWidth(F(0)));
+  FN(polygonOffset, glPolygonOffset(F(0), F(1)));
+  FN(depthRange, glDepthRangef(F(0), F(1)));
+  FN(sampleCoverage, glSampleCoverage(F(0), B(1)));
+  FN(stencilFuncSeparate, glStencilFuncSeparate(U(0), U(1), I(2), U(3)));
+  FN(stencilMaskSeparate, glStencilMaskSeparate(U(0), U(1)));
+  FN(stencilOpSeparate, glStencilOpSeparate(U(0), U(1), U(2), U(3)));
+  FN(validateProgram, glValidateProgram(N(0)));
+  FN(detachShader, glDetachShader(N(0), N(1)));
+  FN(copyTexImage2D, glCopyTexImage2D(U(0), I(1), U(2), I(3), I(4), I(5), I(6), I(7)));
+  FN(copyTexSubImage2D, glCopyTexSubImage2D(U(0), I(1), I(2), I(3), I(4), I(5), I(6), I(7)));
+  FN(getTexParameter, { GLint value = 0; glGetTexParameteriv(U(0), U(1), &value); RET(value); });
+  FN(getBufferParameter, { GLint value = 0; glGetBufferParameteriv(U(0), U(1), &value); RET(value); });
+  FN(getRenderbufferParameter, { GLint value = 0; glGetRenderbufferParameteriv(U(0), U(1), &value); RET(value); });
+  FN(getShaderSource, {
+    GLint length = 0;
+    glGetShaderiv(N(0), GL_SHADER_SOURCE_LENGTH, &length);
+    std::string source(static_cast<size_t>(length > 0 ? length : 1), '\0');
+    glGetShaderSource(N(0), static_cast<GLsizei>(source.size()), nullptr, &source[0]);
+    RET(Str(ISO, source.c_str()));
+  });
 
   // --- Drawing ---------------------------------------------------------------
   FN(drawArrays, glDrawArrays(U(0), I(1), I(2)));
