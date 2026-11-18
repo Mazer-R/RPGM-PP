@@ -24,7 +24,7 @@ has not been tried on a real machine yet. RPG Maker MZ games do not run.
 
 ![The game list on an Android phone](docs/images/game-list-android.jpg)
 
-*The game list on an Android phone (Zebra TC53E).*
+*The game list on an Android phone .
 
 ![The game list on the console](docs/images/game-list-console.jpg)
 
@@ -371,7 +371,7 @@ juegos de RPG Maker MZ no funcionan.
 
 ![La lista de juegos en un móvil Android](docs/images/game-list-android.jpg)
 
-*La lista de juegos en un móvil Android (Zebra TC53E).*
+*La lista de juegos en un móvil Android.*
 
 ![La lista de juegos en la consola](docs/images/game-list-console.jpg)
 
