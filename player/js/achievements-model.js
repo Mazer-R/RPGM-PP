@@ -18,8 +18,9 @@
 //   quickSaves       three saves within a minute
 //   loadedOlderSave  a save of an earlier day was loaded
 //   settingsOpened, counterShown, remapped, pointerUsed, controlsOff,
-//   usedStick, usedPad, videoSeen    what was used of the player itself
-//   slowSession      a run ended under 20 frames per second on average
+//   videoSeen        what was used of the player itself
+//   slowSession      a run of over twenty minutes ended under 20 frames per
+//                    second on average
 //   crashed          a game ended with an error
 //   carriedOn        a game ran without something it asked for
 //   waited           a minute spent on a list with no games
@@ -28,6 +29,7 @@
 //                         changed; the profile was given a name
 //   notAGame         "Add a game" was pointed at something that is no game
 //   early            the player was used before 2028 (see isEarly)
+//   aliens           the sky of the profile was touched until a saucer came
 (function () {
   'use strict';
   var HOUR = 3600;
@@ -64,22 +66,22 @@
     ['welcome-back', 'Welcome Back', 'Load a save made on an earlier day', 'silver', 'knight', flag('loadedOlderSave')],
 
     ['tinkerer', 'Tinkerer', 'Open the player\'s settings', 'bronze', 'wizard', flag('settingsOpened')],
-    ['number-cruncher', 'Number Cruncher', 'Show the frame counter', 'bronze', 'wizard', flag('counterShown')],
+    ['number-cruncher', 'Taterrace', 'Show the frame counter', 'bronze', 'wizard', flag('counterShown')],
     ['remapped', 'Remapped', 'Change what a button presses', 'bronze', 'wizard', flag('remapped')],
     ['point-taken', 'Point Taken', 'Use the pointer worked with the pad', 'bronze', 'wizard', flag('pointerUsed')],
     ['hands-off', 'Hands Off', 'Switch the touch controls off', 'bronze', 'wizard', flag('controlsOff')],
-    ['stick-or-pad', 'Stick or Pad', 'Try both ways of moving on a touch screen', 'bronze', 'wizard', both('usedStick', 'usedPad')],
     ['movie-night', 'Movie Night', 'Watch a video inside a game', 'bronze', 'wizard', flag('videoSeen')],
     ['dressed-up', 'Dressed Up', 'Change how your potato looks', 'bronze', 'wizard', flag('dressed')],
     ['named', 'Say My Name', 'Give your profile a name', 'bronze', 'wizard', flag('named')],
 
-    ['true-potato', 'True Potato', 'End a session under 20 frames per second', 'gold', 'party', flag('slowSession')],
+    ['true-potato', 'True Potato', 'Play over 20 minutes at under 20 frames per second', 'gold', 'party', flag('slowSession')],
     ['mashed', 'Mashed', 'Have a game end with an error', 'silver', 'party', flag('crashed')],
     ['missing-ingredients', 'Missing Ingredients', 'Play a game that lacked something and ran anyway', 'silver', 'party', flag('carriedOn')],
     ['good-company', 'Good Company', 'Wait a minute on a list with no games', 'silver', 'party', flag('waited')],
     ['wrinkled', 'Wrinkled', 'Come back after 30 days away', 'gold', 'party', flag('cameBack')],
     ['not-a-potato', 'Notato', 'That\'s not a potato. That\'s not even a game.', 'gold', 'party', flag('notAGame'), null, true],
     ['early-birdtato', 'Early Birdtato', 'Be here before 2028', 'gold', 'party', flag('early')],
+    ['aliens', 'Aliens', 'I\'m not saying it was aliens, but you touched the sky ten times', 'gold', 'party', flag('aliens'), null, true],
 
     ['dug-up', 'Dug Up', 'Find the achievements', 'silver', 'wizard', flag('dug')],
     ['whole-party', 'The Whole Party', 'Earn one achievement of each hero', 'gold', 'party', null, 'heroes'],
@@ -125,13 +127,32 @@
 
   // The avatar is a character with one piece, or none, in each other slot.
   // The face is apart from the accessory so that a beard, glasses or
-  // freckles go with a shield or a cape.
-  var SLOTS = ['character', 'head', 'face', 'weapon', 'accessory'];
+  // freckles go with a shield or a cape. The companion is someone small
+  // who stands beside the avatar.
+  var SLOTS = ['character', 'clothes', 'head', 'face', 'weapon', 'accessory', 'companion'];
+  // What a new avatar wears: a potato comes in a burlap sack.
+  var DRESSED = { clothes: 'burlap-sack' };
   // What an achievement gives the avatar: pieces for its slots.
   var PRIZES = {
+    // The weapon slot is what the avatar holds: a quill goes there too.
+    'dear-diary': [{ slot: 'weapon', item: 'quill' }],
+    'precious-memories': [{ slot: 'face', item: 'scholar-glasses' }],
+    'better-safe': [{ slot: 'accessory', item: 'two-shields' }],
+    'midnight-snack': [{ slot: 'clothes', item: 'pyjamas' }, { slot: 'head', item: 'nightcap' }],
+    'movie-night': [{ slot: 'weapon', item: 'popcorn-bucket' }, { slot: 'head', item: 'popcorn-bucket-hat' }],
+    'true-potato': [{ slot: 'head', item: 'crown' }, { slot: 'weapon', item: 'sceptre' }],
+    'mashed': [{ slot: 'weapon', item: 'spoon' }],
+    'loyal-spud': [{ slot: 'accessory', item: 'heart' }],
+    'completionist': [{ slot: 'character', item: 'golden-potato' }],
+    'dressed-up': [{ slot: 'clothes', item: 'tuxedo' }],
+    'dug-up': [{ slot: 'weapon', item: 'shovel' }],
+    'number-cruncher': [{ slot: 'head', item: 'white-wig' }],
     'named': [{ slot: 'head', item: 'pork-pie-hat' }, { slot: 'face', item: 'goatee' }],
     'not-a-potato': [{ slot: 'character', item: 'avocado' }],
-    'early-birdtato': [{ slot: 'accessory', item: 'wings' }],
+    'first-sprout': [{ slot: 'companion', item: 'sprout-pot' }],
+    'aliens': [{ slot: 'head', item: 'tinfoil-hat' }, { slot: 'companion', item: 'little-alien' }],
+    'early-birdtato': [{ slot: 'accessory', item: 'wings' }, { slot: 'companion', item: 'potato-chick' }],
+    'good-company': [{ slot: 'companion', item: 'little-knight' }],
   };
   // The pieces the achievements earned have given, in the order of the list.
   function unlocked(earned) {
@@ -144,5 +165,5 @@
   var EARLY_BEFORE_YEAR = 2028;
   function isEarly(date) { return date.getFullYear() < EARLY_BEFORE_YEAR; }
 
-  globalThis.__achievements = { LIST: LIST, SLOTS: SLOTS, PRIZES: PRIZES, blank: blank, update: update, shown: shown, unlocked: unlocked, isEarly: isEarly };
+  globalThis.__achievements = { LIST: LIST, SLOTS: SLOTS, DRESSED: DRESSED, PRIZES: PRIZES, blank: blank, update: update, shown: shown, unlocked: unlocked, isEarly: isEarly };
 })();

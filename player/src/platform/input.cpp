@@ -204,9 +204,6 @@ void Input::MenuEffectDone(int effect) {
       // Saved with the rest of the game's touch controls (see Update).
       touch_->SetMoveStick(!touch_->move_stick());
       menu_->SetMoveStick(touch_->move_stick());
-      // Whoever switches has had the one and now has the other.
-      Noted("stick");
-      Noted("pad");
       break;
     case MenuEffect::kToggleControls:
       touch_->SetShown(!touch_->shown());

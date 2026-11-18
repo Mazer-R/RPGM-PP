@@ -56,14 +56,20 @@ const tests = {
     assert.strictEqual(stats.days, 2);
   },
 
-  'a session of under a minute is a short one; a long slow one is a slow one'() {
+  'a session of under a minute is a short one'() {
     assert.strictEqual(!!after(line({ seconds: 59 })).shortSession, true);
     assert.strictEqual(!!after(line({ seconds: 60 })).shortSession, false);
-    // 19 frames per second over ten minutes
-    assert.strictEqual(!!after(line({ seconds: 600, frames: 11400 })).slowSession, true);
-    assert.strictEqual(!!after(line({ seconds: 600, frames: 12000 })).slowSession, false);
-    // too short to say anything about its speed
-    assert.strictEqual(!!after(line({ seconds: 30, frames: 60 })).slowSession, false);
+  },
+
+  'a slow session is one of over twenty minutes under 20 frames per second'() {
+    // 19 frames per second over twenty-five minutes
+    assert.strictEqual(!!after(line({ seconds: 1500, frames: 28500 })).slowSession, true);
+    assert.strictEqual(!!after(line({ seconds: 1500, frames: 30000 })).slowSession, false);
+    // twenty minutes exactly is not over twenty
+    assert.strictEqual(!!after(line({ seconds: 1200, frames: 22800 })).slowSession, false);
+    assert.strictEqual(!!after(line({ seconds: 1201, frames: 22800 })).slowSession, true);
+    // ten slow minutes are someone looking at a menu, not a game played like that
+    assert.strictEqual(!!after(line({ seconds: 600, frames: 11400 })).slowSession, false);
   },
 
   'the small hours are from 2 up to 5'() {
@@ -82,10 +88,10 @@ const tests = {
 
   'what the session notes becomes counts and flags'() {
     const stats = after(line({ saves: 2, mv: 1, video: 1, settings: 1 }), line({ saves: 3, quick: 1, mz: 1, older: 1, counter: 1,
-      remap: 1, pointer: 1, controlsoff: 1, stick: 1, pad: 1, lacked: 1 }));
+      remap: 1, pointer: 1, controlsoff: 1, lacked: 1 }));
     assert.strictEqual(stats.saves, 5);
     for (const key of ['playedMv', 'playedMz', 'videoSeen', 'settingsOpened', 'quickSaves', 'loadedOlderSave', 'counterShown',
-      'remapped', 'pointerUsed', 'controlsOff', 'usedStick', 'usedPad', 'carriedOn']) assert.strictEqual(stats[key], true, key);
+      'remapped', 'pointerUsed', 'controlsOff', 'carriedOn']) assert.strictEqual(stats[key], true, key);
     assert.strictEqual(!!stats.crashed, false);
   },
 

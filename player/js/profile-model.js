@@ -12,7 +12,7 @@
 // taken off) the list sets directly.
 (function () {
   'use strict';
-  var MONTH = 30 * 86400;
+  var MONTH = 30 * 86400, SLOW_OVER = 20 * 60;
 
   function blank() {
     return {
@@ -46,7 +46,7 @@
   var FLAGS = {
     mv: 'playedMv', mz: 'playedMz', video: 'videoSeen', settings: 'settingsOpened', quick: 'quickSaves',
     older: 'loadedOlderSave', counter: 'counterShown', remap: 'remapped', pointer: 'pointerUsed',
-    controlsoff: 'controlsOff', stick: 'usedStick', pad: 'usedPad', lacked: 'carriedOn',
+    controlsoff: 'controlsOff', lacked: 'carriedOn',
   };
 
   // Adds one session to the counts, in place.
@@ -60,8 +60,9 @@
     stats.days = stats.dayList.length;
     stats.saves += session.saves || 0;
     if (seconds < 60) stats.shortSession = true;
-    // A run too short says nothing about how fast the game goes.
-    if (seconds >= 60 && (session.frames || 0) / seconds < 20) stats.slowSession = true;
+    // Over twenty minutes at that speed is a game played like that; less
+    // may be a menu left open or a game that did not start.
+    if (seconds > SLOW_OVER && (session.frames || 0) / seconds < 20) stats.slowSession = true;
     if (session.hour >= 2 && session.hour < 5) stats.nightSession = true;
     if (session.start && stats.lastStart && session.start - stats.lastStart >= MONTH) stats.cameBack = true;
     if (session.start) stats.lastStart = Math.max(stats.lastStart, session.start);

@@ -35,7 +35,7 @@
   // denser screens (a phone), so the text stays readable. Set by fitTo(),
   // at the start and whenever the window changes size.
   var SCREEN_W = 0, SCREEN_H = 0, ZOOM = 1, W = 0, H = 0;
-  var KEY = { up: 38, down: 40, pageUp: 33, pageDown: 34, ok: [90, 13, 32], back: [88, 27], remove: [16, 46] };
+  var KEY = { up: 38, down: 40, left: 37, right: 39, pageUp: 33, pageDown: 34, ok: [90, 13, 32], back: [88, 27], remove: [16, 46] };
   var EXIT_NOTHING_CHOSEN = 10;
 
   // --- Find the games -------------------------------------------------------
@@ -403,10 +403,36 @@
     else upSign(x + 10, top, colour);
     text(fitted(entry.label, 19, COLUMN - 64), x + 50, y + h / 2 + 7, 19, chosen || entry.kind === 'game' ? INK : MUTED);
   }
+  // --- The profile and the achievements (js/picker-profile.js) ----------------
+  // The user's potato is at the top right of the list: "up" from the first
+  // line, or a touch, goes to it, and it opens the profile.
+  player.loadScript(player.playerDir + '/js/profile-view-model.js');
+  player.loadScript(player.playerDir + '/js/picker-profile.js');
+  var profileScreen = globalThis.__pickerProfile({
+    c2d: c2d, view: globalThis.__profileView, achievements: achievements, profile: profile, count: count, KEY: KEY,
+    playerDir: player.playerDir, picture: picture,
+    canvas: function () { return canvas; }, width: function () { return W; }, height: function () { return H; },
+    text: text, box: box, widthOf: widthOf, fitted: fitted, hint: hint,
+    touching: function () { return touching; }, changed: function () { changed = true; },
+    colours: { INK: INK, MUTED: MUTED, PANEL: PANEL, PANEL_EDGE: PANEL_EDGE, ACCENT: ACCENT, NIGHT: NIGHT, get CHOSEN() { return CHOSEN; } },
+  });
+  var CHIP = 40, onChip = false;
+  function chipAt() { return { x: W - MARGIN - CHIP, y: 30 }; }
+  function inChip(x, y) { var at = chipAt(); return x >= at.x - 10 && x < at.x + CHIP + 10 && y >= at.y - 10 && y < at.y + CHIP + 10; }
+
   function paint() {
+    if (profileScreen.isOpen()) return profileScreen.paint();
     var all = lines(), m = metrics(), VISIBLE = visible(), x = MARGIN;
     paintBackground();
     text('POTATO PLAYER', x, 34, 12, MUTED);
+    if (!browsing) {
+      profileScreen.paintChip(chipAt().x, chipAt().y, CHIP, onChip);
+      // The achievements earned since the list was opened are told once.
+      if (freshAchievements.length) {
+        var news = freshAchievements.length === 1 ? 'New achievement!' : freshAchievements.length + ' new achievements!';
+        text(news, chipAt().x - 16 - widthOf(news, 13), chipAt().y + 26, 13, INK);
+      }
+    }
     text(browsing ? 'Add a game' : 'Games', x, 72, 32, INK);
     if (browsing) {
       box(x, 86, COLUMN, 50, 10, PANEL);
@@ -427,7 +453,7 @@
       if (place) c2d.drawImage(canvas, waiting.handle, 0, 0, waiting.width, waiting.height, place.x, place.y, place.w, place.h, 1);
     }
     for (var shown = 0; shown < VISIBLE && first + shown < all.length; shown++) {
-      var index = first + shown, y = m.top + shown * m.row, h = m.row - 8, chosen = index === selected;
+      var index = first + shown, y = m.top + shown * m.row, h = m.row - 8, chosen = index === selected && !onChip;
       box(x, y, COLUMN, h, 12, chosen ? CHOSEN : PANEL);
       (browsing ? paintBrowseLine : paintListLine)(all[index], x, y, h, chosen);
     }
@@ -491,6 +517,7 @@
     requestAnimationFrame(frame);
     if (newSize) takeNewSize();
     watchEmptyList();
+    profileScreen.tick();
     var behind = gameBehind();
     rested = behind === restedOn ? rested + 1 : 0;
     restedOn = behind;
@@ -548,6 +575,8 @@
   player.onPointer = function (phase, px, py) {
     var x = px / ZOOM, y = py / ZOOM;
     if (!touching) { touching = true; changed = true; }
+    if (profileScreen.isOpen()) return profileScreen.pointer(phase, x, y);
+    if (!browsing && phase === 0 && inChip(x, y)) { press = null; return openProfile(); }
     if (phase === 0) {
       press = { x: x, y: y, layout: layout(), line: model.lineAt(x, y, layout()), moved: false };
       press.wasChosen = press.line === selected;
@@ -591,9 +620,28 @@
     first = Math.max(0, Math.min(first, lines().length - visible()));
     changed = true;
   }
+  function openProfile() {
+    onChip = false;
+    keepGame();
+    freshAchievements = [];
+    profileScreen.open();
+  }
   player.onKey = function (keyCode, down) {
     if (!down) return;
     if (touching && keyCode !== 27) { touching = false; changed = true; }
+    if (profileScreen.isOpen()) return profileScreen.key(keyCode);
+    // On the potato at the top: it opens the profile; anything else leaves it.
+    if (onChip) {
+      onChip = false;
+      changed = true;
+      if (KEY.ok.indexOf(keyCode) >= 0) return openProfile();
+      if (keyCode === KEY.up || keyCode === KEY.down) return;
+    } else if (!browsing && keyCode === KEY.up && selected === 0) {
+      onChip = true;
+      keepGame();
+      changed = true;
+      return;
+    }
     if (KEY.remove.indexOf(keyCode) >= 0) return askToRemove();
     // While the list asks whether to take a game off, A and B (and a
     // phone's Back) only keep it; the arrows also move.

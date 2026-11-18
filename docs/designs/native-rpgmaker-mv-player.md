@@ -1700,6 +1700,55 @@ adjustments where the game's own code is too expensive for this hardware.
     *   **Not checked**: on the handheld or on a phone. Nothing shows
         the achievements yet: the profile screen is not built.
 
+*   **The profile, and the achievements under it (2026-11-18)**: the
+    achievements were being counted and nothing showed them.
+    *   **Change**: the user's potato is at the top right of the game
+        list; "up" from the first line, or a touch, goes to it and it
+        opens the profile: the potato on the grass under a night sky,
+        with the time played, the games and the saves. The achievements
+        are not on its menu at first. Striking the ground five times in
+        a row (a touch on it, or "down" on the menu's last line) digs
+        down to them, and finding them is an achievement; once found
+        they have a line of their own. They are a grid of pictures, each
+        in a frame of bronze, silver or gold; the ones not earned are
+        dim, and a secret one shows a question mark. The list says when
+        achievements were earned since it was last opened.
+        The sky has a secret of its own: knocked at ten times in a row
+        (touched, or "up" on the menu's first line), a flying saucer
+        crosses it for three seconds, which is one more achievement.
+        `js/picker-profile.js` draws and takes the input;
+        `js/profile-view-model.js` decides.
+    *   **The avatar's pieces are decided, not drawn**: it has seven
+        slots (character, clothes, head, face, weapon, accessory,
+        companion), wears a burlap sack to begin with, and nineteen
+        achievements give it pieces; the table is `PRIZES` in
+        `js/achievements-model.js`. The achievement for trying both
+        touch controls was dropped; there are 38.
+    *   **Checked**: tests for the digging, the grid and the moving
+        over it, and for the knocks and the saucer's way across.
+        Without a screen, with real key presses, at 640x480 and at
+        540x960: the list, the profile, the hole growing, the
+        achievements, going back, and the saucer.
+    *   **Not checked**: with a finger; on the handheld or a phone. The
+        avatar is one fixed potato: its pieces, a name and the prizes of
+        the achievements are not built.
+*   **A rectangle filled after a path repainted the path (2026-11-18)**:
+    found while drawing the achievements, where the outline of the
+    chosen one never showed.
+    *   **Cause**: in `bindings/canvas_binding.cpp`, `fill` keeps the
+        path, as a browser does, and `fillRect`, `clearRect` and
+        `drawImage` added their rectangle to that same path instead of
+        drawing by themselves. A rectangle filled after a path filled
+        the path again in the rectangle's paint; an image drawn then was
+        clipped to both.
+    *   **Change**: the three put the path aside while they draw and
+        bring it back. This is the canvas every game draws on.
+    *   **Checked**: four new checks in `tests/device/canvas_check.js`,
+        which failed before and pass now; the MV and MZ save checks
+        still pass.
+    *   **Not checked**: a game where the fault showed, since none was
+        known; on the handheld.
+
 ## Critical User Journeys (CUJs)
 
 ### CUJ 1: First launch

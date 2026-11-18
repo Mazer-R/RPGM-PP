@@ -78,6 +78,28 @@ check('red bar reads back', pixel[0] > 140 && pixel[1] < 40 && pixel[3] === 255,
 var overlap = c2d.getImageData(canvas, 200, 465, 1, 1);
 check('overlapping bars were added', overlap[0] > 140 && overlap[1] > 140, Array.from(overlap).join(','));
 
+// --- Rectangles and images leave the path alone ------------------------------
+// In a browser fillRect, clearRect and drawImage draw by themselves: they
+// neither use the path being built nor change it.
+(function () {
+  var probe = c2d.create(120, 60), RED = [1, 0, 0, 1], GREEN = [0, 1, 0, 1], BLUE = [0, 0, 1, 1];
+  function at(x, y) { return Array.from(c2d.getImageData(probe, x, y, 1, 1)).join(','); }
+  c2d.fillRect(probe, 0, 0, 120, 60, [0, 0, 0, 1], 1);
+  c2d.beginPath(probe);
+  c2d.rect(probe, 10, 10, 20, 20);
+  c2d.fill(probe, RED, 1);
+  c2d.fillRect(probe, 50, 10, 20, 20, GREEN, 1);
+  check('a rectangle filled after a path does not repaint the path', at(20, 20) === '255,0,0,255', at(20, 20));
+  c2d.clearRect(probe, 80, 10, 20, 20);
+  check('a rectangle cleared after a path does not clear the path', at(20, 20) === '255,0,0,255', at(20, 20));
+  c2d.drawImage(probe, probe, 50, 10, 10, 10, 80, 40, 10, 10, 1);
+  c2d.fill(probe, BLUE, 1);
+  check('the path is still there to be filled again', at(20, 20) === '0,0,255,255', at(20, 20));
+  check('and holds nothing of the rectangles or the image', at(60, 20) === '0,255,0,255' && at(85, 45) === '0,255,0,255',
+    at(60, 20) + ' ' + at(85, 45));
+  c2d.destroy(probe);
+})();
+
 // --- Show the canvas through WebGL ----------------------------------------
 function compile(type, source) {
   var shader = gl.createShader(type);

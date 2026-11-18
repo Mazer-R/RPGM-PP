@@ -179,6 +179,30 @@ cairo_operator_t OperatorOf(const std::string& name) {
 #define RET(v) args.GetReturnValue().Set(v)
 // The canvas a call draws on. Returns from the callback if the first
 // argument is not a canvas.
+// Puts the path being built aside while something is drawn by itself, and
+// brings it back after. In a browser a rectangle (fillRect, clearRect) and
+// an image neither use the current path nor change it; cairo draws them
+// through the one path it has, so without this a rectangle filled after a
+// path filled the path again with the rectangle's paint.
+class PathAside {
+ public:
+  explicit PathAside(cairo_t* cr) : cr_(cr), kept_(cairo_has_current_point(cr) ? cairo_copy_path(cr) : nullptr) {
+    cairo_new_path(cr_);
+  }
+  ~PathAside() {
+    cairo_new_path(cr_);
+    if (!kept_) return;
+    cairo_append_path(cr_, kept_);
+    cairo_path_destroy(kept_);
+  }
+  PathAside(const PathAside&) = delete;
+  PathAside& operator=(const PathAside&) = delete;
+
+ private:
+  cairo_t* cr_;
+  cairo_path_t* kept_;
+};
+
 #define CANVAS()                           \
   Surface* s = SurfaceOf(ISO, args[0]);    \
   if (!s || !s->cr) return;                \
@@ -319,6 +343,7 @@ void InstallFunctions(v8::Isolate* isolate, v8::Local<v8::Object> canvas) {
   // fillRect(canvas, x, y, w, h, paint, alpha)
   FN(fillRect, {
     CANVAS();
+    PathAside aside(cr);
     SetPaint(ISO, cr, args[5]);
     cairo_rectangle(cr, D(1), D(2), D(3), D(4));
     if (D(6) < 1.0) {
@@ -332,6 +357,7 @@ void InstallFunctions(v8::Isolate* isolate, v8::Local<v8::Object> canvas) {
   });
   FN(clearRect, {
     CANVAS();
+    PathAside aside(cr);
     cairo_save(cr);
     cairo_set_operator(cr, CAIRO_OPERATOR_CLEAR);
     cairo_rectangle(cr, D(1), D(2), D(3), D(4));
@@ -390,6 +416,7 @@ void InstallFunctions(v8::Isolate* isolate, v8::Local<v8::Object> canvas) {
     double sx = D(2), sy = D(3), sw = D(4), sh = D(5), dx = D(6), dy = D(7), dw = D(8), dh = D(9);
     if (sw <= 0 || sh <= 0 || dw == 0 || dh == 0) return;
     cairo_surface_flush(source->surface);
+    PathAside aside(cr);
     cairo_save(cr);
     cairo_rectangle(cr, dx, dy, dw, dh);
     cairo_clip(cr);

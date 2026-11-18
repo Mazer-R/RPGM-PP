@@ -88,7 +88,7 @@ const tests = {
 
   'a secret achievement does not say how it is earned until it is'() {
     const secret = model.LIST.filter((each) => each.secret).map((each) => each.id);
-    assert.deepStrictEqual(plain(secret), ['not-a-potato']);
+    assert.deepStrictEqual(plain(secret), ['not-a-potato', 'aliens']);
     assert.strictEqual(model.shown('not-a-potato', []).how, '???');
     assert.strictEqual(model.shown('not-a-potato', []).name, '???');
     assert.strictEqual(model.shown('not-a-potato', ['not-a-potato']).name, 'Notato');
@@ -104,14 +104,33 @@ const tests = {
       assert.ok(model.LIST.some((each) => each.id === id), id);
       for (const piece of pieces) assert.ok(plain(model.SLOTS).includes(piece.slot), id + ': ' + piece.slot);
     }
-    assert.deepStrictEqual(plain(model.SLOTS), ['character', 'head', 'face', 'weapon', 'accessory']);
+    assert.deepStrictEqual(plain(model.SLOTS), ['character', 'clothes', 'head', 'face', 'weapon', 'accessory', 'companion']);
   },
 
   'whoever uses the player before 2028 is early, and gets wings for it'() {
     assert.strictEqual(model.isEarly(new Date(2026, 10, 18)), true);
     assert.strictEqual(model.isEarly(new Date(2027, 11, 31, 23, 59)), true);
     assert.strictEqual(model.isEarly(new Date(2028, 0, 1)), false);
-    assert.deepStrictEqual(plain(model.unlocked(['early-birdtato'])), [{ slot: 'accessory', item: 'wings' }]);
+    assert.deepStrictEqual(plain(model.unlocked(['early-birdtato'])),
+      [{ slot: 'accessory', item: 'wings' }, { slot: 'companion', item: 'potato-chick' }]);
+    assert.deepStrictEqual(plain(model.unlocked(['first-sprout'])), [{ slot: 'companion', item: 'sprout-pot' }]);
+    assert.deepStrictEqual(plain(model.unlocked(['dressed-up'])), [{ slot: 'clothes', item: 'tuxedo' }]);
+    assert.deepStrictEqual(plain(model.unlocked(['dug-up'])), [{ slot: 'weapon', item: 'shovel' }]);
+    assert.deepStrictEqual(plain(model.unlocked(['aliens'])), [{ slot: 'head', item: 'tinfoil-hat' }, { slot: 'companion', item: 'little-alien' }]);
+    assert.deepStrictEqual(plain(model.unlocked(['dear-diary', 'precious-memories', 'better-safe'])),
+      [{ slot: 'weapon', item: 'quill' }, { slot: 'face', item: 'scholar-glasses' }, { slot: 'accessory', item: 'two-shields' }]);
+    assert.deepStrictEqual(plain(model.unlocked(['midnight-snack'])), [{ slot: 'clothes', item: 'pyjamas' }, { slot: 'head', item: 'nightcap' }]);
+    assert.deepStrictEqual(plain(model.unlocked(['movie-night'])), [{ slot: 'weapon', item: 'popcorn-bucket' }, { slot: 'head', item: 'popcorn-bucket-hat' }]);
+    assert.deepStrictEqual(plain(model.unlocked(['true-potato'])), [{ slot: 'head', item: 'crown' }, { slot: 'weapon', item: 'sceptre' }]);
+    assert.deepStrictEqual(plain(model.unlocked(['mashed', 'loyal-spud', 'completionist'])),
+      [{ slot: 'accessory', item: 'heart' }, { slot: 'weapon', item: 'spoon' }, { slot: 'character', item: 'golden-potato' }]);
+    assert.deepStrictEqual(plain(model.unlocked(['number-cruncher'])), [{ slot: 'head', item: 'white-wig' }]);
+    assert.deepStrictEqual(plain(model.unlocked(['good-company'])), [{ slot: 'companion', item: 'little-knight' }]);
+  },
+
+  'the avatar starts dressed in a burlap sack, and with nothing in the other slots'() {
+    assert.deepStrictEqual(plain(model.DRESSED), { clothes: 'burlap-sack' });
+    for (const slot of Object.keys(model.DRESSED)) assert.ok(plain(model.SLOTS).includes(slot), slot);
   },
 
   'each flag or count earns its own achievement and no other'() {
@@ -121,15 +140,13 @@ const tests = {
       loadedOlderSave: 'welcome-back', settingsOpened: 'tinkerer', counterShown: 'number-cruncher', remapped: 'remapped',
       pointerUsed: 'point-taken', controlsOff: 'hands-off', videoSeen: 'movie-night', slowSession: 'true-potato',
       crashed: 'mashed', carriedOn: 'missing-ingredients', waited: 'good-company', cameBack: 'wrinkled',
-      dug: 'dug-up', dressed: 'dressed-up', named: 'named', notAGame: 'not-a-potato', early: 'early-birdtato',
+      dug: 'dug-up', dressed: 'dressed-up', named: 'named', notAGame: 'not-a-potato', early: 'early-birdtato', aliens: 'aliens',
     };
     const enough = { longestSession: 2 * HOUR, days: 7, mostInOneGame: 10 * HOUR, saves: 1 };
     for (const [key, id] of Object.entries(single)) {
       assert.deepStrictEqual(ids({ [key]: enough[key] || true }), [id], key);
     }
     assert.deepStrictEqual(ids({ saves: 100 }), ['dear-diary', 'precious-memories']);
-    assert.deepStrictEqual(ids({ usedStick: true }), []);
-    assert.deepStrictEqual(ids({ usedStick: true, usedPad: true }), ['stick-or-pad']);
   },
 };
 
