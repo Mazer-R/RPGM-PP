@@ -205,6 +205,11 @@
     count++;
   }
   console.info('boot: ' + count + ' scripts loaded from index.html');
+  // Pieces of the profile that want to look at the game once its scripts
+  // have loaded (the survey of what its plugins ask for).
+  (browser.whenScriptsLoaded || []).forEach(function (look) {
+    try { look(); } catch (error) { console.warn('boot: ' + (error && error.stack ? error.stack : error)); }
+  });
   installPatches();
   installPerformanceLog();
 

@@ -408,7 +408,10 @@ void InstallFunctions(v8::Isolate* isolate, v8::Local<v8::Object> canvas) {
   FN(registerFont, {
     if (!g_state.freetype && FT_Init_FreeType(&g_state.freetype) != 0) { RET(false); return; }
     FT_Face face = nullptr;
-    if (FT_New_Face(g_state.freetype, ToStd(ISO, args[1]).c_str(), 0, &face) != 0) { RET(false); return; }
+    // The file is looked for whatever the case of its name, as every other
+    // file of a game is: games written on Windows name files loosely.
+    std::string path = mvp::FindFile(ToStd(ISO, args[1]));
+    if (FT_New_Face(g_state.freetype, path.c_str(), 0, &face) != 0) { RET(false); return; }
     g_state.fonts[ToStd(ISO, args[0])] = cairo_ft_font_face_create_for_ft_face(face, 0);
     RET(true);
   });

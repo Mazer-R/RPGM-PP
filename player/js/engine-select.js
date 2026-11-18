@@ -28,11 +28,13 @@
       'web-fonts.js',     // FontFace, document.fonts: the engine's fonts
       'web-storage.js',   // indexedDB is there: a start-up check
       'nw-global.js',     // the global nw: game options, developer tools
-      'nw-window.js',     // the rest of the desktop window: plugins that set it up
+      'nw-lenient.js',    // the desktop player accepts any call: plugins that set it up
       'web-workers.js',   // Worker can be made: the sound decoder library
       'engine-tasks.js',  // V8's queued work: WebAssembly finishes compiling
       'web-media.js',     // video.play() is a promise: every key press
       'web-page.js',      // elements the page declares with an id
+      'web-fetch.js',     // fetch, for the game's own files: plugins' tables and settings
+      'compat-report.js', // what the game's plugins ask for that is not there, logged at once
       'mz-files.js',      // MZ's names for encrypted images and sounds
       'mz-perf.js',       // where MZ's frames, steps and drawing are
     ],

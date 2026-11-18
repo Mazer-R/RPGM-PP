@@ -35,7 +35,8 @@ const tests = {
   async 'a font is loaded through FontFace, from the file its url() names'() {
     const asked = [];
     const browser = { later() {}, fireLoad() {}, registerFont: (family, url) => { asked.push([family, url]); return url !== 'fonts/missing.woff'; } };
-    const page = load('web-fonts.js', { __browser: browser, document: {} });
+    const page = load('web-fonts.js', { __browser: browser, document: {}, console: { warn() {}, info() {} },
+      player: { gameDir: '/g', listDir: () => [], fileExists: () => false } });
     assert.ok(page.document.fonts && page.document.fonts.ready, 'the engine checks for document.fonts.ready');
     await page.document.fonts.ready;
 
@@ -48,9 +49,43 @@ const tests = {
     assert.strictEqual(page.document.fonts.check('20px rmmz-mainfont'), true);
 
     const quoted = new page.FontFace('other', 'url("fonts/missing.woff")');
-    await assert.rejects(() => quoted.load());
-    assert.strictEqual(quoted.status, 'error');
-    assert.deepStrictEqual(asked[1], ['other', 'fonts/missing.woff']);
+    await quoted.load();
+    assert.deepStrictEqual(asked[1], ['other', 'fonts/missing.woff'], 'the file named between quotes is the one asked for');
+  },
+
+  async 'a font that cannot be loaded is replaced by another of the game\'s, and the game goes on'() {
+    const asked = [], said = [];
+    const works = (url) => url === 'fonts/second.ttf';
+    const browser = { later() {}, fireLoad() {}, registerFont: (family, url) => { asked.push(family + ' <- ' + url); return works(url); } };
+    const page = load('web-fonts.js', { __browser: browser, document: {}, console: { warn: (text) => said.push(text), info() {} },
+      player: { gameDir: '/g', listDir: (dir) => (dir === '/g/fonts' ? ['broken.woff2', 'notes.txt', 'second.ttf', 'third.otf'] : []), fileExists: () => false } });
+    const font = new page.FontFace('game-main', 'url(fonts/broken.woff2)');
+    assert.strictEqual(await font.load(), font);
+    assert.strictEqual(font.status, 'loaded');
+    assert.deepStrictEqual(asked, ['game-main <- fonts/broken.woff2', 'game-main <- fonts/second.ttf'], 'the failed file is not tried twice, and files that are not fonts are passed over');
+    assert.ok(said.some((text) => /broken\.woff2/.test(text) && /second\.ttf/.test(text)), said.join(' | '));
+  },
+
+  async 'with none of the game\'s fonts usable, one of the system\'s is taken'() {
+    const asked = [];
+    const browser = { later() {}, fireLoad() {}, registerFont: (family, url) => { asked.push(url); return url === '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'; } };
+    const page = load('web-fonts.js', { __browser: browser, document: {}, console: { warn() {}, info() {} },
+      player: { gameDir: '/g', listDir: () => ['broken.woff2'], fileExists: (file) => file === '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf' } });
+    const font = new page.FontFace('game-main', 'url(fonts/broken.woff2)');
+    await font.load();
+    assert.strictEqual(font.status, 'loaded');
+    assert.strictEqual(asked[asked.length - 1], '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf');
+  },
+
+  async 'with no font at all the game still goes on, and the log says its text will not show'() {
+    const said = [];
+    const browser = { later() {}, fireLoad() {}, registerFont: () => false };
+    const page = load('web-fonts.js', { __browser: browser, document: {}, console: { warn: (text) => said.push(text), info() {} },
+      player: { gameDir: '/g', listDir: () => [], fileExists: () => false } });
+    const font = new page.FontFace('game-main', 'url(fonts/broken.woff2)');
+    await font.load();
+    assert.strictEqual(font.status, 'loaded');
+    assert.ok(said.some((text) => /no font/.test(text)), said.join(' | '));
   },
 
   'the engine\'s check for IndexedDB passes'() {
@@ -176,40 +211,114 @@ const tests = {
     assert.strictEqual(app.render(), 'drawn');
   },
 
-  'the desktop player\'s window answers the rest of what a plugin may ask of it'() {
+  'the desktop player\'s window accepts any call it does not know, and says so once'() {
     const moveTo = () => 'the player\'s own';
     const win = { moveTo, isFullscreen: true };
-    const gui = { Window: { get: () => win }, Screen: { Init() {}, screens: [] } };
-    load('nw-window.js', { __browser: {}, document: { title: 'A Game' }, innerWidth: 1280, innerHeight: 720,
-      require: (name) => (name === 'nw.gui' ? gui : null) });
-    // A plugin that sets the game's resolution: none of this may throw.
-    win.setResizable(false);
-    win.setMinimumSize(816, 624);
-    win.setMaximumSize(1920, 1080);
-    win.setPosition('center');
-    win.maximize(); win.unmaximize(); win.minimize(); win.restore();
-    win.setAlwaysOnTop(true);
-    win.removeListener('resize', () => {});
-    assert.strictEqual(win.moveTo, moveTo, 'what the player already answers is left as it is');
-    assert.strictEqual(win.isFullscreen, true);
-    assert.strictEqual(win.isKioskMode, false);
-    assert.strictEqual(win.canSetVisibleOnAllWorkspaces(), false);
-    assert.strictEqual(win.title, 'A Game');
+    const gui = { Window: { get: () => win }, App: { argv: [] }, Screen: { Init() {}, screens: [] }, Shell: {} };
+    const missing = [];
+    const page = load('nw-lenient.js', { __browser: { missing: (what) => missing.push(what) }, document: { title: 'A Game' }, innerWidth: 1280, innerHeight: 720,
+      nw: gui, require: (name) => (name === 'nw.gui' ? gui : null) });
+    const shown = page.nw.Window.get();
+    // What a plugin that sets the game's resolution does, and a call nobody listed.
+    shown.setResizable(false);
+    shown.setMinimumSize(816, 624);
+    shown.setPosition('center');
+    shown.somethingNobodyThoughtOf(1, 2, 3);
+    shown.setResizable(true);
+    assert.deepStrictEqual(missing.filter((what) => /setResizable/.test(what)).length, 1, 'said once');
+    assert.ok(missing.some((what) => /nw\.Window\.somethingNobodyThoughtOf/.test(what)), missing.join('; '));
+    assert.strictEqual(shown.moveTo, moveTo, 'what the player already answers is left as it is');
+    assert.strictEqual(shown.moveTo(), 'the player\'s own');
+  },
+
+  'what the window is, as opposed to what it does, has real values'() {
+    const gui = { Window: { get: () => ({ isFullscreen: true }) }, App: {}, Screen: { screens: [] }, Shell: {} };
+    const page = load('nw-lenient.js', { __browser: { missing() {} }, document: { title: 'A Game' }, innerWidth: 1280, innerHeight: 720,
+      nw: gui, require: (name) => (name === 'nw.gui' ? gui : null) });
+    const shown = page.nw.Window.get();
+    assert.strictEqual(shown.isFullscreen, true);
+    assert.strictEqual(shown.isKioskMode, false);
+    assert.strictEqual(shown.isAlwaysOnTop, false);
+    assert.strictEqual(shown.isTransparent, false);
+    assert.strictEqual(shown.zoomLevel, 0);
+    assert.strictEqual(shown.title, 'A Game');
+    shown.title = 'Renamed';
+    assert.strictEqual(page.document.title, 'Renamed');
+  },
+
+  async 'calls into parts of the desktop player that are not there are accepted to any depth'() {
+    const gui = { Window: { get: () => ({}) }, App: { argv: [] }, Screen: { screens: [] }, Shell: {} };
+    const missing = [];
+    const page = load('nw-lenient.js', { __browser: { missing: (what) => missing.push(what) }, document: {}, innerWidth: 800, innerHeight: 600,
+      nw: gui, require: (name) => (name === 'nw.gui' ? gui : null) });
+    const nw = page.nw;
+    nw.Window.get().cookies.getAll({}, () => {});
+    nw.App.setProxyConfig('x');
+    nw.Shell.openItem('/tmp/x');
+    nw.Screen.chooseDesktopMedia(['screen'], () => {});
+    nw.Clipboard.get().set('text', 'text');
+    nw.Window.open('other.html', {}, () => {});
+    assert.deepStrictEqual(plain(nw.App.argv), [], 'what is there is still itself');
+    assert.ok(missing.some((what) => /nw\.Clipboard/.test(what)));
+    // Something that is not there can be waited for and written out without harm.
+    assert.strictEqual(await Promise.resolve(nw.Window.get().whatever).then(() => 'went on'), 'went on');
+    assert.strictEqual(typeof ('' + nw.Window.get().whatever), 'string');
   },
 
   'the desktop player\'s list of screens holds the one the game is shown on'() {
-    const gui = { Window: { get: () => ({}) }, Screen: { Init() {}, screens: [] } };
-    load('nw-window.js', { __browser: {}, document: {}, innerWidth: 1280, innerHeight: 720,
-      require: (name) => (name === 'nw.gui' ? gui : null) });
-    assert.strictEqual(gui.Screen.screens.length, 1);
-    assert.deepStrictEqual(plain(gui.Screen.screens[0].bounds), { x: 0, y: 0, width: 1280, height: 720 });
-    assert.deepStrictEqual(plain(gui.Screen.screens[0].work_area), { x: 0, y: 0, width: 1280, height: 720 });
-    assert.strictEqual(gui.Screen.screens[0].scaleFactor, 1);
+    const gui = { Window: { get: () => ({}) }, App: {}, Screen: { Init() {}, screens: [] }, Shell: {} };
+    const page = load('nw-lenient.js', { __browser: { missing() {} }, document: {}, innerWidth: 1280, innerHeight: 720,
+      nw: gui, require: (name) => (name === 'nw.gui' ? gui : null) });
+    const screens = page.nw.Screen.screens;
+    assert.strictEqual(screens.length, 1);
+    assert.deepStrictEqual(plain(screens[0].bounds), { x: 0, y: 0, width: 1280, height: 720 });
+    assert.deepStrictEqual(plain(screens[0].work_area), { x: 0, y: 0, width: 1280, height: 720 });
+    assert.strictEqual(screens[0].scaleFactor, 1);
   },
 
-  'without the desktop player\'s interface the window piece does nothing'() {
-    load('nw-window.js', { __browser: {}, document: {} });
-    load('nw-window.js', { __browser: {}, document: {}, require: () => null });
+  'without the desktop player\'s interface the piece does nothing'() {
+    load('nw-lenient.js', { __browser: {}, document: {} });
+    load('nw-lenient.js', { __browser: {}, document: {}, require: () => null });
+  },
+
+  async 'fetch reads one of the game\'s own files, as text, as data or as bytes'() {
+    const files = { '/g/data/Words.json': '{"hello":"hola"}', '/g/data/list.csv': 'a,b\nc,d' };
+    const page = load('web-fetch.js', {
+      __browser: { gamePath: (url) => '/g/' + String(url).split('?')[0].replace(/^\.?\//, '') },
+      player: {
+        fileExists: (file) => file in files,
+        readTextFile: (file) => (file in files ? files[file] : null),
+        readFileBytes: (file) => (file in files ? new TextEncoder().encode(files[file]).buffer : null),
+      },
+    });
+    const response = await page.fetch('data/Words.json?v=3');
+    assert.strictEqual(response.ok, true);
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(response.headers.get('Content-Type'), 'application/json');
+    assert.deepStrictEqual(plain(await response.json()), { hello: 'hola' });
+    assert.strictEqual(await (await page.fetch('./data/list.csv')).text(), 'a,b\nc,d');
+    const bytes = await (await page.fetch({ url: 'data/list.csv' })).arrayBuffer();
+    assert.strictEqual(bytes.byteLength, 7);
+    assert.strictEqual(await (await page.fetch('data/list.csv')).clone().text(), 'a,b\nc,d');
+  },
+
+  async 'fetch of a file that is not there fails, as it does for a page opened from disk'() {
+    const page = load('web-fetch.js', { __browser: { gamePath: (url) => '/g/' + url }, player: { fileExists: () => false, readTextFile: () => null, readFileBytes: () => null } });
+    await assert.rejects(() => page.fetch('data/Nothing.json'), /Failed to fetch/);
+  },
+
+  async 'fetch does not reach the network'() {
+    const asked = [];
+    const page = load('web-fetch.js', { __browser: { gamePath: (url) => '/g/' + url }, player: { fileExists: (file) => { asked.push(file); return true; }, readTextFile: () => 'x', readFileBytes: () => null } });
+    await assert.rejects(() => page.fetch('https://example.com/scores.json'), /Failed to fetch/);
+    await assert.rejects(() => page.fetch('//example.com/x'), /Failed to fetch/);
+    assert.deepStrictEqual(asked, [], 'no file was looked for');
+  },
+
+  'a page that already has fetch keeps its own'() {
+    const theirs = () => 'theirs';
+    const page = load('web-fetch.js', { __browser: {}, player: {}, fetch: theirs });
+    assert.strictEqual(page.fetch, theirs);
   },
 };
 

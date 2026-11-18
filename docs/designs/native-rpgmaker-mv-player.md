@@ -1381,6 +1381,105 @@ adjustments where the game's own code is too expensive for this hardware.
         only says whether the player has something by that name, and it
         would have found neither this case nor the missing page script.
 
+*   **The desktop player's interface accepts whatever it is asked (2026-11-18).**
+    *   **Why**: the missing window call was first fixed by listing some
+        thirty calls a plugin might make. A list only holds until the
+        next plugin asks for another, and the question came up of
+        checking each game's plugins ahead of time.
+    *   **Decided**: for the desktop player's interface, and only for
+        it, the answer to nearly everything is "accepted, nothing to
+        do", because the window is always the player's own. So instead
+        of names, a rule: `nw-lenient.js` (in place of the list) makes
+        the window, the application, the screens, the shell and anything
+        else under `nw` answer what they know as before and accept any
+        other call, to any depth (`nw.Clipboard.get().set(...)`), doing
+        nothing. Each is written once in the log as "not provided ...
+        (accepted: does nothing)". What the window is, rather than does
+        (full screen, kiosk mode, title, zoom), is a short list with
+        real values.
+    *   **Not for the browser's interface**: accepting an unknown call on
+        the document, a canvas or sound would let a game go on drawing
+        or sounding wrong without a word. Those stay as they are: missing
+        until written.
+    *   **Known cost**: what comes back from an accepted call counts as
+        true in a condition.
+    *   **Checked**: tests (any call, said once, known ones untouched,
+        depth, real values, waiting on and writing out an absent thing);
+        without a screen, a script making such calls on an MZ game, and
+        both MZ games still running. Not checked on the game that
+        prompted it.
+    *   **Not done**: reading a game's plugins before starting it and
+        logging at once everything they name that the player lacks.
+
+*   **fetch, for the game's own files (2026-11-18).**
+    *   **Reported**: with the two fixes above the third MZ game got
+        past its page and its window plugin and stopped at "fetch is not
+        defined". The engines read files through XMLHttpRequest; newer
+        plugins use fetch.
+    *   **Now**: `web-fetch.js`, a browser piece on MZ's profile. It
+        reads a file of the game and gives its text, its JSON or its
+        bytes, read when asked for. There is no network: an address on
+        another machine fails as with no connection, and a file that is
+        not there fails as for a page opened from disk. The body as a
+        stream is not provided.
+    *   **Checked**: tests; without a screen, on an MZ game, a JSON file
+        read and parsed, its bytes, and a missing file failing. Not
+        checked on the game it was reported with.
+
+*   **A font whose name differs in case from what the game asks for (2026-11-18).**
+    *   **Reported**: the third MZ game, now past `fetch`, stopped with
+        a load error for one of its fonts, a `.woff2` file.
+    *   **Not the format**: a WOFF2 font made from a font at hand loads
+        in the same FreeType the packages carry.
+    *   **Cause**: every file of a game is looked for whatever the case
+        of its name (`FindFile`), since games written on Windows name
+        files loosely and Linux does not forgive it. Registering a font
+        was the one place that opened the path as written: the player
+        said the file was there and then could not open it.
+    *   **Fix**: a font is looked for like every other file.
+    *   **Checked** without a screen, in a folder that tells cases apart:
+        a font stored as `Probe.woff2` and asked for as `probe.WOFF2`
+        was found but not registered before, and is registered now. Not
+        checked on the game it was reported with.
+
+*   **Read the game and adapt, instead of fixing one failure at a time (2026-11-18).**
+    *   **Why**: a third MZ game was being brought up one error per run
+        (a missing page script, a window call, `fetch`, a font), each
+        answered with a change and a new package. The user called a
+        stop: the player should read a game's files and work from what
+        it finds.
+    *   **Principle**, now applied in two places: what a game needs
+        that the player cannot give should cost the game that one thing,
+        not its start; and what is missing should be known at once.
+    *   **Fonts**: a font that cannot be loaded no longer stops the
+        game. The family is given another font: one of the game's other
+        font files if one can be used, else one of the system's; with
+        none, the game goes on without text in that family. The log says
+        which file failed and what took its place. A browser would stop
+        there, and so would the engine; here that is judged worse than a
+        different typeface. (Why that game's font file does not load is
+        still not known: the format loads, and the case of its name is
+        handled.)
+    *   **A survey at start** (`compat-report.js`): when the game's
+        scripts have loaded, its switched-on plugins are read and what
+        they name of a browser, of the desktop player and of Node is
+        checked against what is really there at that moment, not against
+        a list of names. What is missing is written to the log in one
+        block, with the files that name it. It changes nothing and stops
+        nothing. On the commercial MZ game: 24 plugins read in 43 ms on
+        a desktop, two things missing (Steam's interface, Node's `os`).
+    *   **Checked**: tests for both; without a screen, an MZ game whose
+        main font file was replaced by a file that is no font starts
+        with its other font and reaches its title; Fear & Hunger still
+        reaches its title (MV's profile has neither piece).
+    *   **Limits**: the survey reads plugins, not the engine or scripts
+        loaded later; a name in a branch that never runs is still listed;
+        a thing the player has by name may be incomplete.
+    *   **On the handheld**: the commercial MZ game, copied there, reads
+        its 24 plugins in 461 ms (43 ms on a desktop), starts without
+        error and shows its title 14.6 s after starting, at 57 frames a
+        second with both MZ patches on. Nothing past the title was tried.
+
 ## Critical User Journeys (CUJs)
 
 ### CUJ 1: First launch

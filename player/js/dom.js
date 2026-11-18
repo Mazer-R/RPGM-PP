@@ -170,7 +170,8 @@
   var fontFamilies = {};
   var fallbackFamily = null;
   browser.registerFont = function (family, url) {
-    var file = gamePath(url);
+    // A font file of the system, named by its full path, is used as it is.
+    var file = String(url).charAt(0) === '/' && player.fileExists(String(url)) ? String(url) : gamePath(url);
     if (!c2d.registerFont(family, file)) {
       console.warn('font: cannot load ' + file + ' for ' + family);
       return false;

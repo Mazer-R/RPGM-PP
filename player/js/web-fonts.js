@@ -22,12 +22,43 @@
     this.loaded = new Promise(function (resolve, reject) { font._settle = { resolve: resolve, reject: reject }; });
     this.loaded.catch(function () {});  // a failure nobody waits for is not an error of its own
   }
+  // Fonts a desktop system usually has, for a game none of whose own can be
+  // used.
+  var SYSTEM_FONTS = ['/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', '/usr/share/fonts/TTF/DejaVuSans.ttf',
+    '/usr/share/fonts/dejavu/DejaVuSans.ttf', '/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf',
+    '/usr/share/fonts/noto/NotoSans-Regular.ttf', '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
+    '/usr/share/fonts/liberation/LiberationSans-Regular.ttf', '/system/fonts/Roboto-Regular.ttf',
+    '/system/fonts/NotoSans-Regular.ttf', '/system/fonts/DroidSans.ttf'];
+
+  // A font that cannot be loaded does not stop the game. In a browser it
+  // would: the engine shows a load error and waits. But a font is only how
+  // the text looks, and a player that will not start over one file is of no
+  // use, so the family is given another font instead: one of the game's own
+  // other fonts if any can be used, else one of the system's. With none, the
+  // game still goes on, without text in that family.
+  function standIn(family, failed) {
+    var names = [];
+    try { names = player.listDir(player.gameDir + '/fonts') || []; } catch (error) { names = []; }
+    var candidates = names.filter(function (name) { return /\.(ttf|otf|woff2?)$/i.test(name); }).sort()
+      .map(function (name) { return 'fonts/' + name; })
+      .filter(function (url) { return url.toLowerCase() !== String(failed).split('?')[0].toLowerCase(); });
+    SYSTEM_FONTS.forEach(function (file) { if (player.fileExists(file)) candidates.push(file); });
+    for (var i = 0; i < candidates.length; i++) {
+      if (browser.registerFont(family, candidates[i])) return candidates[i];
+    }
+    return '';
+  }
+
   FontFace.prototype.load = function () {
     if (this.status === 'unloaded') {
-      var ok = !!this._url && browser.registerFont(this.family, this._url);
-      this.status = ok ? 'loaded' : 'error';
-      if (ok) this._settle.resolve(this);
-      else this._settle.reject(new Error('font: cannot load ' + this._url + ' for ' + this.family));
+      if (!this._url || !browser.registerFont(this.family, this._url)) {
+        var other = standIn(this.family, this._url);
+        console.warn(other
+          ? 'font: ' + this._url + ' cannot be loaded for ' + this.family + '; ' + other + ' is used in its place'
+          : 'font: ' + this._url + ' cannot be loaded for ' + this.family + ' and there is no font to use in its place: its text will not show');
+      }
+      this.status = 'loaded';
+      this._settle.resolve(this);
     }
     return this.loaded;
   };

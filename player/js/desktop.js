@@ -124,6 +124,8 @@
   }
 
   var modules = { fs: fs, path: path, 'nw.gui': gui };
+  // The modules that are really there, as opposed to accepted and inert.
+  browser.providedModules = Object.keys(modules);
   globalThis.require = function (name) {
     name = String(name);
     return modules[name] || (modules[name] = inertModule(name));
