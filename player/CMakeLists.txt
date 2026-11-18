@@ -76,6 +76,7 @@ set(MVP_SOURCES
   src/platform/button_map.cpp
   src/platform/settings_menu.cpp
   src/platform/pad_cursor.cpp
+  src/platform/session.cpp
   src/platform/touch.cpp
   src/platform/touch_layout.cpp
   src/platform/window.cpp

@@ -217,7 +217,7 @@ int main(int, char**) {
     }
     if (code != 0 || game.empty()) return 0;
 
-    std::vector<std::string> play = {"--game", game, "--player", player_dir};
+    std::vector<std::string> play = {"--game", game, "--player", player_dir, "--sessions", base + "/sessions.log"};
     SDL_SetHint(SDL_HINT_ORIENTATIONS, "LandscapeLeft LandscapeRight");
     code = Run(play);
     KeepLog(game, logs, code);

@@ -43,7 +43,8 @@ float LetterHeight(const TouchShape& shape) {
 }
 }  // namespace
 
-int RunMainLoop(Window& window, Input& input, Host& host, const Clock& clock, Log& log, VideoPlayer& video) {
+int RunMainLoop(Window& window, Input& input, Host& host, const Clock& clock, Log& log, VideoPlayer& video,
+                long* frames_shown) {
   std::signal(SIGTERM, OnTerminate);
   std::signal(SIGINT, OnTerminate);
 
@@ -152,6 +153,7 @@ int RunMainLoop(Window& window, Input& input, Host& host, const Clock& clock, Lo
                             : "") +
                 (g_terminate ? " (stopped by a signal)" : "") +
                 (idle ? " (nothing left to run)" : ""));
+  if (frames_shown) *frames_shown = static_cast<long>(frames);
   if (host.had_script_error()) return 2;
   return host.exit_code();
 }

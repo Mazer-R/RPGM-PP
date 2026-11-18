@@ -202,6 +202,7 @@
       // again; one whose data is not there yet starts when it is.
       if (video.__phase === 'loaded' && (video.ended || current !== video)) again(video);
       if (current !== video) return;
+      if (player.note) player.note('video');  // for the profile
       if (video.__phase !== 'loaded') { video.__wantsPlay = true; return; }
       if (!video.paused) return;
       return start(video);

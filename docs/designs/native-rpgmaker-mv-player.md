@@ -1675,6 +1675,31 @@ adjustments where the game's own code is too expensive for this hardware.
         (an estimated 8 to 10% of the logic). The first has no clean
         automatic answer: its runs execute scripts.
 
+*   **Achievements: the rules and the counting (2026-11-18)**: the player
+    is to have achievements, shown in a profile outside the games. This
+    is the part nobody sees yet: deciding them and counting what they
+    are decided from.
+    *   **Rule kept**: nothing is checked while a game runs. A run notes
+        what was used of the player (a save written, a video played, the
+        settings menu opened) as it happens, each a flag or a counter,
+        and writes one line to `sessions.log` when it ends. Nothing is
+        read from inside the game, so it holds for any game.
+    *   **Change**: `platform/session` holds the notes of a run and makes
+        its line; `--sessions <file>` names the log, and the three
+        launchers pass it. Scripts note through `player.note`. The game
+        list folds the lines it has not seen into the counts
+        (`js/profile-model.js`), decides the achievements
+        (`js/achievements-model.js`: 38 of them, each with a metal and a
+        hero, and what some give the avatar) and keeps the result in
+        `profile.json`, next to the list of games.
+    *   **Checked**: tests for the rules, the folding and the line.
+        Without a screen: an MZ and an MV game played with the log on
+        left a line each; the list read them, earned four achievements
+        and wrote the profile; opened again, it counted nothing twice.
+        The three builds compile.
+    *   **Not checked**: on the handheld or on a phone. Nothing shows
+        the achievements yet: the profile screen is not built.
+
 ## Critical User Journeys (CUJs)
 
 ### CUJ 1: First launch

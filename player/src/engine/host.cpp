@@ -21,6 +21,7 @@
 #include "platform/files.h"
 #include "platform/game_library.h"
 #include "platform/log.h"
+#include "platform/session.h"
 
 namespace mvp {
 
@@ -191,6 +192,12 @@ void Host::ReadTextFileCallback(const v8::FunctionCallbackInfo<v8::Value>& args)
   std::stringstream buffer;
   buffer << file.rdbuf();
   args.GetReturnValue().Set(ToV8String(isolate, buffer.str()));
+  // A save slot of an earlier day being read is a game being taken up again.
+  Host* host = FromArgs(args);
+  std::string path = ToStdString(isolate, args[0]);
+  if (host->session_ && host->IsSavePath(path) && IsSaveSlot(path) && SavedOnEarlierDay(FindFile(path), time(nullptr))) {
+    host->session_->Note("older");
+  }
 }
 
 void Host::FileExistsCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -291,6 +298,34 @@ void Host::ChangeGamesFile(const v8::FunctionCallbackInfo<v8::Value>& args,
 // player.rememberGame(www): puts a game at the top of the remembered games.
 void Host::RememberGameCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
   ChangeGamesFile(args, RememberGame);
+}
+
+// player.saveProfile(text): writes the profile the game list keeps, whole,
+// through a temporary file so that a power cut leaves the earlier one.
+// Returns whether it was written.
+void Host::SaveProfileCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Host* host = FromArgs(args);
+  args.GetReturnValue().Set(false);
+  if (host->profile_file_.empty()) return;
+  std::string temporary = host->profile_file_ + ".tmp";
+  std::ofstream file(temporary, std::ios::trunc | std::ios::binary);
+  file << ToStdString(args.GetIsolate(), args[0]);
+  file.flush();
+  bool ok = file.good();
+  file.close();
+  if (!ok || std::rename(temporary.c_str(), host->profile_file_.c_str()) != 0) {
+    host->log_.Write(LogLevel::kError, "files", "cannot write the profile: " + host->profile_file_);
+    std::remove(temporary.c_str());
+    return;
+  }
+  args.GetReturnValue().Set(true);
+}
+
+// player.note(word): a script notes something about this run of a game
+// ("video", "mz"), for the profile. Without a session it does nothing.
+void Host::NoteCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Host* host = FromArgs(args);
+  if (host->session_ && args.Length() > 0) host->session_->Note(ToStdString(args.GetIsolate(), args[0]));
 }
 
 // player.forgetGame(www): takes a game off the list for good, without
@@ -446,6 +481,7 @@ void Host::WriteSaveFileCallback(const v8::FunctionCallbackInfo<v8::Value>& args
     host->log_.Write(LogLevel::kError, "files", "cannot replace " + path);
     return;
   }
+  if (host->session_ && IsSaveSlot(path)) host->session_->SaveWritten(host->clock_.NowMs() / 1000.0);
   args.GetReturnValue().Set(true);
 }
 
@@ -532,6 +568,8 @@ void Host::InstallGlobals(v8::Local<v8::Context> context) {
   set(player, "resolveGame", make_function(ResolveGameCallback, "resolveGame"));
   set(player, "rememberGame", make_function(RememberGameCallback, "rememberGame"));
   set(player, "forgetGame", make_function(ForgetGameCallback, "forgetGame"));
+  set(player, "saveProfile", make_function(SaveProfileCallback, "saveProfile"));
+  set(player, "note", make_function(NoteCallback, "note"));
   set(player, "print", make_function(PrintCallback, "print"));
   set(player, "readFileBytes", make_function(ReadFileBytesCallback, "readFileBytes"));
   set(player, "fileHead", make_function(FileHeadCallback, "fileHead"));

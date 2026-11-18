@@ -65,7 +65,7 @@ while :; do
 	ANSWER=$(./mvplayer --pick "$INTERNAL_GAMES" "$CARD_GAMES" --games-file "$PLAYER_DIR/games.txt" --can-add --browse /mnt)
 	GAME=$(printf '%s\n' "$ANSWER" | sed -n 's/^MVPLAYER_GAME=//p' | head -n 1)
 	[ -n "$GAME" ] || break
-	./mvplayer --game "$GAME"
+	./mvplayer --game "$GAME" --sessions "$PLAYER_DIR/sessions.log"
 	keep_log "$GAME" $?
 done
 

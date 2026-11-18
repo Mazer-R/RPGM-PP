@@ -12,6 +12,7 @@
 #include "platform/log.h"
 #include "platform/settings_menu.h"
 #include "platform/pad_cursor.h"
+#include "platform/session.h"
 #include "platform/touch.h"
 
 namespace mvp {
@@ -179,15 +180,22 @@ void Input::OpenMenu() {
   menu_->SetPointerOn(cursor_->on());
   cursor_->Release(&pointer_changes_);
   menu_->Open(touch_visible_);
+  Noted("settings");
 }
 
 void Input::MenuPress(int input) {
   if (input >= 0) MenuEffectDone(static_cast<int>(menu_->Press(static_cast<MenuInput>(input))));
 }
 
+// Notes something used in this run, when the run is being noted.
+void Input::Noted(const char* what) {
+  if (session_) session_->Note(what);
+}
+
 void Input::MenuEffectDone(int effect) {
   switch (static_cast<MenuEffect>(effect)) {
     case MenuEffect::kToggleFps:
+      Noted("counter");
       // The frame counter belongs to the scripts, which switch it on F2.
       Queue(kKeyF2, true);
       Queue(kKeyF2, false);
@@ -196,10 +204,14 @@ void Input::MenuEffectDone(int effect) {
       // Saved with the rest of the game's touch controls (see Update).
       touch_->SetMoveStick(!touch_->move_stick());
       menu_->SetMoveStick(touch_->move_stick());
+      // Whoever switches has had the one and now has the other.
+      Noted("stick");
+      Noted("pad");
       break;
     case MenuEffect::kToggleControls:
       touch_->SetShown(!touch_->shown());
       menu_->SetControlsShown(touch_->shown());
+      if (!touch_->shown()) Noted("controlsoff");
       if (!settings_dir_.empty()) {
         Save(log_, settings_dir_ + "/touch-controls.txt", FormatTouchLayout(touch_->layout(), touch_->shown()), "touch controls");
       }
@@ -207,6 +219,7 @@ void Input::MenuEffectDone(int effect) {
     case MenuEffect::kTogglePointer:
       cursor_->SetOn(!cursor_->on(), &pointer_changes_);
       menu_->SetPointerOn(cursor_->on());
+      if (cursor_->on()) Noted("pointer");
       if (!settings_dir_.empty()) {
         Save(log_, settings_dir_ + "/pointer.txt", cursor_->on() ? "on\n" : "off\n", "pointer setting");
       }
@@ -219,6 +232,7 @@ void Input::MenuEffectDone(int effect) {
       quit_requested_ = true;
       break;
     case MenuEffect::kButtonsChanged:
+      Noted("remap");
       Save(log_, settings_dir_ + "/buttons.txt", buttons_->Format(), "controller buttons");
       break;
     case MenuEffect::kNone:

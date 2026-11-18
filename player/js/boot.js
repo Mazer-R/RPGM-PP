@@ -14,6 +14,8 @@
   }
   var engine = __engineSelect.engineOf(player.gameDir, player.fileExists);
   var layers = __engineSelect.layersFor(engine, !!player.audio);
+  // For the profile: which engine this run played.
+  if (player.note) player.note(engine.toLowerCase());
   for (var i = 0; i < layers.length; i++) {
     if (!player.loadScript(player.playerDir + '/js/' + layers[i])) {
       console.error('boot: cannot load ' + layers[i]);

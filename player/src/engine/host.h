@@ -26,6 +26,7 @@ class Clock;
 class AudioOutput;
 class VideoPlayer;
 class Log;
+class Session;
 
 class Host {
  public:
@@ -60,6 +61,12 @@ class Host {
   void SetFlag(const std::string& name, bool value);
   // The file the game list keeps its remembered games in; none by default.
   void SetGamesFile(const std::string& path) { games_file_ = path; }
+  // The file player.saveProfile writes, for the game list; none by default.
+  void SetProfileFile(const std::string& path) { profile_file_ = path; }
+  // What the run of a game notes about itself (platform/session.h): saves
+  // written, a save of an earlier day read, and what scripts note with
+  // player.note. None by default; not owned.
+  void SetSession(Session* session) { session_ = session; }
   void RunFrameCallbacks(double now_ms);
   // Tells the scripts that a key went down or up, by calling player.onKey
   // (keyCode, down) if a script has set it. `key_code` is a browser key code.
@@ -110,6 +117,8 @@ class Host {
                               std::string (*change)(const std::string&, const std::string&));
   static void RememberGameCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ForgetGameCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SaveProfileCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void NoteCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void FileHeadCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ReadFileBytesCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void PrintCallback(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -134,6 +143,8 @@ class Host {
   std::string game_dir_;
   std::string player_dir_;
   std::string games_file_;
+  std::string profile_file_;
+  Session* session_ = nullptr;
   int script_depth_ = 0;  // > 0 while a script is running, for nested loads
   bool exit_requested_ = false;
   v8::CpuProfiler* profiler_ = nullptr;  // only while a profile is being taken

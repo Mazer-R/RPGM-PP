@@ -112,6 +112,7 @@
       console.info('compat: ' + scripts.length + ' plugins read in ' + took + ' ms; they name nothing the player lacks');
       return;
     }
+    if (player.note) player.note('lacked');  // for the profile
     console.warn('compat: ' + scripts.length + ' plugins read in ' + took + ' ms; they name ' + missing.length +
       ' things the player does not have (the game may still run without them):');
     missing.forEach(function (item) {

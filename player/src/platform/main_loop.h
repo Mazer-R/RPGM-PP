@@ -16,6 +16,8 @@ class Window;
 // signal arrives, or there is nothing left that could ever run. Returns the
 // process exit code.
 // A video that is playing and shown takes the place of the game's picture.
-int RunMainLoop(Window& window, Input& input, Host& host, const Clock& clock, Log& log, VideoPlayer& video);
+// `frames_shown`, when given, receives the number of frames presented.
+int RunMainLoop(Window& window, Input& input, Host& host, const Clock& clock, Log& log, VideoPlayer& video,
+                long* frames_shown = nullptr);
 
 }  // namespace mvp

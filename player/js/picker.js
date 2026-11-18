@@ -98,6 +98,7 @@
     console.info('picker: took ' + game.www + ' off the list' + (saved ? '' : ', for this time only'));
     note = saved ? 'Taken off the list. Its files are still there.' : 'Taken off, but could not be saved: it will be back.';
     listGames();
+    count(function (stats) { stats.removed = true; });
     selected = Math.max(0, Math.min(selected, games.length - 1));
     first = Math.max(0, Math.min(first, games.length - visible()));
     move(0);
@@ -134,6 +135,7 @@
     if (!www) {
       note = 'No RPG Maker MV or MZ game there. Choose the .exe in the game\'s own folder.';
       changed = true;
+      count(function (stats) { stats.notAGame = true; });
       return;
     }
     if (!found.some(function (game) { return game.www === www; })) found.push({ title: titleOf(www, folderName(www)), www: www });
@@ -141,6 +143,7 @@
     console.info('picker: added ' + www);
     note = 'Added. Choose it to play.';
     backToList(www);
+    count();
   }
   function lines() { return browsing ? browsing.rows : games; }
   function leave(code, answer) {
@@ -148,6 +151,47 @@
     player.exit(code);
   }
   console.info('picker: ' + games.length + ' lines; folders: ' + (player.libraryDirs || []).join(', '));
+
+  // --- The profile ------------------------------------------------------------
+  // The counts the achievements are decided from (js/profile-model.js) are
+  // kept in a file next to the list of games. What happened in the games
+  // run since the last time is read from the session log the player adds a
+  // line to when a game ends; what happens in the list is counted here.
+  // None of this is done while a game runs.
+  player.loadScript(player.playerDir + '/js/profile-model.js');
+  player.loadScript(player.playerDir + '/js/achievements-model.js');
+  var profiles = globalThis.__profile, achievements = globalThis.__achievements;
+  var profileFiles = player.profileFiles || [];
+  var profile = profiles.read(profileFiles[0] ? player.readTextFile(profileFiles[0]) : '');
+  // The achievements earned since the list was opened, to be shown.
+  var freshAchievements = [];
+  // Changes the counts with `change`, sees which achievements that earns and
+  // saves the profile if anything is different from before.
+  function count(change) {
+    var before = profiles.write(profile);
+    if (change) change(profile.stats);
+    profile.stats.games = games.filter(function (entry) { return entry.www; }).length;
+    var result = achievements.update(profile.earned, profile.stats);
+    profile.earned = result.earned;
+    freshAchievements = freshAchievements.concat(result.fresh);
+    if (result.fresh.length) console.info('picker: achievements earned: ' + result.fresh.join(', '));
+    var now = profiles.write(profile);
+    if (now !== before && player.saveProfile) player.saveProfile(now);
+  }
+  count(function (stats) {
+    if (achievements.isEarly(new Date())) stats.early = true;
+    var log = profileFiles[1] ? player.readTextFile(profileFiles[1]) || '' : '';
+    profiles.catchUp(profile, log.split('\n').filter(function (line) { return line; }));
+  });
+  console.info('picker: profile: ' + profile.earned.length + ' of ' + achievements.LIST.length + ' achievements, ' +
+    Math.round(profile.stats.seconds / 60) + ' minutes played');
+  // A minute spent on a list with no games is noted once.
+  var emptySince = 0;
+  function watchEmptyList() {
+    if (profile.stats.waited || browsing || games.some(function (entry) { return entry.www; })) { emptySince = 0; return; }
+    if (!emptySince) emptySince = Date.now();
+    else if (Date.now() - emptySince >= 60000) count(function (stats) { stats.waited = true; });
+  }
 
   // --- A font ---------------------------------------------------------------
   // The player ships no font of its own. A phone's or a desktop's own font
@@ -446,6 +490,7 @@
   function frame() {
     requestAnimationFrame(frame);
     if (newSize) takeNewSize();
+    watchEmptyList();
     var behind = gameBehind();
     rested = behind === restedOn ? rested + 1 : 0;
     restedOn = behind;

@@ -54,7 +54,8 @@ mkdir -p "$LOGS" 2>/dev/null && [ -w "$LOGS" ] || LOGS="${XDG_CONFIG_HOME:-$HOME
 # Runs one game and keeps its log. Returns the player's exit code.
 play() {
   WWW=$("$PLAYER" --resolve "$1")
-  "$PLAYER" --game "$@"
+  mkdir -p "$(dirname "$LIBRARY")"
+  "$PLAYER" --game "$@" --sessions "$(dirname "$LIBRARY")/sessions.log"
   CODE=$?
   [ -n "$WWW" ] && keep_log "$WWW" "$CODE"
   return "$CODE"

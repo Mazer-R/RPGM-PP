@@ -47,6 +47,7 @@
 #include <climits>
 #include <cstdio>
 #include <cstdlib>
+#include <ctime>
 #include <fstream>
 #include <memory>
 #include <sstream>
@@ -61,6 +62,7 @@
 #include "platform/input.h"
 #include "platform/log.h"
 #include "platform/main_loop.h"
+#include "platform/session.h"
 #include "platform/window.h"
 
 namespace {
@@ -99,7 +101,7 @@ int PlayerMain(int argc, char** argv) {
   bool profile_slow = false;
   bool pick = false;
   std::vector<std::string> library_dirs, library_games, forgotten_games, browse_dirs;
-  std::string game_path, games_file, resolve_path;
+  std::string game_path, games_file, resolve_path, sessions_file;
   bool can_add = false;
   const char* fps_setting = std::getenv("MVPLAYER_FPS");
   bool show_fps = fps_setting && fps_setting[0] == '1';
@@ -114,6 +116,7 @@ int PlayerMain(int argc, char** argv) {
       while (i + 1 < argc && argv[i + 1][0] != '-') library_dirs.push_back(WithoutTrailingSlash(argv[++i]));
     }
     else if (arg == "--games-file" && i + 1 < argc) games_file = argv[++i];
+    else if (arg == "--sessions" && i + 1 < argc) sessions_file = argv[++i];
     else if (arg == "--can-add") can_add = true;
     else if (arg == "--browse" && i + 1 < argc) browse_dirs.push_back(WithoutTrailingSlash(argv[++i]));
     else if (arg == "--fps") show_fps = true;
@@ -160,6 +163,7 @@ int PlayerMain(int argc, char** argv) {
   if (script.empty()) {
     std::fprintf(stderr, "usage: mvplayer --game <game folder, www folder or .exe> [--log <file>]\n"
                          "       mvplayer --pick [<games-dir> ...] [--games-file <file>] [--can-add] [--browse <dir> ...]\n"
+                         "       (--sessions <file> with --game: add a line about the run to that file when it ends)\n"
                          "       mvplayer --resolve <path>\n"
                          "       mvplayer <script.js> [--log <file>]\n");
     return 1;
@@ -210,7 +214,17 @@ int PlayerMain(int argc, char** argv) {
   log.Write(mvp::LogLevel::kInfo, "video",
             video.available() ? "through " + mvp::VideoPlayer::FindDecoder() : "none: no ffmpeg program found");
 
+  // What this run of a game notes about itself, for the profile.
+  mvp::Session session;
+  const mvp::SessionTime begun = mvp::LocalSessionTime(time(nullptr));
+  const bool noted = !game_dir.empty() && !sessions_file.empty();
+  if (noted) input.SetSession(&session);
+  // The profile is kept next to the list of games, with the log of runs.
+  std::string profile_dir = games_file.substr(0, games_file.find_last_of('/') == std::string::npos ? 0 : games_file.find_last_of('/'));
+
   int exit_code;
+  long frames_shown = 0;
+  double loop_started_ms = 0;
   {
     mvp::Host host(log, clock);
     log.Write(mvp::LogLevel::kInfo, "host", std::string("V8 ") + v8::V8::GetVersion());
@@ -224,6 +238,11 @@ int PlayerMain(int argc, char** argv) {
     host.SetFlag("canAddGame", can_add);
     host.SetStringList("browseDirs", browse_dirs);
     host.SetGamesFile(games_file);
+    if (noted) host.SetSession(&session);
+    if (pick && !profile_dir.empty()) {
+      host.SetProfileFile(profile_dir + "/profile.json");
+      host.SetStringList("profileFiles", {profile_dir + "/profile.json", profile_dir + "/sessions.log"});
+    }
 #ifdef __ANDROID__
     // The game list then explains the permission the games folder needs.
     host.SetFlag("needsFileAccess", true);
@@ -233,9 +252,16 @@ int PlayerMain(int argc, char** argv) {
     for (const std::string& extra : extra_scripts) {
       if (started) started = host.RunFile(extra);
     }
-    exit_code = mvp::RunMainLoop(window, input, host, clock, log, video);
+    loop_started_ms = clock.NowMs();
+    exit_code = mvp::RunMainLoop(window, input, host, clock, log, video, &frames_shown);
     video.Close();
     log.Write(mvp::LogLevel::kInfo, "host", host.HeapSummary());
+  }
+  if (noted) {
+    double seconds = (clock.NowMs() - loop_started_ms) / 1000.0;
+    if (!mvp::AppendSessionLine(sessions_file, session.Line(begun, seconds, frames_shown, exit_code, game_dir))) {
+      log.Write(mvp::LogLevel::kWarning, "main", "cannot add this run to " + sessions_file);
+    }
   }
   log.Write(mvp::LogLevel::kInfo, "main", "exit code " + std::to_string(exit_code));
   return exit_code;

@@ -14,6 +14,7 @@ struct _SDL_GameController;
 namespace mvp {
 
 class Log;
+class Session;
 class ButtonMap;
 class SettingsMenu;
 class TouchControls;
@@ -53,6 +54,8 @@ class Input {
   // game, and what is changed there is written back. Without a folder there
   // is no menu, and controls and buttons are the standard ones.
   void SetSettingsDir(const std::string& dir);
+  // Where the settings used in this run are noted, for the profile. Not owned.
+  void SetSession(Session* session) { session_ = session; }
   // The touch controls to draw: empty unless a finger was the last thing
   // used (on Android also at the start, before anything has been used), and
   // while the settings menu is open.
@@ -104,6 +107,7 @@ class Input {
   // One input for the open menu, and what follows from it.
   void MenuPress(int input);
   void MenuEffectDone(int effect);
+  void Noted(const char* what);
   void HandleMenuEvent(const SDL_Event& event);
   void SetTrigger(int index, bool down);
 
@@ -113,6 +117,7 @@ class Input {
   std::unique_ptr<SettingsMenu> menu_;
   bool fps_shown_ = false;  // follows the scripts' frame counter
   std::string settings_dir_;
+  Session* session_ = nullptr;
   std::vector<int> keys_down_;  // keys the game has been told are down
   bool trigger_[2] = {false, false};  // left, right
   bool touch_visible_ = false;
