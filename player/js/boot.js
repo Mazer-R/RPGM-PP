@@ -191,6 +191,13 @@
   while ((match = pattern.exec(html))) {
     var source = match[1];
     if (skipped.some(function (name) { return source.slice(-name.length) === name; })) continue;
+    // A script the page names that is not among the game's files is passed
+    // over, as a browser does with a file it cannot fetch. A game exported
+    // for phones names cordova.js, which only its phone wrapper provides.
+    if (!player.fileExists(browser.gamePath(source))) {
+      console.warn('boot: the page names a script that is not there, and goes on without it: ' + source);
+      continue;
+    }
     if (!browser.runScript(source)) {
       console.error('boot: script failed: ' + source);
       return player.exit(2);

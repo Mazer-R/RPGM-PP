@@ -1343,6 +1343,20 @@ adjustments where the game's own code is too expensive for this hardware.
         to 1457 of the screen's own borders, against 1740 and 18962 in
         the faulty captures). Fear & Hunger still reaches its title.
 
+*   **A page that names a script it does not have (2026-11-18).**
+    *   **Reported**: a game did not start; its log ended with "boot:
+        script failed: cordova.js". The game's page names `cordova.js`,
+        which only the wrapper of a phone export provides; the file is
+        not among the game's files. The player stopped at the first
+        script of the page it could not run.
+    *   **Now**: a script the page names that is not there is passed
+        over with a warning, as a browser does with a file it cannot
+        fetch. A script that is there and fails still stops the start.
+    *   **Checked** without a screen: Fear & Hunger with `cordova.js`
+        added to its page logs the warning, loads its twelve scripts and
+        reaches its title with the same picture. Not checked: the game
+        it was reported on.
+
 ## Critical User Journeys (CUJs)
 
 ### CUJ 1: First launch
