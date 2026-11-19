@@ -8,5 +8,6 @@
   {"patch": "commonEventThrottle", "file": "common-event-throttle.js", "when": {"engine": "MV"}, "options": {"every": 6, "minMs": 0.05, "names": {"Fear & Hunger": ["Outfit change"]}}},
   {"patch": "equipCache", "file": "equip-cache.js", "when": {"engine": "MV"}},
   {"patch": "idleColorFilters", "file": "idle-color-filters.js", "when": {"engine": "MZ"}},
-  {"patch": "windowClip", "file": "window-clip.js", "when": {"engine": "MZ"}}
+  {"patch": "windowClip", "file": "window-clip.js", "when": {"engine": "MZ"}},
+  {"patch": "textureBudget", "file": "texture-budget.js", "options": {"share": 0.25, "least": 96, "most": 512, "every": 30}}
 ]

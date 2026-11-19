@@ -1778,6 +1778,40 @@ adjustments where the game's own code is too expensive for this hardware.
         extras and companions have no pictures yet.
     *   **Not checked**: with a finger; on the handheld or a phone.
 
+*   **A budget for the textures' memory (2026-11-19)**: a game stopped
+    the whole handheld, not only itself: it answered a ping and nothing
+    else, until it was switched off.
+    *   **Cause**: a picture that has been drawn stays in the graphics
+        memory as a texture, 2 MB for one the size of the screen. The
+        renderer drops a texture only after about a minute undrawn,
+        and this game reserves 541 pictures so the engine's image
+        cache never lets go of them. A scene that shows a few hundred
+        in less than that minute needs them all at once; on the
+        handheld the graphics memory is the same 1 GB as everything
+        else's, and it has no swap. Showing the reserved pictures one
+        after another took the player from 247 MB to 646 MB at the
+        two hundredth, still rising.
+    *   **Change**: a patch for both engines, `textureBudget`
+        (`patches/texture-budget.js`). When the textures take more
+        than a share of the device's memory (a quarter, between 96
+        and 512 MB; 243 MB on the handheld), the renderer's own
+        collector is run with less patience, from thirty seconds
+        undrawn down to half a second, until there is room. The
+        renderer loads a dropped texture again when it is next drawn.
+        What is on the screen is never dropped.
+    *   **Checked**: tests with a collector that works as PIXI's does,
+        failing first. On the handheld, the same 541 pictures one
+        after another: the player stays at about 450 MB to the end.
+        An MZ game there: the patch installs, a collection by hand
+        frees textures and the game goes on drawing.
+    *   **Not checked**: the scene of the game that stopped the
+        handheld, played by hand; how long the pause is when a
+        dropped picture is drawn again; a scene that needs more than
+        the budget on the screen at one time, which still takes it.
+    *   **Seen and left**: going from map to map leaves about ten
+        more textures managed each time, slowly (118 MB after 22
+        maps); the budget now bounds it.
+
 ## Critical User Journeys (CUJs)
 
 ### CUJ 1: First launch
