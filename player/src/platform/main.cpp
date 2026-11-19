@@ -231,6 +231,7 @@ int PlayerMain(int argc, char** argv) {
     host.InstallBindings(window.width(), window.height(), audio.get(), video.available() ? &video : nullptr);
     host.SetDirectories(game_dir, player_dir);
     host.SetFlag("noPatches", no_patches);
+    host.SetFlag("screenResizable", window.resizable());
     host.SetFlag("profileSlow", profile_slow);
     host.SetStringList("libraryDirs", library_dirs);
     host.SetStringList("libraryGames", library_games);

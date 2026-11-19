@@ -289,6 +289,7 @@ in the game's `save/mvplayer-patches.json`.
 | `equipCache` | MV | An actor's equipment list is rebuilt only after a slot changed |
 | `idleColorFilters` | MZ | A colour filter that changes nothing is not run |
 | `windowClip` | MZ | A window's contents are clipped with a rectangle instead of a filter |
+| `pictureScale` | MV | On a screen smaller than the game, pictures shown whole are kept in the graphics memory at the size the screen shows |
 | `textureBudget` | MV, MZ | Textures not drawn lately are dropped when they take more than a share of the device's memory |
 
 ## Repository layout
@@ -674,6 +675,7 @@ en el `save/mvplayer-patches.json` del juego.
 | `equipCache` | MV | La lista de equipo de un personaje solo se rehace cuando cambia un hueco |
 | `idleColorFilters` | MZ | Un filtro de color que no cambia nada no se ejecuta |
 | `windowClip` | MZ | El contenido de una ventana se recorta con un rectángulo en lugar de un filtro |
+| `pictureScale` | MV | En una pantalla menor que el juego, las imágenes que se muestran enteras se guardan en la memoria gráfica al tamaño que la pantalla enseña |
 | `textureBudget` | MV, MZ | Las texturas que no se dibujan desde hace rato se liberan cuando ocupan más de una parte de la memoria del dispositivo |
 
 ## Estructura del repositorio

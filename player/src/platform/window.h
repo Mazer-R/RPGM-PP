@@ -39,6 +39,8 @@ class Window {
   // window is resized.
   int width() const { return width_; }
   int height() const { return height_; }
+  // True when the size can change while a game runs: a desktop's window.
+  bool resizable() const { return resizable_; }
   // True once after each change of size.
   bool TakeResized();
 

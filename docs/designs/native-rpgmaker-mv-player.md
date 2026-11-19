@@ -1844,6 +1844,57 @@ adjustments where the game's own code is too expensive for this hardware.
         more textures managed each time, slowly (118 MB after 22
         maps); the budget now bounds it.
 
+*   **Pictures sent to the graphics memory at the screen's size (2026-11-19)**:
+    The textures' budget stops the handheld from running out of memory, but
+    leaves the worst case at the 450 MB this design set as its limit, and
+    every picture dropped to keep it is a pause when it is shown again.
+    Measured first: a picture is not in memory twice. With 541 pictures
+    shown one after another, decoded images and canvases stay at 45 MB;
+    what grows is the textures. So the only memory left to save is the
+    textures' own. The handheld's screen is 640x480 and an MV game draws
+    816x624: a picture that fills the game's picture is shown at 77% of its
+    size, and the rest of its texture is never seen.
+    *   **What was built.** A patch for MV, `pictureScale`, marks the
+        bitmaps loaded from `img/pictures/` (and the canvas the engine
+        makes of one when the game changes it) with the scale the screen
+        shows the game at. The WebGL binding sends a marked source to its
+        texture at that size (`bindings/texture_scale`), and remembers
+        that the texture holds its picture smaller, so that a later update
+        of a part of it goes where that part falls. The game is told
+        nothing: texture coordinates run from 0 to 1 whatever the size.
+    *   **What is left alone.** Anything drawn in parts (tiles, characters,
+        faces, icons, animations, the windows' skin), because a part made
+        smaller takes colour from its neighbours at its edges; pictures
+        whose sides are both powers of two, which the engine may repeat or
+        ask smaller copies of, allowed in OpenGL ES 2 only for such sizes;
+        pictures under 128 thousand pixels; pictures whose colours are not
+        multiplied by their alpha; every device whose screen is at least
+        95% of the game's size; a desktop's window, which can be enlarged
+        afterwards. MZ: the patch is listed for MV only until it has been
+        tried there.
+    *   **The cost of making a picture smaller.** A plain average of the
+        pixels covered took about 27 ms a picture on the handheld, more
+        than a frame. It is now done one side at a time, without
+        divisions, and shared between the four cores: 6 to 8 ms for a
+        picture of 816x628.
+    *   **Measured on the handheld**, the same 541 pictures: a picture's
+        texture goes from 2002 KB to 1187 KB; the budget is reached after
+        about 140 pictures instead of 80, and the collector runs 5 times
+        instead of 14; the whole run takes 70.6 s where it took 75.9 s.
+        The peak of the process is the same, about 450 MB, because the
+        budget is the same: what is gained is room under it. What the game
+        draws keeps 91% to 96% of its sharpness as the screen shows it
+        (mean difference of a colour, 0.5 to 1.3 in 255): slightly softer,
+        not the same.
+    *   **A picture the game changes after showing it**, on the handheld:
+        a box painted on it (the engine makes a canvas and a new texture),
+        then another box and a part cleared (the same texture, sent
+        again) come out where they were painted, within one pixel, and
+        nothing else in the picture changes.
+    *   **Not checked**: pictures shown enlarged, the scene that stopped
+        the handheld played by hand, MZ, Android and desktop (where the
+        patch does nothing by its own rule).
+
 ## Critical User Journeys (CUJs)
 
 ### CUJ 1: First launch

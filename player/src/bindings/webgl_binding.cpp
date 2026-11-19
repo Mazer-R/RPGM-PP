@@ -1,6 +1,7 @@
 #include "bindings/webgl_binding.h"
 
 #include "bindings/gl_limits.h"
+#include "bindings/texture_scale.h"
 #include "bindings/control_font.h"
 
 #include <GLES2/gl2.h>
@@ -63,6 +64,14 @@ struct State {
   int video_width = 0, video_height = 0;
   // Pixel memory of each texture, by OpenGL name, to report the total.
   std::map<GLuint, long long> texture_bytes;
+  // The textures that hold a picture smaller than the game believes (see
+  // texture_scale.h), by OpenGL name: the picture's size and the texture's.
+  struct Smaller {
+    PixelSize full, sent;
+  };
+  std::map<GLuint, Smaller> smaller;
+  // The size of the screen or window the game's picture is shown on.
+  int screen_width = 0, screen_height = 0;
   v8::Global<v8::Private> name_key;  // hidden property holding an object's GL name
   // What the scripts have bound, as the objects they bound, so that asking
   // for a binding gives the object back: by binding name, and for textures
@@ -336,7 +345,76 @@ void NoteTextureSize(int level, int width, int height) {
   if (level != 0) return;
   GLint bound = 0;
   glGetIntegerv(GL_TEXTURE_BINDING_2D, &bound);
-  if (bound) g_state.texture_bytes[static_cast<GLuint>(bound)] = static_cast<long long>(width) * height * 4;
+  if (!bound) return;
+  g_state.texture_bytes[static_cast<GLuint>(bound)] = static_cast<long long>(width) * height * 4;
+  g_state.smaller.erase(static_cast<GLuint>(bound));  // whatever it held, it now holds this
+}
+
+// The scale a canvas or an image asks to be sent at: its `__uploadScale`,
+// which the patch "pictureScale" sets. 1 when it asks for none.
+double UploadScaleOf(v8::Isolate* isolate, v8::Local<v8::Value> source) {
+  if (!source->IsObject()) return 1.0;
+  v8::Local<v8::Value> scale;
+  if (!source.As<v8::Object>()->Get(isolate->GetCurrentContext(), Str(isolate, "__uploadScale")).ToLocal(&scale) ||
+      !scale->IsNumber()) {
+    return 1.0;
+  }
+  return scale.As<v8::Number>()->Value();
+}
+
+// A second buffer, for a picture made smaller on its way to a texture.
+std::vector<uint8_t>& ShrinkBuffer() {
+  static std::vector<uint8_t> buffer;
+  if (buffer.size() > 8u * 1024 * 1024) std::vector<uint8_t>().swap(buffer);
+  return buffer;
+}
+
+// Sends a whole picture to level 0 of the texture bound to GL_TEXTURE_2D,
+// smaller if `scale` asks for it and it is safe. Only pictures whose colours
+// are already multiplied by their alpha are made smaller: averaging the
+// others would let the colour of see-through pixels show at the edges.
+void DefineTexture(GLenum target, GLint internal_format, GLenum format, GLenum type, const uint8_t* pixels, int width,
+                   int height, double scale) {
+  PixelSize full = {width, height}, sent = full;
+  if (target == GL_TEXTURE_2D && format == GL_RGBA && type == GL_UNSIGNED_BYTE && g_state.premultiply) {
+    sent = ScaledUploadSize(width, height, scale);
+  }
+  if (sent.width == width && sent.height == height) {
+    glTexImage2D(target, 0, internal_format, width, height, 0, format, type, pixels);
+    NoteTextureSize(0, width, height);
+    return;
+  }
+  std::vector<uint8_t>& smaller = ShrinkBuffer();
+  smaller.resize(static_cast<size_t>(sent.width) * sent.height * 4);
+  ShrinkPixels(pixels, full, sent, smaller.data());
+  glTexImage2D(target, 0, internal_format, sent.width, sent.height, 0, format, type, smaller.data());
+  NoteTextureSize(0, sent.width, sent.height);
+  GLint bound = 0;
+  glGetIntegerv(GL_TEXTURE_BINDING_2D, &bound);
+  if (bound) g_state.smaller[static_cast<GLuint>(bound)] = {full, sent};
+}
+
+// Sends a part of a picture (RGBA bytes) to level 0 of the texture bound to
+// GL_TEXTURE_2D. In a texture that holds its picture smaller, the part goes
+// where it falls there, made smaller the same way.
+void UpdateTexture(GLenum target, GLint level, int x, int y, int width, int height, GLenum format, GLenum type,
+                   const uint8_t* pixels) {
+  if (target == GL_TEXTURE_2D && level == 0 && !g_state.smaller.empty()) {
+    GLint bound = 0;
+    glGetIntegerv(GL_TEXTURE_BINDING_2D, &bound);
+    auto found = g_state.smaller.find(static_cast<GLuint>(bound));
+    if (found != g_state.smaller.end()) {
+      if (format != GL_RGBA || type != GL_UNSIGNED_BYTE || width < 1 || height < 1) return;
+      PixelRect at = ScaledRect({x, y, width, height}, found->second.full, found->second.sent);
+      if (at.width < 1 || at.height < 1) return;
+      std::vector<uint8_t>& smaller = ShrinkBuffer();
+      smaller.resize(static_cast<size_t>(at.width) * at.height * 4);
+      ShrinkPixels(pixels, {width, height}, {at.width, at.height}, smaller.data());
+      glTexSubImage2D(target, level, at.x, at.y, at.width, at.height, format, type, smaller.data());
+      return;
+    }
+  }
+  glTexSubImage2D(target, level, x, y, width, height, format, type, pixels);
 }
 
 void Bind(v8::Isolate* isolate, v8::Local<v8::Object> target, const char* name,
@@ -496,8 +574,17 @@ void InstallFunctions(v8::Isolate* isolate, v8::Local<v8::Object> gl) {
     GLuint id = N(0);
     glDeleteTextures(1, &id);
     g_state.texture_bytes.erase(id);
+    g_state.smaller.erase(id);
     if (static_cast<GLuint>(g_video_sent.texture) == id) g_video_sent = VideoSent();  // the number may be given out again
     NoteDeleted(ISO, args[0]);
+  });
+  // Not part of WebGL: the size in pixels of the screen or window the game's
+  // picture is shown on, as [width, height].
+  FN(screenSize, {
+    v8::Local<v8::Array> size = v8::Array::New(ISO, 2);
+    size->Set(ISO->GetCurrentContext(), 0, v8::Integer::New(ISO, g_state.screen_width)).Check();
+    size->Set(ISO->GetCurrentContext(), 1, v8::Integer::New(ISO, g_state.screen_height)).Check();
+    RET(size);
   });
   // Not part of WebGL: pixel memory held by textures, in bytes.
   FN(textureBytes, {
@@ -521,8 +608,11 @@ void InstallFunctions(v8::Isolate* isolate, v8::Local<v8::Object> gl) {
       int width = 0, height = 0;
       if (args.Length() >= 6 && SurfacePixelsForUpload(ISO, args[5], g_state.premultiply,
                                                         g_state.flip_y, &pixels, &width, &height)) {
-        glTexImage2D(U(0), I(1), I(2), width, height, 0, U(3), U(4), pixels.data());
-        NoteTextureSize(I(1), width, height);
+        if (I(1) == 0) {
+          DefineTexture(U(0), I(2), U(3), U(4), pixels.data(), width, height, UploadScaleOf(ISO, args[5]));
+        } else {
+          glTexImage2D(U(0), I(1), I(2), width, height, 0, U(3), U(4), pixels.data());
+        }
       } else if (args.Length() >= 6) {
         UploadVideoFrame(ISO, args[5], U(0), I(1), I(2), U(3), U(4));
       }
@@ -551,7 +641,7 @@ void InstallFunctions(v8::Isolate* isolate, v8::Local<v8::Object> gl) {
       int width = 0, height = 0;
       if (args.Length() >= 7 && SurfacePixelsForUpload(ISO, args[6], g_state.premultiply,
                                                         g_state.flip_y, &pixels, &width, &height)) {
-        glTexSubImage2D(U(0), I(1), I(2), I(3), width, height, U(4), U(5), pixels.data());
+        UpdateTexture(U(0), I(1), I(2), I(3), width, height, U(4), U(5), pixels.data());
       } else if (args.Length() >= 7 && I(2) == 0 && I(3) == 0) {
         UploadVideoFrame(ISO, args[6], U(0), I(1), static_cast<GLint>(U(4)), U(4), U(5));
       }
@@ -564,9 +654,9 @@ void InstallFunctions(v8::Isolate* isolate, v8::Local<v8::Object> gl) {
     if (format == GL_RGBA && type == GL_UNSIGNED_BYTE && (g_state.flip_y || g_state.premultiply) &&
         bytes.size >= static_cast<size_t>(width) * static_cast<size_t>(height) * 4) {
       std::vector<uint8_t> pixels = PreparePixels(bytes.data, width, height);
-      glTexSubImage2D(U(0), I(1), I(2), I(3), width, height, format, type, pixels.data());
+      UpdateTexture(U(0), I(1), I(2), I(3), width, height, format, type, pixels.data());
     } else {
-      glTexSubImage2D(U(0), I(1), I(2), I(3), width, height, format, type, bytes.data);
+      UpdateTexture(U(0), I(1), I(2), I(3), width, height, format, type, bytes.data);
     }
   });
 
@@ -744,7 +834,10 @@ void InstallFunctions(v8::Isolate* isolate, v8::Local<v8::Object> gl) {
   FN(stencilOpSeparate, glStencilOpSeparate(U(0), U(1), U(2), U(3)));
   FN(validateProgram, glValidateProgram(N(0)));
   FN(detachShader, glDetachShader(N(0), N(1)));
-  FN(copyTexImage2D, glCopyTexImage2D(U(0), I(1), U(2), I(3), I(4), I(5), I(6), I(7)));
+  FN(copyTexImage2D, {
+    glCopyTexImage2D(U(0), I(1), U(2), I(3), I(4), I(5), I(6), I(7));
+    if (U(0) == GL_TEXTURE_2D) NoteTextureSize(I(1), I(5), I(6));
+  });
   FN(copyTexSubImage2D, glCopyTexSubImage2D(U(0), I(1), I(2), I(3), I(4), I(5), I(6), I(7)));
   FN(getTexParameter, { GLint value = 0; glGetTexParameteriv(U(0), U(1), &value); RET(value); });
   FN(getBufferParameter, { GLint value = 0; glGetBufferParameteriv(U(0), U(1), &value); RET(value); });
@@ -780,6 +873,8 @@ v8::Local<v8::Object> CreateWebGLContext(v8::Isolate* isolate, v8::Local<v8::Con
   if (g_state.name_key.IsEmpty()) {
     g_state.name_key.Reset(isolate, v8::Private::New(isolate, Str(isolate, "glName")));
   }
+  g_state.screen_width = drawing_width;
+  g_state.screen_height = drawing_height;
   v8::Local<v8::Object> gl = v8::Object::New(isolate);
   for (const Constant& constant : kConstants) {
     gl->Set(context, Str(isolate, constant.name), v8::Integer::NewFromUnsigned(isolate, constant.value))
@@ -906,6 +1001,8 @@ void DrawingBufferSize(int* width, int* height) {
 
 void PresentDrawingBuffer(int screen_width, int screen_height, const std::vector<ScreenCircle>& circles,
                           const std::vector<ScreenBox>& boxes, const std::vector<ScreenText>& texts, const ScreenVideo* video) {
+  g_state.screen_width = screen_width;
+  g_state.screen_height = screen_height;
   // Without a drawing buffer the scripts drew straight to the screen (the
   // game list does); only the touch controls are then added on top.
   bool has_buffer = g_state.buffer_framebuffer != 0;

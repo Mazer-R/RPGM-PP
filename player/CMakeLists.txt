@@ -66,6 +66,7 @@ set(MVP_SOURCES
   src/bindings/canvas_binding.cpp
   src/bindings/webgl_binding.cpp
   src/bindings/gl_limits.cpp
+  src/bindings/texture_scale.cpp
   src/platform/main.cpp
   src/platform/audio_mixer.cpp
   src/platform/clock.cpp

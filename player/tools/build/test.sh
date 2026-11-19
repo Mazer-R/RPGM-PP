@@ -20,3 +20,4 @@ run pad_cursor_test src/platform/pad_cursor.cpp
 run session_test src/platform/session.cpp
 run menu_test src/platform/button_map.cpp src/platform/settings_menu.cpp src/platform/touch_layout.cpp
 run video_test src/platform/video.cpp
+run texture_scale_test src/bindings/texture_scale.cpp
