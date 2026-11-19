@@ -67,6 +67,9 @@
     var w = 96, end = right === undefined ? width - EDGE : right;
     return { x: end - w, y: 22, w: w, h: 44 };
   }
+  // The profile's own is at the bottom left instead, on the grass, at the
+  // side away from the way down to the achievements.
+  function backButtonLow(height) { return { x: EDGE, y: height - 18 - 48, w: 110, h: 48 }; }
   // Whether x, y is in a box, or within `around` of it.
   function inside(box, x, y, around) {
     var more = around || 0;
@@ -135,7 +138,7 @@
     return (hours ? hours + ' h' : '') + (hours && minutes ? ' ' : '') + (minutes ? minutes + ' min' : '');
   }
 
-  globalThis.__profileView = { undug: undug, dig: dig, depthAt: depthAt, STRIKES: STRIKES, digSpot: digSpot, inDigSpot: inDigSpot, menuLines: menuLines, backButton: backButton, inside: inside, unknocked: unknocked, knock: knock,
+  globalThis.__profileView = { undug: undug, dig: dig, depthAt: depthAt, STRIKES: STRIKES, digSpot: digSpot, inDigSpot: inDigSpot, menuLines: menuLines, backButton: backButton, backButtonLow: backButtonLow, inside: inside, unknocked: unknocked, knock: knock,
     saucerAt: saucerAt, toast: toast, TOAST: TOAST, grid: grid, step: step,
     firstRow: firstRow, cellAt: cellAt, played: played };
 })();

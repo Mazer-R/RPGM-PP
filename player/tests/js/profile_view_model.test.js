@@ -55,6 +55,9 @@ const tests = {
   'the button that goes back is at the top right, or to the left of whatever is there'() {
     assert.deepStrictEqual(plain(model.backButton(640)), { x: 516, y: 22, w: 96, h: 44 });
     assert.deepStrictEqual(plain(model.backButton(540, 430)), { x: 334, y: 22, w: 96, h: 44 });
+    // the profile's is at the bottom left, away from the way down at the right
+    assert.deepStrictEqual(plain(model.backButtonLow(1080)), { x: 28, y: 1014, w: 110, h: 48 });
+    assert.deepStrictEqual(plain(model.backButtonLow(480)), { x: 28, y: 414, w: 110, h: 48 });
     const box = model.backButton(640);
     assert.strictEqual(model.inside(box, 516, 22), true);
     assert.strictEqual(model.inside(box, 611, 65), true);

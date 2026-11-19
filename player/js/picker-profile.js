@@ -55,6 +55,15 @@
       ui.text(label, at.x + (at.w - ui.widthOf(label, 16)) / 2, at.y + 28, 16, INK);
     }
     function onBack(x, y, right) { return view.inside(view.backButton(ui.width(), right), x, y, 8); }
+    // The profile's: red, at the bottom left.
+    function paintBackLow() {
+      if (!ui.touching()) return;
+      var at = view.backButtonLow(ui.height()), label = '<  Back';
+      ui.box(at.x - 2, at.y - 2, at.w + 4, at.h + 4, 14, [0.20, 0.03, 0.04, 0.9]);
+      ui.box(at.x, at.y, at.w, at.h, 12, ACCENT);
+      ui.text(label, at.x + (at.w - ui.widthOf(label, 17)) / 2, at.y + 31, 17, INK);
+    }
+    function onBackLow(x, y) { return ui.touching() && view.inside(view.backButtonLow(ui.height()), x, y, 8); }
 
     // --- The profile ---------------------------------------------------------
     // The menu: the name, a line for each slot of the avatar, the
@@ -78,7 +87,8 @@
       var tall = H > W;
       // Held upright the lines end above the avatar; on its side they have
       // the whole height, with the avatar beside them.
-      var rows = view.menuLines(TOP, tall ? ground - 220 : H - 32, lines().length);
+      // On its side, a finger's button to go back takes the bottom left.
+      var rows = view.menuLines(TOP, tall ? ground - 220 : H - 32 - (ui.touching() ? 48 : 0), lines().length);
       return { W: W, H: H, scale: scale, side: side, ground: ground, tall: tall, pitch: rows.pitch, row: rows.line,
         column: Math.min(W - 2 * MARGIN, tall ? W - 2 * MARGIN : Math.max(300, Math.round(W * 0.53))),
         avatarX: tall ? W / 2 : Math.max(W * 0.76, W - 150) };
@@ -198,9 +208,8 @@
         // More than one piece to choose from: the arrows say so.
         if (on && choices > 1 && !ui.touching()) ui.text('<  >', x + at.column - 12 - ui.widthOf('<  >', 13), y + middle, 13, INK);
       });
-      if (ui.touching()) ui.text('Touch a line to change it', x, H - 18, 15, MUTED);
-      else ui.hint(ui.hint(x, H - 18, 'A', 'Choose'), H - 18, 'B', 'Back');
-      paintBack();
+      if (!ui.touching()) ui.hint(ui.hint(x, H - 18, 'A', 'Choose'), H - 18, 'B', 'Back');
+      paintBackLow();
     }
     // Puts the next piece (`by` 1) or the one before in a slot.
     function change(slot, by) {
@@ -237,7 +246,7 @@
     }
     function profilePointer(phase, x, y) {
       if (phase !== 0) return;
-      if (onBack(x, y)) return close();
+      if (onBackLow(x, y)) return close();
       // The gap between two lines belongs to the line above it: a finger
       // that lands between them still chooses one.
       var at = scene(), line = Math.floor((y - TOP) / at.pitch);
@@ -322,7 +331,6 @@
       rect(ladder + 25, 0, 5, 84, WOOD);
       for (var rung = 0; rung < 7; rung++) rect(ladder + 5, 6 + rung * 12, 20, 4, rung % 2 ? WOOD : WOOD_SHADE);
       paintArrow(ladder - 18, 20, false);
-      paintBack(ladder - 40);
       var pitch = grid.cell + grid.gap;
       for (var row = 0; row < grid.shown; row++) {
         for (var column = 0; column < grid.columns; column++) {
@@ -373,10 +381,8 @@
         drag = { y: y, first: firstRow, moved: false };
         var cell = view.cellAt(x, y, grid, firstRow, achievements.LIST.length);
         if (cell >= 0) pick(cell);
-        // The button, or the ladder and its arrow, lead back up.
-        else if (onBack(x, y, view.digSpot(ui.width()).x - 55) || (y < 84 && x >= view.digSpot(ui.width()).x - 60)) {
-          screen = 'profile'; drag = null; ui.changed();
-        }
+        // The ladder and its arrow lead back up.
+        else if (y < 84 && x >= view.digSpot(ui.width()).x - 70) { screen = 'profile'; drag = null; ui.changed(); }
       } else if (drag && phase === 1) {
         var rows = Math.round((drag.y - y) / pitch);
         var top = Math.max(0, Math.min(grid.rows - grid.shown, drag.first + rows));
