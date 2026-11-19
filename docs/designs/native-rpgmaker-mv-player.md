@@ -1895,6 +1895,44 @@ adjustments where the game's own code is too expensive for this hardware.
         the handheld played by hand, MZ, Android and desktop (where the
         patch does nothing by its own rule).
 
+*   **Battles slowed by the engine's tint (2026-11-20)**: In an MV game on
+    the handheld a battle ran at 22 to 30 frames per second, with about
+    three logic steps of 140 to 220 ms every second. It was the same with
+    the pictures' scaling switched off for that game.
+    *   **Where the time went.** The player's own profile of the battle
+        gave 28% to 39% of the scripts' time to filling rectangles on a
+        canvas. Counted by who asked, on the handheld: the engine's tint
+        (`Sprite._executeTint`), called at every frame while an enemy
+        flashes white or is the target of an animation's flash. For an
+        enemy of 475x435 pixels, the fill that greys the picture took
+        31 ms, each of the two that turn its colours over 7 ms and the
+        blend colour's 5 ms: about 50 ms a frame.
+    *   **What is wasted.** A white flash has no grey and darkens nothing.
+        The greying fill then paints with a colour of no alpha, and the
+        darkening turns the colours over, adds black and turns them back.
+    *   **What was built.** A patch for MV, `leanTint`, that replaces the
+        tint with the same steps in the same order, leaving out the
+        greying when the tone has no grey and the three darkening fills
+        when the tone darkens nothing. The fill that brightens is always
+        kept, even when it adds black: it makes every pixel solid, which
+        the later steps count on. The tint is replaced only if it is still
+        the engine's own code, known by a mark of its text rather than by
+        the text; it is the same in the three MV games on the handheld
+        (engine 1.6.0 and 1.6.2).
+    *   **Checked.** Tests work the pixels out by the Canvas standard's
+        rules and compare the engine's steps with the patch's, pixel for
+        pixel, for a flash, tones that brighten, darken and grey, all at
+        once, and a canvas that cannot blend; a tint a plugin rewrote is
+        left alone. On the handheld, played by hand: the battle goes from
+        22-30 to 32-33 frames per second, the logic step from 10-14 ms to
+        about 6 ms, and the frames over 60 ms from 27-39 to 9-13 in ten
+        seconds.
+    *   **Not solved.** The battle is still not at full speed: the tint
+        that is left takes time, and some frames wait a quarter of a
+        second outside logic and drawing. In the same game, one frame on
+        a map took 43 seconds inside the sprites' update, once; its cause
+        is not known.
+
 ## Critical User Journeys (CUJs)
 
 ### CUJ 1: First launch
