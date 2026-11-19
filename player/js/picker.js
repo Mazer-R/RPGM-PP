@@ -409,9 +409,10 @@
   // line, or a touch, goes to it, and it opens the profile.
   player.loadScript(player.playerDir + '/js/profile-view-model.js');
   player.loadScript(player.playerDir + '/js/avatar-model.js');
+  player.loadScript(player.playerDir + '/js/avatar-sheets.js');
   player.loadScript(player.playerDir + '/js/picker-profile.js');
   var profileScreen = globalThis.__pickerProfile({
-    c2d: c2d, view: globalThis.__profileView, achievements: achievements, avatars: globalThis.__avatar, profile: profile, count: count, KEY: KEY,
+    c2d: c2d, view: globalThis.__profileView, achievements: achievements, avatars: globalThis.__avatar, sheets: globalThis.__avatarSheets, profile: profile, count: count, KEY: KEY,
     playerDir: player.playerDir, picture: picture,
     canvas: function () { return canvas; }, width: function () { return W; }, height: function () { return H; },
     text: text, box: box, widthOf: widthOf, fitted: fitted, hint: hint,

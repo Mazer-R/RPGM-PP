@@ -1778,6 +1778,38 @@ adjustments where the game's own code is too expensive for this hardware.
         extras and companions have no pictures yet.
     *   **Not checked**: with a finger; on the handheld or a phone.
 
+*   **The avatar wears its pieces (2026-11-19)**: the pieces could be
+    chosen but only the character was drawn.
+    *   **The pictures**: no piece is drawn once for every character.
+        Each character was drawn again wearing each piece, by editing
+        its own picture, and the piece was then cut off it: the
+        redrawn picture is brought onto the plain one by the eyes
+        (place and size) and the piece is what it has that the plain
+        one has not. A piece on the head or the body also says what it
+        hides of the plain body, so that the body does not show beside
+        a hat narrower than its head.
+    *   **Change**: each character has a sheet
+        (`js/avatar-<id>.png`) with its body, thirty pieces and twelve
+        of those masks, and `js/avatar-sheets.js` says what is where.
+        `layers` in `js/avatar-model.js` gives the order they go down
+        in: the body, less what clothes and hat hide, a cape or wings,
+        the clothes, the face, the head, what is carried in front, the
+        hand. The profile puts them together on a canvas of its own,
+        again only when what is worn changes, and keeps one sheet open
+        at a time. The small avatar by the list's heading is the same
+        picture.
+    *   **Checked**: tests for the order and for finding a picture on
+        a sheet. Without a screen, at 540x1080, with real key presses
+        and a profile that has every piece: the seven characters in a
+        jacket, a helmet, glasses, a sword and a cape, and a change of
+        hat and hand.
+    *   **Not built**: the six companions and the peeled head have no
+        pictures and are not drawn. The golden potato wears the
+        potato's pieces with the body in them gilded, which leaves a
+        hand or a foot brown here and there.
+    *   **Not checked**: on the handheld or a phone; memory used by a
+        sheet on the handheld.
+
 *   **A budget for the textures' memory (2026-11-19)**: a game stopped
     the whole handheld, not only itself: it answered a ping and nothing
     else, until it was switched off.

@@ -143,6 +143,42 @@ const tests = {
     assert.strictEqual(model.boardAt(1, 10.5), null);
     assert.strictEqual(model.boardAt(-1, 2), null);
   },
+
+  // --- Drawing it: the pictures put down, one over another -----------------------
+  'an avatar in its sack is its body, less what the sack hides, and the sack'() {
+    const wearing = { character: 'potato', clothes: 'burlap-sack', head: '', face: '', weapon: '', accessory: '', companion: '' };
+    assert.deepStrictEqual(plain(model.layers(wearing, () => true)), [
+      { name: 'base', erase: false }, { name: 'burlap-sack-erase', erase: true }, { name: 'burlap-sack', erase: false },
+    ]);
+  },
+
+  'the pieces go down in order: what hangs behind, clothes, face, head, what is carried in front, the hand'() {
+    const wearing = { character: 'fry', clothes: 'tuxedo', head: 'helmet', face: 'goatee', weapon: 'sword', accessory: 'cape', companion: '' };
+    const names = (list) => plain(list).map((layer) => (layer.erase ? '-' : '') + layer.name);
+    assert.deepStrictEqual(names(model.layers(wearing, () => true)),
+      ['base', '-tuxedo-erase', '-helmet-erase', 'cape', 'tuxedo', 'goatee', 'helmet', 'sword']);
+    wearing.accessory = 'shield';
+    assert.deepStrictEqual(names(model.layers(wearing, () => true)),
+      ['base', '-tuxedo-erase', '-helmet-erase', 'tuxedo', 'goatee', 'helmet', 'shield', 'sword']);
+    wearing.accessory = 'wings';
+    assert.strictEqual(names(model.layers(wearing, () => true))[3], 'wings');
+  },
+
+  'a piece that has no picture yet is left out, and hides nothing'() {
+    const wearing = { character: 'potato', clothes: 'burlap-sack', head: 'peeled-top', face: '', weapon: 'sword', accessory: '', companion: 'sprout-pot' };
+    const drawn = (name) => name !== 'peeled-top' && name !== 'peeled-top-erase';
+    assert.deepStrictEqual(plain(model.layers(wearing, drawn)).map((layer) => layer.name),
+      ['base', 'burlap-sack-erase', 'burlap-sack', 'sword']);
+  },
+
+  'a picture is found on its sheet by its place in the list of names'() {
+    const sheet = { cell: [100, 180], columns: 8 };
+    assert.deepStrictEqual(plain(model.cellOf(sheet, ['base', 'a', 'b'], 'base')), { x: 0, y: 0, w: 100, h: 180 });
+    assert.deepStrictEqual(plain(model.cellOf(sheet, ['base', 'a', 'b'], 'b')), { x: 200, y: 0, w: 100, h: 180 });
+    const many = Array.from({ length: 12 }, (_, i) => 'n' + i);
+    assert.deepStrictEqual(plain(model.cellOf(sheet, many, 'n9')), { x: 100, y: 180, w: 100, h: 180 });
+    assert.strictEqual(model.cellOf(sheet, many, 'missing'), null);
+  },
 };
 
 let failed = 0;

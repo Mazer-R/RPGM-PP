@@ -71,6 +71,39 @@
     return found ? found.name : '';
   }
 
+  // --- Drawing it ----------------------------------------------------------------
+  // Each character has a sheet of pictures (js/avatar-<character>.png): its
+  // body, itself wearing each piece with the body taken away, and, for a
+  // piece on the head or the body, what that piece hides of the body
+  // (`<piece>-erase`), so that the body does not show beside a hat narrower
+  // than its head. The avatar is those pictures put down one over another.
+  // `has(name)` says whether the sheet has a picture; a piece without one
+  // is left out. Each layer is the picture's name and whether it is taken
+  // away from what is there instead of put over it.
+  var BEHIND = { cape: true, wings: true };
+  function layers(wearing, has) {
+    var list = [{ name: 'base', erase: false }];
+    function put(name, erase) { if (name && has(name)) list.push({ name: name, erase: !!erase }); }
+    function hides(piece) { if (piece && has(piece)) put(piece + '-erase', true); }
+    var behind = BEHIND[wearing.accessory];
+    hides(wearing.clothes);
+    hides(wearing.head);
+    if (behind) put(wearing.accessory);
+    put(wearing.clothes);
+    put(wearing.face);
+    put(wearing.head);
+    if (!behind) put(wearing.accessory);
+    put(wearing.weapon);
+    return list;
+  }
+  // Where a picture is on a sheet: the pictures are cells of one size, in
+  // rows of `columns`, in the order of `names`. Null if it is not there.
+  function cellOf(sheet, names, name) {
+    var at = names.indexOf(name);
+    if (at < 0) return null;
+    return { x: (at % sheet.columns) * sheet.cell[0], y: Math.floor(at / sheet.columns) * sheet.cell[1], w: sheet.cell[0], h: sheet.cell[1] };
+  }
+
   // --- The name -----------------------------------------------------------------
   // Typed on a board of letters laid out like a keyboard, so that each
   // letter is where the hand expects it; it works with a pad and with a
@@ -112,6 +145,6 @@
   }
   function tidyName(name) { return String(name || '').slice(0, LONGEST_NAME).trim(); }
 
-  globalThis.__avatar = { LABELS: LABELS, CATALOGUE: CATALOGUE, owned: owned, dressed: dressed, next: next, nameOf: nameOf,
+  globalThis.__avatar = { LABELS: LABELS, CATALOGUE: CATALOGUE, owned: owned, dressed: dressed, next: next, nameOf: nameOf, layers: layers, cellOf: cellOf,
     BOARD: BOARD, boardKey: boardKey, boardAt: boardAt, boardStep: boardStep, typed: typed, tidyName: tidyName, LONGEST_NAME: LONGEST_NAME };
 })();

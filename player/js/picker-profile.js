@@ -29,15 +29,46 @@
     function load() {
       if (pictures) return;
       var dir = ui.playerDir + '/js/';
-      pictures = { sky: ui.picture(dir + 'profile-sky.png'), badges: ui.picture(dir + 'achievements.png'), characters: {} };
+      pictures = { sky: ui.picture(dir + 'profile-sky.png'), badges: ui.picture(dir + 'achievements.png') };
     }
-    // A character's picture (js/avatar-<id>.png), looked for once; the plain
-    // potato stands in for one that has no picture.
-    function character(id) {
-      load();
-      var known = pictures.characters;
-      if (!(id in known)) known[id] = ui.picture(ui.playerDir + '/js/avatar-' + id + '.png');
-      return known[id] || (id === 'potato' ? null : character('potato'));
+    // The avatar is put together on a canvas of its own from its
+    // character's sheet (js/avatar-<id>.png; what is on it is in
+    // js/avatar-sheets.js, and the order the pictures go down in
+    // js/avatar-model.js), and only again when what it wears changes. One
+    // sheet is kept at a time: they are large once opened.
+    var sheets = ui.sheets, sheet = { id: null, image: null }, stage = null, staged = null;
+    function sheetOf(id) {
+      if (sheet.id !== id) {
+        if (sheet.image) c2d.destroy(sheet.image.handle);
+        sheet = { id: id, image: ui.picture(ui.playerDir + '/js/avatar-' + id + '.png') };
+      }
+      return sheet.image;
+    }
+    // The canvas with the avatar on it and where its body is on it (`cell`,
+    // `feet`, `body`), or null if its character has no pictures.
+    function figure() {
+      var wearing = avatar(), key = JSON.stringify(wearing), info = sheets.sheets[wearing.character];
+      var image = info && sheetOf(wearing.character);
+      if (!image) return null;
+      if (staged !== key) {
+        if (stage) c2d.resize(stage, info.cell[0], info.cell[1]); else stage = c2d.create(info.cell[0], info.cell[1]);
+        var has = function (name) { return sheets.names.indexOf(name) >= 0; };
+        avatars.layers(wearing, has).forEach(function (layer) {
+          var cell = avatars.cellOf(info, sheets.names, layer.name);
+          c2d.setOperator(stage, layer.erase ? 'destination-out' : 'source-over');
+          c2d.drawImage(stage, image.handle, cell.x, cell.y, cell.w, cell.h, 0, 0, cell.w, cell.h, 1);
+        });
+        c2d.setOperator(stage, 'source-over');
+        staged = key;
+      }
+      return { canvas: stage, info: info };
+    }
+    // The avatar with the middle of its feet at x, y, `scale` times its size.
+    function paintFigure(x, y, scale) {
+      var mine = figure();
+      if (!mine) return;
+      var info = mine.info, w = info.cell[0], h = info.cell[1];
+      c2d.drawImage(ui.canvas(), mine.canvas, 0, 0, w, h, Math.round(x - info.feet[0] * scale), Math.round(y - info.feet[1] * scale), w * scale, h * scale, 1);
     }
     function found() { return ui.profile.earned.indexOf('dug-up') >= 0; }
     function draw(image, sx, sy, sw, sh, dx, dy, dw, dh, alpha) {
@@ -181,8 +212,7 @@
       if (pictures.sky) draw(pictures.sky, 0, 0, pictures.sky.width, pictures.sky.height, (W - at.side) / 2, H - at.side, at.side, at.side);
       paintSaucer(at);
       paintHole(at);
-      var body = character(mine.character);
-      if (body) draw(body, 0, 0, body.width, body.height, Math.round(at.avatarX - body.width / 2), Math.round(at.ground + 14 - body.height), body.width, body.height);
+      paintFigure(at.avatarX, at.ground + 14, 1);
       var x = MARGIN;
       ui.text('PROFILE', x, 34, 12, MUTED);
       ui.text(ui.fitted(profile.name || 'Potato', 32, W - 2 * x), x, 72, 32, INK);
@@ -398,10 +428,11 @@
     // The avatar, small, for the list's heading: at x, y, `size` high.
     function paintChip(x, y, size, on) {
       ui.box(x - 6, y - 6, size + 12, size + 12, 12, on ? ACCENT : PANEL);
-      var body = character(avatar().character);
-      if (!body) return;
-      var scale = Math.min(size / body.height, size / body.width), w = body.width * scale, h = body.height * scale;
-      draw(body, 0, 0, body.width, body.height, Math.round(x + (size - w) / 2), Math.round(y + size - h), w, h);
+      var mine = figure();
+      if (!mine) return;
+      // the whole picture fits the box, hat and all, standing on its lower edge
+      var info = mine.info, scale = Math.min(size / info.cell[0], size / info.cell[1]);
+      paintFigure(x + size / 2 + (info.feet[0] - info.cell[0] / 2) * scale, y + size - (info.cell[1] - info.feet[1]) * scale, scale);
     }
     // The picture of an achievement, `size` across, at x, y.
     function paintBadge(id, x, y, size) {
