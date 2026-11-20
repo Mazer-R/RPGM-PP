@@ -290,6 +290,8 @@ in the game's `save/mvplayer-patches.json`.
 | `idleColorFilters` | MZ | A colour filter that changes nothing is not run |
 | `windowClip` | MZ | A window's contents are clipped with a rectangle instead of a filter |
 | `leanTint` | MV | A sprite's flash or tone is worked out without the fills that change nothing |
+| `idleToneFilter` | MV | The screen's tone filter is off while there is no tone |
+| `idleBattleLayers` | MV | A battle's empty backgrounds, and the picture of the map behind a solid one, are not drawn |
 | `pictureScale` | MV | On a screen smaller than the game, pictures shown whole are kept in the graphics memory at the size the screen shows |
 | `textureBudget` | MV, MZ | Textures not drawn lately are dropped when they take more than a share of the device's memory |
 
@@ -677,6 +679,8 @@ en el `save/mvplayer-patches.json` del juego.
 | `idleColorFilters` | MZ | Un filtro de color que no cambia nada no se ejecuta |
 | `windowClip` | MZ | El contenido de una ventana se recorta con un rectángulo en lugar de un filtro |
 | `leanTint` | MV | El destello o el tono de un sprite se calcula sin los rellenos que no cambian nada |
+| `idleToneFilter` | MV | El filtro de tono de la pantalla se apaga mientras no hay tono |
+| `idleBattleLayers` | MV | No se dibujan los fondos de combate vacíos, ni la captura del mapa cuando un fondo sólido la tapa |
 | `pictureScale` | MV | En una pantalla menor que el juego, las imágenes que se muestran enteras se guardan en la memoria gráfica al tamaño que la pantalla enseña |
 | `textureBudget` | MV, MZ | Las texturas que no se dibujan desde hace rato se liberan cuando ocupan más de una parte de la memoria del dispositivo |
 

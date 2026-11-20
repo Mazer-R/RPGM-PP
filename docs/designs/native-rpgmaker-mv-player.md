@@ -1933,6 +1933,51 @@ adjustments where the game's own code is too expensive for this hardware.
         a map took 43 seconds inside the sprites' update, once; its cause
         is not known.
 
+*   **Battles held back by the graphics processor: layers that show
+    nothing (2026-11-20)**: With the tint's wasted fills gone, the same
+    battle still ran at about 33 frames per second on the handheld.
+    *   **Not the scripts.** In a battle that waits for a command a step
+        took 2 ms and the drawing calls 5 ms, yet 35.6 frames were shown
+        per second; with nothing drawn at all, 59.7. The frames come late
+        after the scripts are done: the graphics processor is what is
+        slow. A change to the frame pacing that puts a step off when two
+        do not fit before the refresh was written and tried first; on the
+        handheld seven of its ten tries left the frame late all the same,
+        and it was set aside, not committed.
+    *   **What costs.** Measured by leaving parts out, four seconds each:
+        every layer the size of the game's picture is worth about five
+        frames per second. Without the screen's tone filter, 41.7; without
+        one of the battle's two backgrounds, 40.5, without both, 44.5;
+        without the windows, 46.5; without the whole battle field, 59.7.
+        Enemies and pictures cost nothing that can be measured.
+    *   **What showed nothing.** The tone filter is on all the time and
+        the screen had no tone: the picture was drawn to a picture of its
+        own and copied, unchanged. And this game gives its battles no
+        backgrounds: both were empty pictures the size of the screen,
+        drawn at every frame over the picture of the map.
+    *   **What was built.** Two patches for MV. `idleToneFilter` switches
+        the tone filter off whenever the tone is nothing, when the filter
+        is made and each time the engine sets it. `idleBattleLayers` does
+        not draw a battle background that was never loaded from a file and
+        has nothing in it (every pixel looked at, once), and hides the
+        picture of the map while a background that is shown, not faded,
+        solid everywhere and as large as the screen covers it. Each layer
+        comes back as soon as its reason is gone.
+    *   **Measured on the handheld**, the same battle waiting for a
+        command: 35.6 frames per second before, 41.5 with the tone filter
+        off, 57.6 with the empty backgrounds also left out.
+    *   **Tried and left for later.** Drawing the game at the size of the
+        screen (640x480 instead of 816x624) took the same battle from 41.5
+        to 56 on its own and to 60 with the rest: every layer and every
+        filter is then two fifths smaller. It was only switched on from a
+        test script; what it does to the picture, to touches and to
+        plugins that read the size has not been looked at. Drawing the
+        window layer only where its windows are gave nothing here: the
+        battle's windows span the whole screen.
+    *   **Not checked**: a battle with a solid floor (the second case of
+        `idleBattleLayers` has only its tests), a screen with a tone on the
+        handheld, MZ.
+
 ## Critical User Journeys (CUJs)
 
 ### CUJ 1: First launch
