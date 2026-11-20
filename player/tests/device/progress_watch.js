@@ -1,9 +1,9 @@
-// Run next to a game (mvplayer --game <dir> --run this file) to see where a
+// Run next to a game (potato-player --game <dir> --run this file) to see where a
 // new game stops making progress. It confirms at the title and keeps
 // confirming, and once a second logs what the engine is doing: the scene and
 // map, whether images are still loading, the event command being run, any
 // message on screen, and the frame rate. It saves a picture every SHOT_MS
-// (mvplayer-shot-<n>.txt in the game's save folder; see
+// (potato-player-shot-<n>.txt in the game's save folder; see
 // title_watch.js for the format). Exits with 0 after RUN_MS.
 (function () {
   'use strict';
@@ -86,7 +86,7 @@
         setTimeout(function () { player.onKey(90, false); }, 120);
       }
     }
-    if (now - started >= SHOT_MS * (shots + 1)) { shots++; capture('mvplayer-shot-' + shots + '.txt'); }
+    if (now - started >= SHOT_MS * (shots + 1)) { shots++; capture('potato-player-shot-' + shots + '.txt'); }
     if (now - started >= RUN_MS) return player.exit(0);
   }
   requestAnimationFrame(watch);

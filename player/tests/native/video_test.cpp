@@ -63,7 +63,7 @@ esac
 )";
 
 std::string WriteDecoder() {
-  std::string path = "/tmp/mvplayer-video-test-decoder-" + std::to_string(getpid()) + ".sh";
+  std::string path = "/tmp/potato-player-video-test-decoder-" + std::to_string(getpid()) + ".sh";
   std::ofstream(path) << kDecoderScript;
   chmod(path.c_str(), 0755);
   return path;
@@ -112,7 +112,7 @@ std::string StateName(mvp::VideoState state) {
 const std::string kFile = "/bin/sh";  // any file that exists: the fake decoder never reads it
 
 void TestWithoutDecoder() {
-  setenv("MVPLAYER_FFMPEG", "/nowhere/ffmpeg", 1);
+  setenv("POTATO_PLAYER_FFMPEG", "/nowhere/ffmpeg", 1);
   mvp::VideoPlayer video(nullptr);
   Expect("no decoder program: video is not available", !video.available());
   Expect("no decoder program: nothing opens", !video.Open(kFile, 4, 2));
@@ -120,7 +120,7 @@ void TestWithoutDecoder() {
 }
 
 void TestSilentVideo(const std::string& decoder) {
-  setenv("MVPLAYER_FFMPEG", decoder.c_str(), 1);
+  setenv("POTATO_PLAYER_FFMPEG", decoder.c_str(), 1);
   setenv("FAKE_VIDEO", "silent", 1);
   mvp::VideoPlayer video(nullptr);
   Expect("a decoder program makes video available", video.available());
@@ -141,7 +141,7 @@ void TestSilentVideo(const std::string& decoder) {
 }
 
 void TestVideoWithoutSoundOnAMachineWithSound(const std::string& decoder) {
-  setenv("MVPLAYER_FFMPEG", decoder.c_str(), 1);
+  setenv("POTATO_PLAYER_FFMPEG", decoder.c_str(), 1);
   setenv("FAKE_VIDEO", "silent", 1);
   FakeAudio audio;
   mvp::VideoPlayer video(&audio);
@@ -155,7 +155,7 @@ void TestVideoWithoutSoundOnAMachineWithSound(const std::string& decoder) {
 }
 
 void TestVideoWithSound(const std::string& decoder) {
-  setenv("MVPLAYER_FFMPEG", decoder.c_str(), 1);
+  setenv("POTATO_PLAYER_FFMPEG", decoder.c_str(), 1);
   setenv("FAKE_VIDEO", "sound", 1);
   FakeAudio audio;
   mvp::VideoPlayer video(&audio);
@@ -197,7 +197,7 @@ void TestVideoWithSound(const std::string& decoder) {
 }
 
 void TestBrokenVideo(const std::string& decoder) {
-  setenv("MVPLAYER_FFMPEG", decoder.c_str(), 1);
+  setenv("POTATO_PLAYER_FFMPEG", decoder.c_str(), 1);
   setenv("FAKE_VIDEO", "broken", 1);
   mvp::VideoPlayer video(nullptr);
   video.Open(kFile, 4, 2);
@@ -205,7 +205,7 @@ void TestBrokenVideo(const std::string& decoder) {
 }
 
 void TestClosingEarly(const std::string& decoder) {
-  setenv("MVPLAYER_FFMPEG", decoder.c_str(), 1);
+  setenv("POTATO_PLAYER_FFMPEG", decoder.c_str(), 1);
   setenv("FAKE_VIDEO", "endless", 1);
   FakeAudio audio;
   mvp::VideoPlayer video(&audio);
@@ -230,7 +230,7 @@ void TestClosingEarly(const std::string& decoder) {
 // player's own library, as libffmpeg.so: the only folder an app may start
 // programs from.
 void TestDecoderBesideThePlayer(const std::string& decoder) {
-  std::string folder = "/tmp/mvplayer-video-test-lib-" + std::to_string(getpid());
+  std::string folder = "/tmp/potato-player-video-test-lib-" + std::to_string(getpid());
   mkdir(folder.c_str(), 0755);
   Expect("no decoder beside the player: none", mvp::VideoPlayer::DecoderBeside(folder + "/libmain.so"), "");
   std::string beside = folder + "/libffmpeg.so";
@@ -245,25 +245,25 @@ void TestDecoderBesideThePlayer(const std::string& decoder) {
 // first in the search path. The decoder is the system's program and must
 // get the search path the package's start script found, not the player's.
 void TestDecoderGetsTheSystemsLibraries(const std::string& decoder) {
-  setenv("MVPLAYER_FFMPEG", decoder.c_str(), 1);
+  setenv("POTATO_PLAYER_FFMPEG", decoder.c_str(), 1);
   setenv("FAKE_VIDEO", "libraries", 1);
   setenv("LD_LIBRARY_PATH", "/package/lib:/system/extra", 1);
 
-  setenv("MVPLAYER_SYSTEM_LIBRARY_PATH", "/system/extra", 1);
+  setenv("POTATO_PLAYER_SYSTEM_LIBRARY_PATH", "/system/extra", 1);
   setenv("WANTED_LIBRARIES", "/system/extra", 1);
   {
     mvp::VideoPlayer video(nullptr);
     video.Open(kFile, 4, 2);
     Expect("decoder libraries: the search path from before the package", StateName(Loaded(video)), "ready");
   }
-  setenv("MVPLAYER_SYSTEM_LIBRARY_PATH", "", 1);
+  setenv("POTATO_PLAYER_SYSTEM_LIBRARY_PATH", "", 1);
   setenv("WANTED_LIBRARIES", "", 1);
   {
     mvp::VideoPlayer video(nullptr);
     video.Open(kFile, 4, 2);
     Expect("decoder libraries: no search path when there was none", StateName(Loaded(video)), "ready");
   }
-  unsetenv("MVPLAYER_SYSTEM_LIBRARY_PATH");
+  unsetenv("POTATO_PLAYER_SYSTEM_LIBRARY_PATH");
   setenv("WANTED_LIBRARIES", "/package/lib:/system/extra", 1);
   {
     mvp::VideoPlayer video(nullptr);

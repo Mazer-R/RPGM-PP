@@ -1,4 +1,4 @@
-// Run next to a game (mvplayer --game <dir> --run this file) to check that a
+// Run next to a game (potato-player --game <dir> --run this file) to check that a
 // battle starts and runs. At the title it starts a new game without the
 // title menu, waits on the first map, starts a battle against troop TROOP,
 // and logs the scene, the battle phase and the frame rate once a second,
@@ -75,7 +75,7 @@
       go('battle', now);
     } else if (stage === 'battle') {
       var held = now - stageAt;
-      if (held > 5000 * (shots + 1) && shots < 3) { shots++; capture('mvplayer-shot-battle' + shots + '.txt'); }
+      if (held > 5000 * (shots + 1) && shots < 3) { shots++; capture('potato-player-shot-battle' + shots + '.txt'); }
       if (Math.floor(held / 1500) !== Math.floor((held - 17) / 1500) && held > 8000) {
         player.onKey(90, true);
         setTimeout(function () { player.onKey(90, false); }, 120);

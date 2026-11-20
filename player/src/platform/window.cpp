@@ -36,7 +36,7 @@ bool Window::Open(std::string* error) {
   // A desktop gets a window of its own, as large a whole or half multiple
   // of an RPG Maker MV game's picture (816x624) as leaves room around it.
   const char* driver = SDL_GetCurrentVideoDriver();
-  const char* fullscreen = std::getenv("MVPLAYER_FULLSCREEN");
+  const char* fullscreen = std::getenv("POTATO_PLAYER_FULLSCREEN");
   bool desktop = driver && (std::strcmp(driver, "x11") == 0 || std::strcmp(driver, "wayland") == 0);
   resizable_ = desktop && !(fullscreen && fullscreen[0] == '1');
   if (resizable_) {
@@ -52,7 +52,7 @@ bool Window::Open(std::string* error) {
                                SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
     if (window_) SDL_SetWindowMinimumSize(window_, 408, 312);
   } else {
-    window_ = SDL_CreateWindow("mvplayer", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, mode.w,
+    window_ = SDL_CreateWindow("potato-player", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, mode.w,
                                mode.h, SDL_WINDOW_OPENGL | SDL_WINDOW_FULLSCREEN);
   }
   if (!window_) {

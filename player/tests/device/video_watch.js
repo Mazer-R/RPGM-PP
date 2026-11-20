@@ -1,4 +1,4 @@
-// Run next to a game (mvplayer --game <dir> --run this file) to play one of
+// Run next to a game (potato-player --game <dir> --run this file) to play one of
 // its videos the way the engine's "play movie" event command does, and log
 // what happens: whether the player has video at all, when the engine
 // considers the video started and over, the state of the native video player

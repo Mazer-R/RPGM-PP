@@ -248,7 +248,7 @@ adjustments where the game's own code is too expensive for this hardware.
         touches.
     *   **Everything the player writes stays in the game's `save/` folder:**
         save files, written through the desktop-mode `fs` module, and the
-        log (`save/mvplayer.log`). The native side refuses writes anywhere
+        log (`save/potato-player.log`). The native side refuses writes anywhere
         else. Save files are written to a temporary file, flushed, and
         renamed, keeping the previous version as `.bak`. Saving itself has
         not been exercised yet: nothing on the title screen saves.
@@ -370,14 +370,14 @@ adjustments where the game's own code is too expensive for this hardware.
         empty: the archive had been extracted with a tool that silently left
         99 files at zero bytes. Re-extracted with the official tool, nothing
         was wrong with the player.
-    *   **Game list.** `mvplayer --pick <dir>...` (`js/picker.js`) lists the
+    *   **Game list.** `potato-player --pick <dir>...` (`js/picker.js`) lists the
         games found in the given folders, lets the user choose with the
         controls and prints the choice for the program that started it. It
         is drawn on a native canvas, without the page layers.
     *   **muOS package** (`packaging/muos/`): one entry in muOS's Apps menu,
         "RPG Maker MV", whose launch script loops between the list and the
-        chosen game. The player goes to `MUOS/emulator/mvplayer`; games are
-        looked for in `/opt/mvplayer/games` (internal storage) and in
+        chosen game. The player goes to `MUOS/emulator/potato-player`; games are
+        looked for in `/opt/potato-player/games` (internal storage) and in
         `ROMS/RPGMV` on the card. Installed on the console; the list was
         seen working there, and a game started from the menu ran at about 59
         frames per second on the title and first maps. The whole round trip
@@ -423,7 +423,7 @@ adjustments where the game's own code is too expensive for this hardware.
         the game's log; a sampling profiler in the host (`player.startProfile`,
         `player.stopProfile`), which the player turns on by itself for the ten
         seconds after a period below 22 frames per second; the previous
-        run's log kept as `mvplayer.log.1`; and
+        run's log kept as `potato-player.log.1`; and
         `tests/device/walk_watch.js`, which continues from a chosen save and
         really walks (it picks open directions and confirms when an event
         holds the character).
@@ -497,12 +497,12 @@ adjustments where the game's own code is too expensive for this hardware.
         folder that holds it, or any file directly inside either (the .exe);
         `--resolve <path>` prints the www folder. The game list takes named
         games (`--games-file`) and can end with an "add a game" line
-        (`--can-add`). On the desktop, `mvplayer.sh` with no arguments shows
+        (`--can-add`). On the desktop, `potato-player.sh` with no arguments shows
         the list, opens the system's file dialog (zenity or kdialog) to add
-        a game, remembers games in `~/.config/mvplayer/games.txt`, and
+        a game, remembers games in `~/.config/potato-player/games.txt`, and
         `--install-launcher` adds a menu entry. Checked under emulation with
         a stand-in dialog; not yet on a real desktop.
-    *   **Frame rate on screen:** `--fps`, `MVPLAYER_FPS=1`, F2, or the menu
+    *   **Frame rate on screen:** `--fps`, `POTATO_PLAYER_FPS=1`, F2, or the menu
         button plus Select on the console. A small box shows frames per
         second and the longest frame of the last half second, drawn by the
         native present pass from a canvas (`gl.setOverlay`). Seen on the
@@ -524,7 +524,7 @@ adjustments where the game's own code is too expensive for this hardware.
         leaves alone any that a plugin rewrote; `event-culling.js` does not
         install at all in that case. Both say so in the log.
     *   **One game can switch patches off** with
-        `<game>/save/mvplayer-patches.json`, of the form
+        `<game>/save/potato-player-patches.json`, of the form
         `{ "off": ["framePacing"] }`; a name that is no patch is reported.
         `--no-patches` still turns all of them off.
     *   **Checked** with a new tool, `tools/run-headless.sh` (image
@@ -538,12 +538,12 @@ adjustments where the game's own code is too expensive for this hardware.
         are the way out.
 
 *   **Logs folder (launch scripts).** A game that fails on a device nobody
-    is watching left its only trace in that game's `save/mvplayer.log`,
+    is watching left its only trace in that game's `save/potato-player.log`,
     overwritten by the next run. Both launch scripts now copy the log of
     every run to one folder, named after the time and the game, with the
     player's exit code as the last line, and keep the newest 30.
-    *   muOS: `MUOS/emulator/mvplayer/logs/` on the card. Linux: `logs/`
-        next to `mvplayer.sh`, or `~/.config/mvplayer/logs` when that cannot
+    *   muOS: `MUOS/emulator/potato-player/logs/` on the card. Linux: `logs/`
+        next to `potato-player.sh`, or `~/.config/potato-player/logs` when that cannot
         be written.
     *   **Checked**: the copying and pruning function run on its own in a
         scratch folder (a game name with spaces and `&`, 35 copies pruned
@@ -787,7 +787,7 @@ adjustments where the game's own code is too expensive for this hardware.
 *   **A desktop Linux package for 64-bit ARM (2026-11-16).**
     *   **What**: `packaging/linux-x86_64/` became `packaging/linux/`;
         `build-package.sh` takes the architecture as `uname -m` names it
-        (`x86_64` or `aarch64`) and makes `mvplayer-linux-<arch>.tar.gz`
+        (`x86_64` or `aarch64`) and makes `potato-player-linux-<arch>.tar.gz`
         with the same start script, notes and bundled libraries. The ARM
         package holds the program that goes to the handhelds.
     *   **Checked**: both packages pass the script's checks (they need
@@ -803,8 +803,8 @@ adjustments where the game's own code is too expensive for this hardware.
     *   **Recents**: the list keeps one file of www folders (`--games-file`),
         the game chosen or added last on top, and shows those games first,
         then the others by title. Every platform passes that file now:
-        `MUOS/emulator/mvplayer/games.txt`, `RPGMV/mvplayer/games.txt` on
-        Android, `~/.config/mvplayer/games.txt` on desktop Linux.
+        `MUOS/emulator/potato-player/games.txt`, `RPGMV/potato-player/games.txt` on
+        Android, `~/.config/potato-player/games.txt` on desktop Linux.
     *   **Adding**: "+ Add a game..." opens a second screen inside the
         list that shows folders, from the places given with `--browse`
         (`/mnt` on muOS, the shared storage on Android, the home folder
@@ -859,11 +859,11 @@ adjustments where the game's own code is too expensive for this hardware.
         switches the frame counter; the list's own line was a second
         place for the same thing.
     *   **Now**: the list has only games and "Add a game". It no longer
-        prints `MVPLAYER_FPS`, and the muOS, Android and desktop Linux
+        prints `POTATO_PLAYER_FPS`, and the muOS, Android and desktop Linux
         launchers no longer keep a `show-fps` file or pass `--fps`. The
         counter is off when a game starts and is switched in the menu
         (or with F2, or the menu button plus Select), for that run.
-        `--fps` and `MVPLAYER_FPS=1` still start a game with it on, for
+        `--fps` and `POTATO_PLAYER_FPS=1` still start a game with it on, for
         tests.
 *   **A resizable window on desktop Linux (2026-11-16).**
     *   **Why**: the player took the whole screen everywhere; on a desktop
@@ -871,7 +871,7 @@ adjustments where the game's own code is too expensive for this hardware.
     *   **Now**: under X11 or Wayland the window is windowed and
         resizable, as large a whole or half multiple of 816x624 as fits
         in 85% of the display, at least 408x312. F11 switches to the
-        whole screen and back; `MVPLAYER_FULLSCREEN=1` starts that way
+        whole screen and back; `POTATO_PLAYER_FULLSCREEN=1` starts that way
         (the screenless runner sets it). Handhelds and phones are as
         before. A game's picture was already fitted to the screen's size
         on every frame, so it only needed the new size; the touch
@@ -908,7 +908,7 @@ adjustments where the game's own code is too expensive for this hardware.
         bytes needed are worked out from size, format, type and row
         alignment, and a shorter buffer is refused.
     *   **Android ran arguments from shared storage.** The test file
-        `args.txt` was read from `RPGMV/mvplayer`, where any app with file
+        `args.txt` was read from `RPGMV/potato-player`, where any app with file
         access could put one and name a script to run. It is read only
         from the app's own folder now.
     *   **Tests**: `tests/patches/event_culling.test.js` (the patch had
@@ -2010,6 +2010,29 @@ adjustments where the game's own code is too expensive for this hardware.
         the handheld with the patch. Other code in a game that subtracts
         two readings of the wall's clock is not covered.
 
+*   **The program's files take the name it shows: potato-player
+    (2026-11-20)**: the program has been shown as Potato Player since
+    version 0.2, but its files, folders and Android identifier were
+    still called `mvplayer`.
+    *   **Change**: everything that was `mvplayer` is `potato-player`:
+        the program, the packages, the start script, the folders the
+        player keeps its own things in (`MUOS/emulator/potato-player`,
+        `RPGMV/potato-player` on Android, `~/.config/potato-player`,
+        `/opt/potato-player`), and the files it leaves in a game's
+        `save` folder (`potato-player.log`,
+        `potato-player-patches.json`). The settings read from the
+        environment begin with `POTATO_PLAYER_`, and the Android app is
+        `org.potatoplayer`. This document says the new names
+        throughout, also where it tells of earlier days.
+    *   **What it breaks, on purpose**: a package from 0.3 on does not
+        update an older one. Android installs it as another app, and
+        the list of games, the profile and what was switched off for a
+        game are not found until their folder or file is renamed by
+        hand. No code moves them; the README says how. Games and saves
+        are not touched.
+    *   **Not renamed**: the `mvp` namespace and the `MVP_` build
+        settings in the code, and the build images' names.
+
 ## Critical User Journeys (CUJs)
 
 ### CUJ 1: First launch
@@ -2537,7 +2560,7 @@ runs on the console.
 
 *   **Type / Scope**: Build configuration.
 *   **Proposed Changes**: Defines one static library per native service,
-    one for the bindings, the `mvplayer` executable and the native tests.
+    one for the bindings, the `potato-player` executable and the native tests.
     Options: `MVP_GL_CHECKS` (check for a driver error after every WebGL
     call), `MVP_SANITIZERS` (address and undefined-behaviour checks on the
     desktop build), `MVP_REPLAY` (record and replay input and clock).

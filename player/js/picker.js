@@ -6,7 +6,7 @@
 // player.libraryGames: the games played or added, the last one first. They
 // are shown in that order, the remembered ones on top. The user chooses
 // with the controls. The choice is remembered (player.rememberGame) and
-// printed as "MVPLAYER_GAME=<www folder>" for the program that started the
+// printed as "POTATO_PLAYER_GAME=<www folder>" for the program that started the
 // player, which then runs the player again with --game. Leaving without
 // choosing exits with code 10.
 //
@@ -589,7 +589,7 @@
     } else {
       console.info('picker: chose ' + entry.www);
       remember(entry.www);
-      leave(0, 'MVPLAYER_GAME=' + entry.www);
+      leave(0, 'POTATO_PLAYER_GAME=' + entry.www);
     }
   }
   // A finger or the mouse: putting it on a line chooses the line, lifting

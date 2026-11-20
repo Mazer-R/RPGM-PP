@@ -27,12 +27,12 @@ SSH_HOST = os.environ.get("SSH_HOST", "")
 # One shared connection is kept open, so each picture does not log in again.
 SSH = ["ssh", "-o", "BatchMode=yes", "-o", "IdentitiesOnly=yes", "-o", "ConnectTimeout=8",
        "-o", "ControlMaster=auto", "-o", "ControlPersist=120",
-       "-o", "ControlPath=" + os.path.expanduser("~/.ssh/mvplayer-%C")]  # must be a short path
+       "-o", "ControlPath=" + os.path.expanduser("~/.ssh/potato-player-%C")]  # must be a short path
 if os.environ.get("SSH_KEY"):
     SSH += ["-i", os.environ["SSH_KEY"]]
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8765
-REMOTE = "/tmp/mvplayer-screen.raw"
-LOCAL = os.path.join(tempfile.gettempdir(), "mvplayer-screen.raw")
+REMOTE = "/tmp/potato-player-screen.raw"
+LOCAL = os.path.join(tempfile.gettempdir(), "potato-player-screen.raw")
 LOCK = threading.Lock()
 
 PAGE = b"""<!doctype html><meta charset="utf-8"><title>Console screen</title>

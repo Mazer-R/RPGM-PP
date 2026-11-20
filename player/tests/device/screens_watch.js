@@ -1,7 +1,7 @@
-// Run next to a game (mvplayer --game <dir> --run this file) to record what
+// Run next to a game (potato-player --game <dir> --run this file) to record what
 // the game shows without touching the controls. Every time the scene changes
 // it logs the scene's name, and it saves a picture two seconds into each new
-// scene (mvplayer-shot-<n>-<scene>.txt in the game's save folder; see
+// scene (potato-player-shot-<n>-<scene>.txt in the game's save folder; see
 // title_watch.js for the format), for the first SHOTS scenes. Once a
 // second it logs the frame rate. Exits with 0 after RUN_MS.
 (function () {
@@ -54,7 +54,7 @@
     }
     if (!shotTaken && now - since >= 2000) {
       shotTaken = true; shots++;
-      capture('mvplayer-shot-' + shots + '-' + scene + '.txt');
+      capture('potato-player-shot-' + shots + '-' + scene + '.txt');
     }
     if (now - lastReport >= 1000) { console.log('screens: ' + scene + ', ' + frames + ' frames'); lastReport = now; frames = 0; }
     if (now - started >= RUN_MS) return player.exit(0);

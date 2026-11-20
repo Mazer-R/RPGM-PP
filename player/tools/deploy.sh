@@ -9,16 +9,16 @@
 set -eu
 ADB="${ADB:-adb}"
 SCRIPT="$1"
-REMOTE=/opt/mvplayer
+REMOTE=/opt/potato-player
 NAME=$(basename "$SCRIPT")
 
 "$ADB" shell "mkdir -p $REMOTE"
-"$ADB" push build-device/mvplayer "$REMOTE/mvplayer" >/dev/null
+"$ADB" push build-device/potato-player "$REMOTE/potato-player" >/dev/null
 "$ADB" push "$SCRIPT" "$REMOTE/$NAME" >/dev/null
 
 # The menu is paused with SIGSTOP so it stops drawing, and always resumed.
 "$ADB" shell "
-  cd $REMOTE && chmod +x mvplayer
+  cd $REMOTE && chmod +x potato-player
   # Matched by process name, not by command line: a command-line match also
   # finds this very shell, whose command line contains the same text.
   FRONTEND=\$(pgrep -x frontend.sh | head -n 1)
@@ -27,11 +27,11 @@ NAME=$(basename "$SCRIPT")
   [ -n \"\$MODULE\" ] && kill -STOP \$MODULE
   export SDL_HQ_SCALER=2 SDL_ROTATION=0 SDL_BLITTER_DISABLED=1 SDL_ASSERT=always_ignore
   # TERM after two minutes, KILL five seconds later if it is still there.
-  timeout -k 5 120 ./mvplayer $NAME --log $REMOTE/mvplayer.log
+  timeout -k 5 120 ./potato-player $NAME --log $REMOTE/potato-player.log
   CODE=\$?
   [ -n \"\$MODULE\" ] && kill -CONT \$MODULE
   [ -n \"\$FRONTEND\" ] && kill -CONT \$FRONTEND
   echo \"player exit code: \$CODE\"
   echo '--- log ---'
-  cat $REMOTE/mvplayer.log
+  cat $REMOTE/potato-player.log
 " | tr -d '\r'

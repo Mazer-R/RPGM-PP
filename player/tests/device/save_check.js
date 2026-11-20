@@ -1,5 +1,5 @@
 // Saves and loads through the game's own engine, MV or MZ:
-//   mvplayer --game <game> --run tests/device/save_check.js
+//   potato-player --game <game> --run tests/device/save_check.js
 //
 // Starts a new game without the title menu, saves to slot 1, changes a
 // variable and saves to the same slot again, changes it once more, loads the

@@ -8,7 +8,7 @@
      Reading and writing (saves) an ordinary shared folder needs the "all
      files access" permission, which the user grants on a system screen. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="org.mvplayer"
+    package="org.potatoplayer"
     android:versionCode="3"
     android:versionName="0.3">
 
@@ -30,7 +30,7 @@
         android:isGame="true"
         android:theme="@android:style/Theme.NoTitleBar.Fullscreen">
         <activity
-            android:name="org.mvplayer.PlayerActivity"
+            android:name="org.potatoplayer.PlayerActivity"
             android:exported="true"
             android:configChanges="layoutDirection|locale|orientation|uiMode|screenLayout|screenSize|smallestScreenSize|keyboard|keyboardHidden|navigation"
             android:launchMode="singleInstance"

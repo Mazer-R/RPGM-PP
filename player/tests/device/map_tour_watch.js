@@ -1,4 +1,4 @@
-// Run next to a game (mvplayer --game <dir> --run this file) to visit a list
+// Run next to a game (potato-player --game <dir> --run this file) to visit a list
 // of maps one after another and see whether each one loads and how it runs.
 // The list is the global MAP_TOUR, an array of {id, x, y}, which must be
 // defined before this file runs (the caller prepends it). The tour starts

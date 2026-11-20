@@ -49,7 +49,7 @@ class VideoPlayer {
   VideoPlayer(const VideoPlayer&) = delete;
   VideoPlayer& operator=(const VideoPlayer&) = delete;
 
-  // The ffmpeg program that will be used: $MVPLAYER_FFMPEG if set, else the
+  // The ffmpeg program that will be used: $POTATO_PLAYER_FFMPEG if set, else the
   // first "ffmpeg" on the PATH. Empty when there is none.
   static std::string FindDecoder();
   // The decoder that came with the player, in the same folder as `file`

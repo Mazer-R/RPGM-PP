@@ -1,4 +1,4 @@
-// Run next to a game (mvplayer --game <dir> --run this file) to check that
+// Run next to a game (potato-player --game <dir> --run this file) to check that
 // sound is produced. Once a second it logs the scene, the loudest sample the
 // mixer sent out in that second (0 = silence, 1 = full scale) and the music
 // the engine believes it is playing. Nobody can listen for it, so the peak

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Makes the installable Android package (build-android/mvplayer.apk) from the
+# Makes the installable Android package (build-android/potato-player.apk) from the
 # native libraries built by tools/build/build-android.sh. It uses the Android
 # SDK's own tools directly (aapt2, d8, zipalign, apksigner) and a Java
 # compiler; no Gradle and no downloads.
@@ -14,7 +14,7 @@
 # not for publishing.
 #
 #   ANDROID_SDK  the SDK folder (default ~/Library/Android/sdk)
-# Install with: adb install -r build-android/mvplayer.apk
+# Install with: adb install -r build-android/potato-player.apk
 set -eu
 HERE=$(cd "$(dirname "$0")/../.." && pwd)
 SDK="${ANDROID_SDK:-$HOME/Library/Android/sdk}"
@@ -59,14 +59,14 @@ cp "$HERE/packaging/icon/potato-player.png" "$STAGE/res/mipmap-xxxhdpi/icon.png"
   --manifest "$HERE/packaging/android/AndroidManifest.xml" "$STAGE/res.zip"
 cp "$STAGE/base.apk" "$STAGE/unaligned.apk"
 (cd "$STAGE/root" && zip -q -r "$STAGE/unaligned.apk" classes.dex lib assets)
-rm -f "$WORK/mvplayer.apk"
-"$TOOLS/zipalign" -P 16 4 "$STAGE/unaligned.apk" "$WORK/mvplayer.apk"
+rm -f "$WORK/potato-player.apk"
+"$TOOLS/zipalign" -P 16 4 "$STAGE/unaligned.apk" "$WORK/potato-player.apk"
 
 KEY="$WORK/debug.keystore"
 if [ ! -f "$KEY" ]; then
   keytool -genkeypair -keystore "$KEY" -storepass android -keypass android -alias debug \
-    -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=mvplayer debug" >/dev/null 2>&1
+    -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=potato-player debug" >/dev/null 2>&1
 fi
-"$TOOLS/apksigner" sign --ks "$KEY" --ks-pass pass:android --key-pass pass:android "$WORK/mvplayer.apk"
-"$TOOLS/apksigner" verify "$WORK/mvplayer.apk"
-ls -l "$WORK/mvplayer.apk"
+"$TOOLS/apksigner" sign --ks "$KEY" --ks-pass pass:android --key-pass pass:android "$WORK/potato-player.apk"
+"$TOOLS/apksigner" verify "$WORK/potato-player.apk"
+ls -l "$WORK/potato-player.apk"

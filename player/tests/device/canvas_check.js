@@ -9,7 +9,7 @@
 //   - the canvas uploaded as a WebGL texture and redrawn when it changes.
 // The font and the image are any RPG Maker MV game's own: CHECK_GAME names
 // the game's www folder, set by a script run before this one, for example
-//   mvplayer where.js --run canvas_check.js
+//   potato-player where.js --run canvas_check.js
 // with where.js holding: globalThis.CHECK_GAME = '/path/to/Game/www';
 // Exits with 0 when every check passes.
 var gl = player.gl;

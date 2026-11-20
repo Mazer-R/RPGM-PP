@@ -1,4 +1,4 @@
-// Run next to a game (mvplayer --game <dir> --run this file) to check the
+// Run next to a game (potato-player --game <dir> --run this file) to check the
 // controls. It logs every key change the player reports, so buttons pressed
 // on the console show up in the log, and it logs the scene and the title
 // menu's selected line once a second.
@@ -87,9 +87,9 @@
       var step = script.shift();
       player.onKey(step[1], step[2]);
     }
-    if (titleAt && now - titleAt >= 6500 && !watch.titleShot) { watch.titleShot = true; capture('mvplayer-shot-title.txt'); }
+    if (titleAt && now - titleAt >= 6500 && !watch.titleShot) { watch.titleShot = true; capture('potato-player-shot-title.txt'); }
     if ((titleAt && now - titleAt >= RUN_MS) || now - started >= 100000) {
-      capture('mvplayer-shot.txt');
+      capture('potato-player-shot.txt');
       console.log('watch: scenes: ' + scenes.join(' > '));
       var left = scenes.indexOf('Scene_Title') >= 0 && scenes[scenes.length - 1] !== 'Scene_Title';
       return player.exit(left ? 0 : 4);

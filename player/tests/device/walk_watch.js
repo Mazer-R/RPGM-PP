@@ -1,4 +1,4 @@
-// Run next to a game (mvplayer --game <dir> --run this file) to measure the
+// Run next to a game (potato-player --game <dir> --run this file) to measure the
 // game while the player character moves, which is what real play does and a
 // character standing still does not exercise: the map scrolls, events come
 // into range, and step-driven game logic runs.

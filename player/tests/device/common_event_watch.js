@@ -1,4 +1,4 @@
-// Run next to a game (mvplayer --game <dir> --run this file) to see what each
+// Run next to a game (potato-player --game <dir> --run this file) to see what each
 // of the game's parallel common events costs: the candidates for the
 // "commonEventThrottle" patch.
 //

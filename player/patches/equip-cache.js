@@ -17,7 +17,7 @@
 // It wraps whatever equips() the game has at the time (a plugin's, if a
 // plugin replaced the engine's), and never edits game files. To turn it off
 // for one game, name it under "off" in that game's
-// save/mvplayer-patches.json; for every game, remove its line from
+// save/potato-player-patches.json; for every game, remove its line from
 // patches/index.json or start the player with --no-patches. Its counters
 // are in player.patchStats.equipCache.
 player.patches.equipCache = function () {

@@ -9,7 +9,7 @@
 //       "all files access" permission for this folder (see PlayerActivity).
 //   <external files>/games/<Game>/www   also looked at; only the app itself
 //       can write there (Android/data/<package>/files/games)
-//   <shared storage>/RPGMV/mvplayer     the player's own things, where the
+//   <shared storage>/RPGMV/potato-player     the player's own things, where the
 //       user can reach them (<external files> until access is allowed):
 //         logs/      a copy of the log of every run
 //         games.txt  the games played or added, the last one first, and
@@ -40,7 +40,7 @@
 
 namespace {
 
-void Note(const std::string& text) { __android_log_print(ANDROID_LOG_INFO, "mvplayer", "%s", text.c_str()); }
+void Note(const std::string& text) { __android_log_print(ANDROID_LOG_INFO, "potato-player", "%s", text.c_str()); }
 
 std::string ReadText(const std::string& path) {
   std::ifstream in(path, std::ios::binary);
@@ -103,7 +103,7 @@ bool UnpackPlayerFiles(const std::string& player_dir) {
 
 int Run(std::vector<std::string> arguments) {
   std::vector<char*> argv;
-  std::string program = "mvplayer";
+  std::string program = "potato-player";
   argv.push_back(&program[0]);
   for (std::string& argument : arguments) argv.push_back(&argument[0]);
   return mvp::PlayerMain(static_cast<int>(argv.size()), argv.data());
@@ -113,7 +113,7 @@ int Run(std::vector<std::string> arguments) {
 // time and the game, with the way the player ended as its last line; only
 // the newest 30 copies are kept (their names sort by time).
 void KeepLog(const std::string& game_dir, const std::string& logs_dir, int exit_code) {
-  std::string text = ReadText(game_dir + "/save/mvplayer.log");
+  std::string text = ReadText(game_dir + "/save/potato-player.log");
   if (text.empty()) return;
   std::string parent = game_dir.substr(0, game_dir.rfind('/'));
   std::string name = parent.substr(parent.rfind('/') + 1);
@@ -151,7 +151,7 @@ void UseOwnVideoDecoder() {
     Note("no video decoder beside the player: videos will be skipped");
     return;
   }
-  setenv("MVPLAYER_FFMPEG", decoder.c_str(), 0);
+  setenv("POTATO_PLAYER_FFMPEG", decoder.c_str(), 0);
 }
 
 }  // namespace
@@ -175,7 +175,7 @@ int main(int, char**) {
   mkdir(shared_games.c_str(), 0775);  // fails quietly until access is allowed
   MakeDirs(games);
   // The player's own folder goes next to the games when that can be written.
-  std::string own = shared_games + "/mvplayer";
+  std::string own = shared_games + "/potato-player";
   mkdir(own.c_str(), 0775);
   if (std::ofstream(own + "/.writable", std::ios::trunc).good()) {
     std::remove((own + "/.writable").c_str());
@@ -213,7 +213,7 @@ int main(int, char**) {
     std::fflush(stdout);
     std::string game;
     for (const std::string& line : Lines(ReadText(answers))) {
-      if (line.rfind("MVPLAYER_GAME=", 0) == 0) game = line.substr(14);
+      if (line.rfind("POTATO_PLAYER_GAME=", 0) == 0) game = line.substr(19);
     }
     if (code != 0 || game.empty()) return 0;
 

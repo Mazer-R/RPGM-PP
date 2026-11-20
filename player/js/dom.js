@@ -469,7 +469,7 @@
   var nextBlob = 1;
   function URL() { browser.missing('the URL class'); }
   URL.createObjectURL = function (blob) {
-    var url = 'blob:mvplayer/' + nextBlob++;
+    var url = 'blob:potato-player/' + nextBlob++;
     blobs[url] = blob;
     return url;
   };
@@ -640,7 +640,7 @@
     // audio, with its own option for that.
     location: { search: player.audio ? '' : '?noaudio', hash: '', pathname: '/index.html', href: 'file://' + player.gameDir + '/index.html', protocol: 'file:', reload: function () { browser.missing('location.reload'); } },
     navigator: {
-      userAgent: 'Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/65.0 Safari/537.36 mvplayer',
+      userAgent: 'Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/65.0 Safari/537.36 potato-player',
       platform: 'Linux aarch64', language: 'en-US', languages: ['en-US'], maxTouchPoints: 0, onLine: false,
       getGamepads: function () { return []; },
     },

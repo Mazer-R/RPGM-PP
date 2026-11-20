@@ -2,7 +2,7 @@
 // integer and constant-attribute setters and the calls a WebAssembly
 // library's own GL layer makes (RPG Maker MZ's animation library, Effekseer,
 // asks whether a capability is enabled before every draw). Run next to any
-// game (mvplayer --game <dir> --run this file); it runs once the game's page
+// game (potato-player --game <dir> --run this file); it runs once the game's page
 // has loaded, uses only generated content, and exits with 0 when every check
 // passes, 3 otherwise.
 (function () {

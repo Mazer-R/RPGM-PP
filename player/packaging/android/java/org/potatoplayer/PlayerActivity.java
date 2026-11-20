@@ -1,4 +1,4 @@
-package org.mvplayer;
+package org.potatoplayer;
 
 import android.Manifest;
 import android.content.Intent;

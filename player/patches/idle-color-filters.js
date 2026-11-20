@@ -21,7 +21,7 @@
 // What it cannot see: a script that writes into a filter's uniforms
 // directly, without the engine's four setters. Such a filter would stay off.
 // To turn the patch off for one game, name it under "off" in that game's
-// save/mvplayer-patches.json; for every game, remove its line from
+// save/potato-player-patches.json; for every game, remove its line from
 // patches/index.json or start the player with --no-patches. Its counters are
 // in player.patchStats.idleColorFilters.
 player.patches.idleColorFilters = function (options) {

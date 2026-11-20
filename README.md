@@ -121,21 +121,39 @@ just `<Game>`.
 The packages are on the project's releases page:
 <https://github.com/Mazer-R/RPGM-PP/releases/latest>
 
+**Coming from version 0.2 or earlier.** Up to 0.2 the program's files and
+folders were called `mvplayer`; from 0.3 they are called `potato-player`,
+and the Android app has a new identifier. A newer package no longer
+updates an older one: it installs beside it. The games and their saves
+are not touched. To keep the list of games and the profile, rename the
+old folder before the first start, and then remove what is left of the
+old version:
+
+| System | Rename | Remove |
+| --- | --- | --- |
+| Android | `RPGMV/mvplayer` to `RPGMV/potato-player`, in the shared storage | The old "Potato Player" app |
+| muOS | `MUOS/emulator/mvplayer` to `MUOS/emulator/potato-player`, then extract the new archive over it | Nothing: the Apps entry is replaced |
+| Desktop Linux | `~/.config/mvplayer` to `~/.config/potato-player` | The old folder, and `~/.local/share/applications/mvplayer.desktop` if the launcher was installed |
+
+What was switched off for one game is in that game's
+`save/mvplayer-patches.json`: rename it to `potato-player-patches.json`
+to keep it.
+
 | System | File |
 | --- | --- |
-| Android phone or tablet (64-bit ARM, Android 8.0 or later) | `mvplayer-android-arm64.apk` |
-| Handheld with muOS (Anbernic RG35XX family and alike) | `mvplayer-muos.tar.gz` |
-| Desktop Linux, Intel or AMD processor | `mvplayer-linux-x86_64.tar.gz` |
-| Desktop Linux, 64-bit ARM (Raspberry Pi 4 or 5, ARM laptops and boards) | `mvplayer-linux-aarch64.tar.gz` |
+| Android phone or tablet (64-bit ARM, Android 8.0 or later) | `potato-player-android-arm64.apk` |
+| Handheld with muOS (Anbernic RG35XX family and alike) | `potato-player-muos.tar.gz` |
+| Desktop Linux, Intel or AMD processor | `potato-player-linux-x86_64.tar.gz` |
+| Desktop Linux, 64-bit ARM (Raspberry Pi 4 or 5, ARM laptops and boards) | `potato-player-linux-aarch64.tar.gz` |
 
 ### Android
 
-1. Download `mvplayer-android-arm64.apk` on the device (or copy it there)
+1. Download `potato-player-android-arm64.apk` on the device (or copy it there)
    and open it from the file manager. The first time, Android asks to allow
    installing from that app: allow it and go back. The app is not in any
    store and is signed with a test key, so Play Protect may ask once more.
    With a computer and USB debugging the same is done with
-   `adb install -r mvplayer-android-arm64.apk`.
+   `adb install -r potato-player-android-arm64.apk`.
 2. Start "Potato Player". It opens the system's "all files access"
    screen: allow it and open the app again. Without it the app cannot read
    the games.
@@ -176,7 +194,7 @@ folder, with the games and their saves, stays until you delete it.
 
 The package is extracted onto the SD card that holds the `MUOS` and `ROMS`
 folders (the first card), at its top level. It adds
-`MUOS/emulator/mvplayer`, `MUOS/application/Potato Player` and `ROMS/RPGMV`,
+`MUOS/emulator/potato-player`, `MUOS/application/Potato Player` and `ROMS/RPGMV`,
 and touches nothing else.
 
 1. Switch the console off, take the card out and put it in a computer.
@@ -185,7 +203,7 @@ and touches nothing else.
    with the card's own path in place of `/path/to/card`:
 
    ```sh
-   tar -xzf mvplayer-muos.tar.gz -C /path/to/card
+   tar -xzf potato-player-muos.tar.gz -C /path/to/card
    ```
 
    On Windows, 7-Zip opens the archive (twice: the `.gz`, then the `.tar`
@@ -201,8 +219,8 @@ and touches nothing else.
 
 With SSH enabled on the console, the same archive can be copied over the
 network and extracted there with
-`gzip -dc mvplayer-muos.tar.gz | tar -x -C /mnt/mmc` (the console's `tar`
-does not read `.gz` by itself). A game also runs from `/opt/mvplayer/games/<Game>/www` on
+`gzip -dc potato-player-muos.tar.gz | tar -x -C /mnt/mmc` (the console's `tar`
+does not read `.gz` by itself). A game also runs from `/opt/potato-player/games/<Game>/www` on
 internal storage, which loads faster.
 
 | Buttons | What they do |
@@ -215,7 +233,7 @@ Videos use the `ffmpeg` that muOS already has.
 
 To update, extract the newer archive over the old one; the list of games
 and the saves are kept. To remove the player, delete
-`MUOS/emulator/mvplayer` and `MUOS/application/Potato Player` from the card.
+`MUOS/emulator/potato-player` and `MUOS/application/Potato Player` from the card.
 Version 0.1 was listed as "RPG Maker MV": when updating from it, delete
 `MUOS/application/RPG Maker MV` too, or the Apps menu shows both.
 
@@ -229,21 +247,21 @@ run in a container, without a screen. Both need glibc 2.35 or newer (Ubuntu
 1. Extract the archive anywhere in your home folder and go into it:
 
    ```sh
-   tar -xzf mvplayer-linux-x86_64.tar.gz
-   cd mvplayer-linux-x86_64
+   tar -xzf potato-player-linux-x86_64.tar.gz
+   cd potato-player-linux-x86_64
    ```
 
 2. Check that the system has the libraries the player expects; it lists
    any that are missing, to install with the system's package manager:
 
    ```sh
-   ./mvplayer.sh --check-libs
+   ./potato-player.sh --check-libs
    ```
 
 3. Start it:
 
    ```sh
-   ./mvplayer.sh
+   ./potato-player.sh
    ```
 
    The list's "Add a game" line shows your folders: go into the game's own
@@ -252,8 +270,8 @@ run in a container, without a screen. Both need glibc 2.35 or newer (Ubuntu
    (or X on a controller, or the cross at the end of the chosen line with
    the mouse) takes a game off the list, after asking again; its files
    stay where they are. A game can also be started directly:
-   `./mvplayer.sh "/path/to/the game/Game.exe"`.
-4. Optional: `./mvplayer.sh --install-launcher` adds "Potato Player"
+   `./potato-player.sh "/path/to/the game/Game.exe"`.
+4. Optional: `./potato-player.sh --install-launcher` adds "Potato Player"
    to the desktop's application menu.
 5. Optional, for a game's videos: install `ffmpeg` with the system's
    package manager (`sudo apt install ffmpeg`, `sudo dnf install ffmpeg`,
@@ -267,18 +285,18 @@ the right one cancels.
 The player opens in a window that can be resized; F11 switches between the
 window and the whole screen. The package brings its own SDL2, Cairo and
 FreeType and keeps its files together: always start it through
-`mvplayer.sh`. More details are in the `README.txt` inside it.
+`potato-player.sh`. More details are in the `README.txt` inside it.
 
 To update, extract the newer archive in place of the old folder; the list
-of games is kept in `~/.config/mvplayer/games.txt` and the saves in each
+of games is kept in `~/.config/potato-player/games.txt` and the saves in each
 game's `www/save`. To remove the player, delete its folder, that file and,
-if the launcher was installed, `~/.local/share/applications/mvplayer.desktop`.
+if the launcher was installed, `~/.local/share/applications/potato-player.desktop`.
 
 ## Patches
 
 `player/patches/index.json` lists them and when each applies. All are
 switched off with `--no-patches`, or per game by naming them under `"off"`
-in the game's `save/mvplayer-patches.json`.
+in the game's `save/potato-player-patches.json`.
 
 | Patch | Applies to | What it changes |
 | --- | --- | --- |
@@ -339,13 +357,13 @@ Each package has its own notes: `player/packaging/android/README.md`,
 ## Running
 
 ```sh
-mvplayer --game <path>                 # a game: its www folder, the folder holding it, or its .exe
-mvplayer --pick <games-dir> [...]      # the game list
-mvplayer --game <path> --run <script>  # with a watch script, for tests
+potato-player --game <path>                 # a game: its www folder, the folder holding it, or its .exe
+potato-player --pick <games-dir> [...]      # the game list
+potato-player --game <path> --run <script>  # with a watch script, for tests
 ```
 
 `--fps` starts with the frame counter on; `--no-patches` runs without the
-patches. The log of a run is the game's `www/save/mvplayer.log`.
+patches. The log of a run is the game's `www/save/potato-player.log`.
 
 Where games go on each platform is under "Installing and using".
 
@@ -511,21 +529,39 @@ de abajo dicen `<Juego>/www`, un juego de MZ es solo `<Juego>`.
 Los paquetes están en la página de versiones del proyecto:
 <https://github.com/Mazer-R/RPGM-PP/releases/latest>
 
+**Si vienes de la versión 0.2 o anterior.** Hasta la 0.2 los archivos y
+carpetas del programa se llamaban `mvplayer`; desde la 0.3 se llaman
+`potato-player`, y la app de Android tiene un identificador nuevo. Un
+paquete nuevo ya no actualiza uno anterior: se instala al lado. Los juegos
+y sus partidas no se tocan. Para conservar la lista de juegos y el perfil,
+cambia el nombre de la carpeta antigua antes del primer arranque, y quita
+después lo que quede de la versión anterior:
+
+| Sistema | Cambiar de nombre | Quitar |
+| --- | --- | --- |
+| Android | `RPGMV/mvplayer` a `RPGMV/potato-player`, en el almacenamiento compartido | La app "Potato Player" antigua |
+| muOS | `MUOS/emulator/mvplayer` a `MUOS/emulator/potato-player`, y extraer el archivo nuevo encima | Nada: la entrada de Apps se sustituye |
+| Linux de escritorio | `~/.config/mvplayer` a `~/.config/potato-player` | La carpeta antigua, y `~/.local/share/applications/mvplayer.desktop` si se instaló el lanzador |
+
+Lo desactivado para un juego está en el `save/mvplayer-patches.json` de
+ese juego: cámbiale el nombre a `potato-player-patches.json` para
+conservarlo.
+
 | Sistema | Archivo |
 | --- | --- |
-| Móvil o tableta Android (ARM de 64 bits, Android 8.0 o posterior) | `mvplayer-android-arm64.apk` |
-| Consola con muOS (familia Anbernic RG35XX y parecidas) | `mvplayer-muos.tar.gz` |
-| Linux de escritorio, procesador Intel o AMD | `mvplayer-linux-x86_64.tar.gz` |
-| Linux de escritorio, ARM de 64 bits (Raspberry Pi 4 o 5, portátiles y placas ARM) | `mvplayer-linux-aarch64.tar.gz` |
+| Móvil o tableta Android (ARM de 64 bits, Android 8.0 o posterior) | `potato-player-android-arm64.apk` |
+| Consola con muOS (familia Anbernic RG35XX y parecidas) | `potato-player-muos.tar.gz` |
+| Linux de escritorio, procesador Intel o AMD | `potato-player-linux-x86_64.tar.gz` |
+| Linux de escritorio, ARM de 64 bits (Raspberry Pi 4 o 5, portátiles y placas ARM) | `potato-player-linux-aarch64.tar.gz` |
 
 ### Android
 
-1. Descarga `mvplayer-android-arm64.apk` en el dispositivo (o cópialo) y
+1. Descarga `potato-player-android-arm64.apk` en el dispositivo (o cópialo) y
    ábrelo desde el gestor de archivos. La primera vez, Android pide permiso
    para instalar desde esa app: permítelo y vuelve atrás. La app no está en
    ninguna tienda y va firmada con una clave de pruebas, así que Play
    Protect puede preguntar una vez más. Con un ordenador y la depuración
-   USB se hace lo mismo con `adb install -r mvplayer-android-arm64.apk`.
+   USB se hace lo mismo con `adb install -r potato-player-android-arm64.apk`.
 2. Abre "Potato Player". Muestra la pantalla del sistema de "acceso a
    todos los archivos": permítelo y vuelve a abrir la app. Sin eso no puede
    leer los juegos.
@@ -566,7 +602,7 @@ que la borres.
 ### Consolas con muOS
 
 El paquete se extrae en la tarjeta SD que contiene las carpetas `MUOS` y
-`ROMS` (la primera tarjeta), en su raíz. Añade `MUOS/emulator/mvplayer`,
+`ROMS` (la primera tarjeta), en su raíz. Añade `MUOS/emulator/potato-player`,
 `MUOS/application/Potato Player` y `ROMS/RPGMV`, y no toca nada más.
 
 1. Apaga la consola, saca la tarjeta y ponla en un ordenador.
@@ -575,7 +611,7 @@ El paquete se extrae en la tarjeta SD que contiene las carpetas `MUOS` y
    ruta de la tarjeta en lugar de `/ruta/a/la/tarjeta`:
 
    ```sh
-   tar -xzf mvplayer-muos.tar.gz -C /ruta/a/la/tarjeta
+   tar -xzf potato-player-muos.tar.gz -C /ruta/a/la/tarjeta
    ```
 
    En Windows, 7-Zip abre el archivo (dos veces: el `.gz` y luego el `.tar`
@@ -590,9 +626,9 @@ El paquete se extrae en la tarjeta SD que contiene las carpetas `MUOS` y
    B para dejarlo); sus archivos siguen en la tarjeta.
 
 Con SSH activado en la consola, el mismo archivo se puede copiar por la red
-y extraer allí con `gzip -dc mvplayer-muos.tar.gz | tar -x -C /mnt/mmc` (el
+y extraer allí con `gzip -dc potato-player-muos.tar.gz | tar -x -C /mnt/mmc` (el
 `tar` de la consola no lee `.gz` por sí solo). Un juego
-también funciona desde `/opt/mvplayer/games/<Juego>/www`, en el
+también funciona desde `/opt/potato-player/games/<Juego>/www`, en el
 almacenamiento interno, donde carga más rápido.
 
 | Botones | Qué hacen |
@@ -605,7 +641,7 @@ Los vídeos usan el `ffmpeg` que muOS ya trae.
 
 Para actualizar, extrae el archivo nuevo sobre el anterior; la lista de
 juegos y las partidas se conservan. Para quitar el reproductor, borra
-`MUOS/emulator/mvplayer` y `MUOS/application/Potato Player` de la tarjeta.
+`MUOS/emulator/potato-player` y `MUOS/application/Potato Player` de la tarjeta.
 La versión 0.1 aparecía como "RPG Maker MV": al actualizar desde ella, borra
 también `MUOS/application/RPG Maker MV`, o el menú Apps mostrará las dos.
 
@@ -620,8 +656,8 @@ posterior (Ubuntu 22.04, Debian 12, Fedora 36, o posteriores).
    en él:
 
    ```sh
-   tar -xzf mvplayer-linux-x86_64.tar.gz
-   cd mvplayer-linux-x86_64
+   tar -xzf potato-player-linux-x86_64.tar.gz
+   cd potato-player-linux-x86_64
    ```
 
 2. Comprueba que el sistema tiene las bibliotecas que el reproductor
@@ -629,13 +665,13 @@ posterior (Ubuntu 22.04, Debian 12, Fedora 36, o posteriores).
    paquetes del sistema:
 
    ```sh
-   ./mvplayer.sh --check-libs
+   ./potato-player.sh --check-libs
    ```
 
 3. Arráncalo:
 
    ```sh
-   ./mvplayer.sh
+   ./potato-player.sh
    ```
 
    La línea "Add a game" de la lista muestra tus carpetas: entra en la
@@ -644,8 +680,8 @@ posterior (Ubuntu 22.04, Debian 12, Fedora 36, o posteriores).
    primero. Supr (o X en un mando, o la cruz al final de la línea elegida
    con el ratón) quita un juego de la lista, tras volver a preguntar; sus
    archivos se quedan donde están. Un juego también se puede arrancar
-   directamente: `./mvplayer.sh "/ruta/al juego/Game.exe"`.
-4. Opcional: `./mvplayer.sh --install-launcher` añade "Potato Player"
+   directamente: `./potato-player.sh "/ruta/al juego/Game.exe"`.
+4. Opcional: `./potato-player.sh --install-launcher` añade "Potato Player"
    al menú de aplicaciones del escritorio.
 5. Opcional, para los vídeos de un juego: instala `ffmpeg` con el gestor de
    paquetes del sistema (`sudo apt install ffmpeg`, `sudo dnf install
@@ -658,20 +694,20 @@ segundo. También funcionan un mando y, donde el juego lo admite, el ratón:
 el botón izquierdo pulsa y el derecho cancela. El reproductor se abre en una ventana
 que se puede redimensionar; F11 alterna entre la ventana y la pantalla
 completa. El paquete trae sus propias SDL2, Cairo y FreeType y necesita sus
-archivos juntos: arráncalo siempre con `mvplayer.sh`. Hay más detalles en
+archivos juntos: arráncalo siempre con `potato-player.sh`. Hay más detalles en
 el `README.txt` que lleva dentro (en inglés).
 
 Para actualizar, extrae el archivo nuevo en lugar de la carpeta anterior;
-la lista de juegos se guarda en `~/.config/mvplayer/games.txt` y las
+la lista de juegos se guarda en `~/.config/potato-player/games.txt` y las
 partidas en el `www/save` de cada juego. Para quitar el reproductor, borra
 su carpeta, ese archivo y, si instalaste el lanzador,
-`~/.local/share/applications/mvplayer.desktop`.
+`~/.local/share/applications/potato-player.desktop`.
 
 ## Parches
 
 `player/patches/index.json` los enumera y dice cuándo se aplica cada uno.
 Se apagan todos con `--no-patches`, o por juego nombrándolos bajo `"off"`
-en el `save/mvplayer-patches.json` del juego.
+en el `save/potato-player-patches.json` del juego.
 
 | Parche | Se aplica a | Qué cambia |
 | --- | --- | --- |
@@ -732,13 +768,13 @@ Cada paquete tiene sus propias notas (en inglés):
 ## Ejecutar
 
 ```sh
-mvplayer --game <ruta>                 # un juego: su carpeta www, la que la contiene o su .exe
-mvplayer --pick <carpeta-juegos> [...] # la lista de juegos
-mvplayer --game <ruta> --run <script>  # con un script de observación, para pruebas
+potato-player --game <ruta>                 # un juego: su carpeta www, la que la contiene o su .exe
+potato-player --pick <carpeta-juegos> [...] # la lista de juegos
+potato-player --game <ruta> --run <script>  # con un script de observación, para pruebas
 ```
 
 `--fps` arranca con el contador de fotogramas; `--no-patches` ejecuta sin
-los parches. El registro de cada ejecución es el `www/save/mvplayer.log`
+los parches. El registro de cada ejecución es el `www/save/potato-player.log`
 del juego.
 
 Dónde van los juegos en cada plataforma está en "Instalar y usar".

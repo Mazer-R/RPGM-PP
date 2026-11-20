@@ -1,5 +1,5 @@
 // A finger or the mouse reaching the game's engine, MV or MZ:
-//   mvplayer --game <game> --run tests/device/pointer_check.js
+//   potato-player --game <game> --run tests/device/pointer_check.js
 //
 // At the title it presses, moves and lifts at places in the game's picture,
 // the way the native player reports a finger or the mouse, and checks each

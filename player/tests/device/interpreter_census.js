@@ -1,4 +1,4 @@
-// Run next to a game (mvplayer --game <dir> --run this file) to see what the
+// Run next to a game (potato-player --game <dir> --run this file) to see what the
 // event interpreter does in a logic step: which commands run and how often,
 // how much skipping of branches there is, how many scripts are evaluated,
 // and (from the engine's sampling profiler) where the time goes.

@@ -10,4 +10,4 @@ cmake -S /work/player -B /work/player/build-x64 -G Ninja -DCMAKE_BUILD_TYPE=Rele
   -DCMAKE_TOOLCHAIN_FILE=/work/player/tools/build/toolchain-x64.cmake \
   -DMVP_V8_DIR=/work/player/third_party/v8-x64
 cmake --build /work/player/build-x64
-ls -l /work/player/build-x64/mvplayer
+ls -l /work/player/build-x64/potato-player

@@ -116,16 +116,16 @@
   // function to player.patches. They are installed when the engine has
   // finished booting, just before the first real scene.
   //
-  // What the game switched off: <game>/save/mvplayer-patches.json, written by
+  // What the game switched off: <game>/save/potato-player-patches.json, written by
   // hand, of the form { "off": ["framePacing"] }.
   function switchedOff() {
-    var text = player.readTextFile(player.gameDir + '/save/mvplayer-patches.json');
+    var text = player.readTextFile(player.gameDir + '/save/potato-player-patches.json');
     if (text === null) return [];
     try {
       var off = JSON.parse(text).off;
       return Array.isArray(off) ? off.map(String) : [];
     } catch (error) {
-      console.warn('patches: save/mvplayer-patches.json is not valid: ' + error);
+      console.warn('patches: save/potato-player-patches.json is not valid: ' + error);
       return [];
     }
   }

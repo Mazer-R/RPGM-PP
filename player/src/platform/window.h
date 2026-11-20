@@ -1,7 +1,7 @@
 // The screen. Opens an SDL2 window with an OpenGL ES 2 context and presents
 // frames. On a handheld or a phone the window is the whole screen. On a
 // desktop (X11 or Wayland) it is an ordinary window that can be resized;
-// F11 switches it to the whole screen and back, and MVPLAYER_FULLSCREEN=1
+// F11 switches it to the whole screen and back, and POTATO_PLAYER_FULLSCREEN=1
 // starts it that way. This is the only part of the player that includes
 // SDL's video headers.
 #pragma once

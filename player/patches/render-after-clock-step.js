@@ -16,7 +16,7 @@
 // Frames skipped for a drawing that did take long are skipped as before.
 //
 // It never edits game files. To turn it off for one game, name it
-// under "off" in that game's save/mvplayer-patches.json; for every game,
+// under "off" in that game's save/potato-player-patches.json; for every game,
 // remove its line from patches/index.json or start the player with
 // --no-patches. Its counter is in player.patchStats.renderAfterClockStep.
 player.patches.renderAfterClockStep = function () {

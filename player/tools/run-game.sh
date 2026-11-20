@@ -13,12 +13,12 @@
 #   - over USB: adb on PATH or in $ADB, the handheld in ADB mode; or
 #   - over the network: $SSH_HOST set (for example root@<console-address>) and,
 #     optionally, $SSH_KEY naming the private key to use.
-# The log is the game's own save/mvplayer.log, as in normal use.
+# The log is the game's own save/potato-player.log, as in normal use.
 set -eu
 ADB="${ADB:-adb}"
 GAME="$1"
 WATCH="${2:-}"
-REMOTE=/opt/mvplayer
+REMOTE=/opt/potato-player
 RUN=""
 PLAY_SECONDS="${PLAY_SECONDS:-120}"
 
@@ -35,13 +35,13 @@ else
 fi
 
 # Two players at once fight over the screen and spoil any measurement.
-if [ -n "$(remote 'pidof mvplayer' | tr -d '\r')" ]; then
+if [ -n "$(remote 'pidof potato-player' | tr -d '\r')" ]; then
   echo "a player is already running on the handheld (a game or the game list); close it first" >&2
   exit 1
 fi
 
 remote "mkdir -p $REMOTE/js $REMOTE/patches"
-put build-device/mvplayer "$REMOTE/mvplayer"
+put build-device/potato-player "$REMOTE/potato-player"
 for FILE in js/*.js patches/*; do put "$FILE" "$REMOTE/$FILE"; done
 if [ -n "$WATCH" ]; then
   put "$WATCH" "$REMOTE/$(basename "$WATCH")"
@@ -51,7 +51,7 @@ fi
 # The menu is paused with SIGSTOP so it stops drawing; afterwards its loop
 # is resumed and the paused screen replaced by a fresh one.
 remote "
-  cd $REMOTE && chmod +x mvplayer
+  cd $REMOTE && chmod +x potato-player
   # Matched by process name, not by command line: a command-line match also
   # finds this very shell, whose command line contains the same text.
   FRONTEND=\$(pgrep -x frontend.sh | head -n 1)
@@ -62,15 +62,15 @@ remote "
   # Where muOS's sound service listens; programs started from its menu
   # inherit this, a shell that came in from outside does not.
   export XDG_RUNTIME_DIR=/var/run PIPEWIRE_RUNTIME_DIR=/var/run
-  rm -f $GAME/save/mvplayer.log /tmp/mvplayer.rss
+  rm -f $GAME/save/potato-player.log /tmp/potato-player.rss
   # Memory in use, sampled once the game has had time to start.
-  (sleep 12; grep -E 'VmRSS|VmHWM' /proc/\$(pidof mvplayer)/status > /tmp/mvplayer.rss 2>/dev/null
+  (sleep 12; grep -E 'VmRSS|VmHWM' /proc/\$(pidof potato-player)/status > /tmp/potato-player.rss 2>/dev/null
    # Then every five seconds: seconds since start, resident memory, free memory.
-   T=12; while PID=\$(pidof mvplayer); do
-     echo \"\$T s: \$(grep VmRSS /proc/\$PID/status | tr -s ' \t' ' ') | \$(grep MemAvailable /proc/meminfo | tr -s ' ' ' ')\" >> /tmp/mvplayer.rss
+   T=12; while PID=\$(pidof potato-player); do
+     echo \"\$T s: \$(grep VmRSS /proc/\$PID/status | tr -s ' \t' ' ') | \$(grep MemAvailable /proc/meminfo | tr -s ' ' ' ')\" >> /tmp/potato-player.rss
      sleep 5; T=\$((T+5)); done) &
   # TERM after the time limit, KILL five seconds later if it is still there.
-  timeout -k 5 $PLAY_SECONDS ./mvplayer --game $GAME $RUN ${PLAYER_OPTIONS:-}
+  timeout -k 5 $PLAY_SECONDS ./potato-player --game $GAME $RUN ${PLAYER_OPTIONS:-}
   CODE=\$?
   # The paused menu screen has every button press of the game queued up and
   # would act on all of them when resumed (moving around, even starting
@@ -84,7 +84,7 @@ remote "
   [ -n \"\$FRONTEND\" ] && kill -CONT \$FRONTEND
   echo \"player exit code: \$CODE\"
   echo '--- memory after 12 s ---'
-  cat /tmp/mvplayer.rss 2>/dev/null
+  cat /tmp/potato-player.rss 2>/dev/null
   echo '--- log ---'
-  cat $GAME/save/mvplayer.log
+  cat $GAME/save/potato-player.log
 " | tr -d '\r'

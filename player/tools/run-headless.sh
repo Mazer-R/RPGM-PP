@@ -28,12 +28,12 @@ docker run --rm -v "$PWD":/work/player:ro -v "$GAME":/game-ro:ro $MOUNT mvp-play
   for ENTRY in *; do [ \"\$ENTRY\" = save ] || ln -s \"/game-ro/\$ENTRY\" \"/game/\$ENTRY\"; done
   cp -r /game-ro/save/. /game/save/ 2>/dev/null || true
   [ -d /saves ] && cp -r /saves/. /game/save/
-  rm -f /game/save/mvplayer.log
-  mkdir /p && cp /work/player/build-device/mvplayer /p/ && cp -r /work/player/js /work/player/patches /p/
+  rm -f /game/save/potato-player.log
+  mkdir /p && cp /work/player/build-device/potato-player /p/ && cp -r /work/player/js /work/player/patches /p/
   cd /p
   # The player takes the whole of this small screen, as it does on a handheld.
-  MVPLAYER_FULLSCREEN=1 xvfb-run -a -s '-screen 0 640x480x24' timeout -k 5 ${PLAY_SECONDS:-120} ./mvplayer --game /game $RUN ${PLAYER_OPTIONS:-}
+  POTATO_PLAYER_FULLSCREEN=1 xvfb-run -a -s '-screen 0 640x480x24' timeout -k 5 ${PLAY_SECONDS:-120} ./potato-player --game /game $RUN ${PLAYER_OPTIONS:-}
   echo \"player exit code: \$?\"
   echo '--- log ---'
-  cat /game/save/mvplayer.log
+  cat /game/save/potato-player.log
 "

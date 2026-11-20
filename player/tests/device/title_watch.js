@@ -1,8 +1,8 @@
-// Run next to a game (mvplayer --game <dir> --run this file) to check that
+// Run next to a game (potato-player --game <dir> --run this file) to check that
 // the game reaches its title screen. Once a second it logs the scene the
 // engine is in. Some seconds after the title scene appears it reads the
 // picture back, logs how much of it is lit, saves it as text in the game's
-// save folder (mvplayer-shot.txt: width, height, then base64 RGBA rows at
+// save folder (potato-player-shot.txt: width, height, then base64 RGBA rows at
 // half size) so it can be turned into an image on another machine, and
 // exits with 0. It exits with 4 if the title is not reached in time.
 (function () {
@@ -51,7 +51,7 @@
         small[to] = pixels[from]; small[to + 1] = pixels[from + 1]; small[to + 2] = pixels[from + 2]; small[to + 3] = 255;
       }
     }
-    var saved = player.writeSaveFile(player.gameDir + '/save/mvplayer-shot.txt', hw + '\n' + hh + '\n' + base64(small) + '\n');
+    var saved = player.writeSaveFile(player.gameDir + '/save/potato-player-shot.txt', hw + '\n' + hh + '\n' + base64(small) + '\n');
     console.log('watch: picture saved: ' + saved);
   }
 

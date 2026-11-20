@@ -1,55 +1,55 @@
 #!/bin/sh
 # Starts the player with the libraries shipped next to it.
 #
-#   ./mvplayer.sh                     show the list of games, the ones played
+#   ./potato-player.sh                     show the list of games, the ones played
 #                                     last first; its "add a game" line lets
 #                                     you look through folders for a game
-#   ./mvplayer.sh <path>              play the game at <path>
-#   ./mvplayer.sh --install-launcher  add "Potato Player" to the
+#   ./potato-player.sh <path>              play the game at <path>
+#   ./potato-player.sh --install-launcher  add "Potato Player" to the
 #                                     desktop's application menu
-#   ./mvplayer.sh --check-libs        list the libraries the system is missing
-#   ./mvplayer.sh --<option> ...      anything else goes to the player as it is
+#   ./potato-player.sh --check-libs        list the libraries the system is missing
+#   ./potato-player.sh --<option> ...      anything else goes to the player as it is
 #
 # <path> may be the game's www folder (the one with index.html), the folder
 # that holds it, or the game's .exe. The games played or added through the
-# list are remembered in ~/.config/mvplayer/games.txt, one folder per line;
+# list are remembered in ~/.config/potato-player/games.txt, one folder per line;
 # a line starting with "-" is a game taken off the list (Delete key).
 #
 # A copy of the log of every run is kept in the logs/ folder next to this
-# script (or in ~/.config/mvplayer/logs if that cannot be written), named
+# script (or in ~/.config/potato-player/logs if that cannot be written), named
 # after the game and the time: the place to look when a game misbehaves.
 #
 # Videos play if the system has the ffmpeg program installed; without it the
 # game goes on as if each video had ended at once.
 #
-# Set MVPLAYER_SYSTEM_LIBS=1 to ignore the lib/ folder and use the system's
+# Set POTATO_PLAYER_SYSTEM_LIBS=1 to ignore the lib/ folder and use the system's
 # own SDL2, Cairo and FreeType instead.
 HERE=$(dirname -- "$(readlink -f -- "$0")")
-if [ "${MVPLAYER_SYSTEM_LIBS:-0}" != 1 ]; then
+if [ "${POTATO_PLAYER_SYSTEM_LIBS:-0}" != 1 ]; then
   # The player starts the system's ffmpeg to play videos; that program must
   # get the library search path as it was, without the lib/ folder.
-  MVPLAYER_SYSTEM_LIBRARY_PATH="${LD_LIBRARY_PATH:-}"
-  export MVPLAYER_SYSTEM_LIBRARY_PATH
+  POTATO_PLAYER_SYSTEM_LIBRARY_PATH="${LD_LIBRARY_PATH:-}"
+  export POTATO_PLAYER_SYSTEM_LIBRARY_PATH
   LD_LIBRARY_PATH="$HERE/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
   export LD_LIBRARY_PATH
 fi
-PLAYER="$HERE/mvplayer"
-LIBRARY="${XDG_CONFIG_HOME:-$HOME/.config}/mvplayer/games.txt"
+PLAYER="$HERE/potato-player"
+LIBRARY="${XDG_CONFIG_HOME:-$HOME/.config}/potato-player/games.txt"
 
 # Keeps a copy of the log of the game that has just run in the logs folder,
 # named after the game and the time, with the way the player ended as its
 # last line; only the newest 30 copies are kept. The game's own
-# save/mvplayer.log is left where it is.
+# save/potato-player.log is left where it is.
 keep_log() {
-  [ -f "$1/save/mvplayer.log" ] || return 0
+  [ -f "$1/save/potato-player.log" ] || return 0
   mkdir -p "$LOGS" || return 0
   NAME=$(printf '%s' "$(basename "$(dirname "$1")")" | tr -c 'A-Za-z0-9._-' '_')
   COPY="$LOGS/$(date +%Y%m%d-%H%M%S)-$NAME.log"
-  cp "$1/save/mvplayer.log" "$COPY" && echo "launcher: the player ended with exit code $2" >>"$COPY"
+  cp "$1/save/potato-player.log" "$COPY" && echo "launcher: the player ended with exit code $2" >>"$COPY"
   ls -1t "$LOGS"/*.log 2>/dev/null | tail -n +31 | while IFS= read -r OLD; do rm -f "$OLD"; done
 }
 LOGS="$HERE/logs"
-mkdir -p "$LOGS" 2>/dev/null && [ -w "$LOGS" ] || LOGS="${XDG_CONFIG_HOME:-$HOME/.config}/mvplayer/logs"
+mkdir -p "$LOGS" 2>/dev/null && [ -w "$LOGS" ] || LOGS="${XDG_CONFIG_HOME:-$HOME/.config}/potato-player/logs"
 
 # Runs one game and keeps its log. Returns the player's exit code.
 play() {
@@ -76,8 +76,8 @@ case "${1:-}" in
     mkdir -p "$APPS"
     printf '%s\n' '[Desktop Entry]' 'Type=Application' 'Name=Potato Player' \
       'Comment=Play RPG Maker MV and MZ games without their bundled browser' \
-      "Exec=\"$HERE/mvplayer.sh\" %f" "Icon=$HERE/icon.png" 'Terminal=false' 'Categories=Game;' > "$APPS/mvplayer.desktop"
-    echo "Added $APPS/mvplayer.desktop"
+      "Exec=\"$HERE/potato-player.sh\" %f" "Icon=$HERE/icon.png" 'Terminal=false' 'Categories=Game;' > "$APPS/potato-player.desktop"
+    echo "Added $APPS/potato-player.desktop"
     exit 0 ;;
   -*) exec "$PLAYER" "$@" ;;
   ?*) play "$@"; exit $? ;;
@@ -90,7 +90,7 @@ mkdir -p "$(dirname "$LIBRARY")"
 while :; do
   ANSWER=$("$PLAYER" --pick --games-file "$LIBRARY" --can-add --browse "$HOME" --browse /)
   case "$ANSWER" in
-    *MVPLAYER_GAME=*) GAME=$(printf '%s\n' "$ANSWER" | sed -n 's/^MVPLAYER_GAME=//p' | head -n 1) ;;
+    *POTATO_PLAYER_GAME=*) GAME=$(printf '%s\n' "$ANSWER" | sed -n 's/^POTATO_PLAYER_GAME=//p' | head -n 1) ;;
     *) exit 0 ;;
   esac
   play "$GAME"

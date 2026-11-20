@@ -21,7 +21,7 @@
 //   - the flashlight cone is drawn as a single round light at the player.
 //
 // It needs the WebGL renderer and never edits game files. To turn it off for
-// one game, name it under "off" in that game's save/mvplayer-patches.json; for
+// one game, name it under "off" in that game's save/potato-player-patches.json; for
 // every game, remove its line from patches/index.json or start the player
 // with --no-patches. Its counters are in player.patchStats.gpuLights.
 player.patches.gpuLights = function (options) {

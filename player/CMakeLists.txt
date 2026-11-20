@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(mvplayer C CXX)
+project(potato-player C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -86,14 +86,14 @@ set(MVP_SOURCES
 )
 if(ANDROID)
   # SDL's Java side loads the program as libmain.so and calls its SDL_main.
-  add_library(mvplayer SHARED ${MVP_SOURCES} src/platform/android_start.cpp src/platform/video.cpp)
-  set_target_properties(mvplayer PROPERTIES OUTPUT_NAME main)
+  add_library(potato-player SHARED ${MVP_SOURCES} src/platform/android_start.cpp src/platform/video.cpp)
+  set_target_properties(potato-player PROPERTIES OUTPUT_NAME main)
 else()
-  add_executable(mvplayer ${MVP_SOURCES} src/platform/video.cpp)
+  add_executable(potato-player ${MVP_SOURCES} src/platform/video.cpp)
 endif()
-target_include_directories(mvplayer PRIVATE src third_party/stb ${MVP_PLATFORM_INCLUDES} "${CMAKE_BINARY_DIR}/generated" "${MVP_V8_DIR}/include")
-target_compile_options(mvplayer PRIVATE -Wall -Wextra -Werror -Wno-unused-parameter)
-target_link_libraries(mvplayer PRIVATE
+target_include_directories(potato-player PRIVATE src third_party/stb ${MVP_PLATFORM_INCLUDES} "${CMAKE_BINARY_DIR}/generated" "${MVP_V8_DIR}/include")
+target_compile_options(potato-player PRIVATE -Wall -Wextra -Werror -Wno-unused-parameter)
+target_link_libraries(potato-player PRIVATE
   "${MVP_V8_DIR}/lib/libv8_monolith.a"
   stb_vorbis
   ${MVP_PLATFORM_LIBS}

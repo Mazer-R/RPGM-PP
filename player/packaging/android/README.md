@@ -23,14 +23,14 @@ SDK and NDK r27 installed in `~/Library/Android/sdk`, a Java compiler, and
    folder, so the package carries it there as `libffmpeg.so`.
 4. `sh tools/build/build-android.sh` builds SDL2 and the player
    (`build-android/native/libmain.so`).
-5. `sh packaging/android/build-apk.sh` makes `build-android/mvplayer.apk`,
+5. `sh packaging/android/build-apk.sh` makes `build-android/potato-player.apk`,
    signed with a throw-away debug key. No Gradle is involved: the script
    calls the SDK's `aapt2`, `d8`, `zipalign` and `apksigner` directly.
 
 ## Installing and adding games
 
 ```sh
-adb install -r build-android/mvplayer.apk
+adb install -r build-android/potato-player.apk
 adb push "My Game" /sdcard/RPGMV/
 ```
 
@@ -47,18 +47,18 @@ game off the list (touch it again to confirm); its files stay. Saves and the log
 The first time it starts, the app opens the system screen for "all files
 access": allow it and open the app again. Current Android versions give an
 app no other way to read and write an ordinary shared folder, and let nobody
-but the app write to the app's own folder (`Android/data/org.mvplayer`), so
+but the app write to the app's own folder (`Android/data/org.potatoplayer`), so
 that one cannot be where games are copied.
 
 | Path | What |
 | --- | --- |
 | `RPGMV/<Game>/www` | The games. |
-| `RPGMV/mvplayer/logs/` | A copy of the log of every run (newest 30) and `picker.log`. |
-| `RPGMV/mvplayer/games.txt` | The games played or added, the last one first; a line starting with `-` is a game taken off the list. |
-| `Android/data/org.mvplayer/files/args.txt` | For tests: if present, the app runs once with these arguments (one per line) instead of showing the list. Kept in the app's own folder, which other apps cannot write to, because the arguments can name a script to run. |
+| `RPGMV/potato-player/logs/` | A copy of the log of every run (newest 30) and `picker.log`. |
+| `RPGMV/potato-player/games.txt` | The games played or added, the last one first; a line starting with `-` is a game taken off the list. |
+| `Android/data/org.potatoplayer/files/args.txt` | For tests: if present, the app runs once with these arguments (one per line) instead of showing the list. Kept in the app's own folder, which other apps cannot write to, because the arguments can name a script to run. |
 
-Until access is allowed, the `mvplayer` folder is kept in
-`Android/data/org.mvplayer/files` instead.
+Until access is allowed, the `potato-player` folder is kept in
+`Android/data/org.potatoplayer/files` instead.
 
 ## Controls
 

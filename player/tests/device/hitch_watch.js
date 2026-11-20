@@ -1,4 +1,4 @@
-// Run next to a game (mvplayer --game <dir> --run this file) to find what
+// Run next to a game (potato-player --game <dir> --run this file) to find what
 // makes single frames slow: the short stops a player feels every few
 // seconds while the average frame rate looks fine.
 //

@@ -68,10 +68,10 @@ bool MakePipe(int* read_end, int* write_end) {
 // The environment the decoder is started with: the player's own, except
 // that the library search path is the one the system had before the
 // player's package put its own copies of some libraries first
-// ($MVPLAYER_SYSTEM_LIBRARY_PATH, set by the package's start script). The
+// ($POTATO_PLAYER_SYSTEM_LIBRARY_PATH, set by the package's start script). The
 // decoder is the system's program and must load the system's libraries.
 std::vector<std::string> DecoderEnvironment() {
-  const char* system_path = std::getenv("MVPLAYER_SYSTEM_LIBRARY_PATH");
+  const char* system_path = std::getenv("POTATO_PLAYER_SYSTEM_LIBRARY_PATH");
   std::vector<std::string> result;
   for (char** entry = environ; entry && *entry; entry++) {
     if (system_path && std::strncmp(*entry, "LD_LIBRARY_PATH=", 16) == 0) continue;
@@ -118,7 +118,7 @@ bool StartProgram(const std::string& program, char* const* argv, char* const* en
 }  // namespace
 
 std::string VideoPlayer::FindDecoder() {
-  if (const char* chosen = std::getenv("MVPLAYER_FFMPEG")) return IsProgram(chosen) ? chosen : std::string();
+  if (const char* chosen = std::getenv("POTATO_PLAYER_FFMPEG")) return IsProgram(chosen) ? chosen : std::string();
   const char* path = std::getenv("PATH");
   std::string folders = path ? path : "/usr/local/bin:/usr/bin:/bin";
   size_t start = 0;

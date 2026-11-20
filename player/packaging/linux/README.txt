@@ -7,7 +7,7 @@ Run
 ---
 Extract the archive anywhere. Then either:
 
-    ./mvplayer.sh
+    ./potato-player.sh
 
 which shows the list of your games, the ones played last first. Its "Add a
 game" line shows your folders: go into the game's own folder and choose its
@@ -17,15 +17,15 @@ to go back or leave.
 
 Or start one game directly, giving its folder, its www folder or its .exe:
 
-    ./mvplayer.sh "/path/to/the game/Game.exe"
+    ./potato-player.sh "/path/to/the game/Game.exe"
 
-    ./mvplayer.sh --install-launcher
+    ./potato-player.sh --install-launcher
 
 adds "Potato Player" to the desktop's application menu.
 
 The player opens in a window of its own that can be resized; the picture
 keeps its proportions. F11 switches between the window and the whole screen
-(MVPLAYER_FULLSCREEN=1 ./mvplayer.sh starts on the whole screen).
+(POTATO_PLAYER_FULLSCREEN=1 ./potato-player.sh starts on the whole screen).
 
 While playing, F2 shows or hides the frames per second.
 F1 opens the player's settings menu over the game (on a controller: the
@@ -33,19 +33,19 @@ menu button held, then X). There you can switch the frame counter, choose
 which key each controller button presses, and leave the game. The buttons
 are kept per game, in the game's www/save/buttons.txt.
 
-Saves and the player's log (mvplayer.log) are written to the game's
+Saves and the player's log (potato-player.log) are written to the game's
 www/save folder. A copy of the log of every run is also kept in the logs/
-folder next to mvplayer.sh, named after the game and the time; if something
+folder next to potato-player.sh, named after the game and the time; if something
 goes wrong, that is the first thing to look at (and to send along).
 
-Always start the player through mvplayer.sh: it makes the player use the
+Always start the player through potato-player.sh: it makes the player use the
 libraries in the lib/ folder. Keep the files together; the player looks for
 js/ and patches/ next to its executable.
 
 Contents
 --------
-    mvplayer.sh   start script
-    mvplayer      the player (@ARCH@, needs glibc 2.35 or newer)
+    potato-player.sh   start script
+    potato-player      the player (@ARCH@, needs glibc 2.35 or newer)
     js/           the player's JavaScript layer
     patches/      per-game patches
     lib/          SDL2, Cairo, FreeType and the libraries they need
@@ -60,7 +60,7 @@ libxkbcommon, libdecor, libdrm, libgbm, ALSA (libasound), PulseAudio's client
 library (libpulse), fontconfig and zlib. A desktop installation normally has
 all of them. To check:
 
-    ./mvplayer.sh --check-libs
+    ./potato-player.sh --check-libs
 
 lists any that are missing.
 
@@ -76,7 +76,7 @@ If the bundled libraries cause trouble
 With SDL2, Cairo and FreeType installed on the system, the player can use
 those instead of the ones in lib/:
 
-    MVPLAYER_SYSTEM_LIBS=1 ./mvplayer.sh --game /path/to/game/www
+    POTATO_PLAYER_SYSTEM_LIBS=1 ./potato-player.sh --game /path/to/game/www
 
 SDL's usual environment variables work, for example SDL_VIDEODRIVER=wayland
 or SDL_VIDEODRIVER=x11 to choose the display system.

@@ -1,4 +1,4 @@
-// Run next to a game (mvplayer --game <dir> --run this file) to see where
+// Run next to a game (potato-player --game <dir> --run this file) to see where
 // the time of a frame goes. It starts a new game by confirming at the title
 // and keeps confirming, and once a second logs, for the scene on screen:
 // frames shown, and the average milliseconds per frame spent in the engine's

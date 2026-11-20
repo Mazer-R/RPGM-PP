@@ -15,8 +15,8 @@
 #            (the same program that goes to the handhelds)
 #
 # Result, under build-x64/ or build-device/:
-#   package/mvplayer-linux-<arch>/     the folder
-#   mvplayer-linux-<arch>.tar.gz       the same, as an archive
+#   package/potato-player-linux-<arch>/     the folder
+#   potato-player-linux-<arch>.tar.gz       the same, as an archive
 set -eu
 cd /work/player
 ARCH="${1:-x86_64}"
@@ -30,12 +30,12 @@ case "$ARCH" in
     READELF=readelf; OBJDUMP=objdump; EMULATOR="" ;;
   *) echo "unknown architecture: $ARCH (x86_64 or aarch64)" >&2; exit 1 ;;
 esac
-NAME=mvplayer-linux-$ARCH
+NAME=potato-player-linux-$ARCH
 DIR="$OUT/package/$NAME"
 LIBDIRS="/usr/lib/$TRIPLE /lib/$TRIPLE"
 MAX_GLIBC=2.36   # Debian bookworm's; the binary must not need a newer one
 
-[ -x "$OUT/mvplayer" ] || { echo "$OUT/mvplayer is missing: build the player first" >&2; exit 1; }
+[ -x "$OUT/potato-player" ] || { echo "$OUT/potato-player is missing: build the player first" >&2; exit 1; }
 
 # Libraries that must come from the machine the player runs on, because they
 # belong to its C and C++ runtime, its graphics driver, its display server
@@ -63,19 +63,19 @@ find_lib() {
 
 rm -rf "$OUT/package" "$OUT/$NAME.tar.gz"
 mkdir -p "$DIR/js" "$DIR/patches" "$DIR/lib"
-cp "$OUT/mvplayer" "$DIR/mvplayer"
+cp "$OUT/potato-player" "$DIR/potato-player"
 cp js/*.js js/*.png "$DIR/js/"
 cp patches/* "$DIR/patches/"
-cp packaging/linux/mvplayer.sh "$DIR/"
+cp packaging/linux/potato-player.sh "$DIR/"
 cp packaging/icon/potato-player.png "$DIR/icon.png"
 sed "s/@ARCH@/$LABEL/g" packaging/linux/README.txt > "$DIR/README.txt"
-chmod 755 "$DIR/mvplayer" "$DIR/mvplayer.sh"
+chmod 755 "$DIR/potato-player" "$DIR/potato-player.sh"
 
 # Bundle every library the player needs, directly or through another bundled
 # library, except those that come from the system. SYSTEM collects the
 # latter, for the report.
 SYSTEM=""
-QUEUE="$DIR/mvplayer"
+QUEUE="$DIR/potato-player"
 while [ -n "$QUEUE" ]; do
   NEXT=""
   for FILE in $QUEUE; do
@@ -101,13 +101,13 @@ tar -tzvf "$OUT/$NAME.tar.gz"
 
 echo "== checks =="
 FAILED=0
-$READELF -h "$DIR/mvplayer" | grep -E "Class:|Machine:"
-$READELF -h "$DIR/mvplayer" | grep -q "Machine:.*$MACHINE" || { echo "FAIL: not a program for $LABEL"; FAILED=1; }
+$READELF -h "$DIR/potato-player" | grep -E "Class:|Machine:"
+$READELF -h "$DIR/potato-player" | grep -q "Machine:.*$MACHINE" || { echo "FAIL: not a program for $LABEL"; FAILED=1; }
 
-echo "needed by mvplayer: $(needed "$DIR/mvplayer" | tr '\n' ' ')"
+echo "needed by potato-player: $(needed "$DIR/potato-player" | tr '\n' ' ')"
 echo "bundled: $(ls "$DIR/lib" | tr '\n' ' ')"
 echo "expected from the system: $(echo $SYSTEM | tr ' ' '\n' | sort | tr '\n' ' ')"
-for FILE in "$DIR/mvplayer" "$DIR"/lib/*; do
+for FILE in "$DIR/potato-player" "$DIR"/lib/*; do
   for LIB in $(needed "$FILE"); do
     from_system "$LIB" || [ -e "$DIR/lib/$LIB" ] || { echo "FAIL: $LIB (needed by $FILE) is not bundled"; FAILED=1; }
   done
@@ -115,7 +115,7 @@ done
 
 # Highest version of each versioned runtime the player and the bundled
 # libraries ask for.
-highest() { $OBJDUMP -T "$DIR/mvplayer" "$DIR"/lib/* | grep -o "$1_[0-9][0-9.]*" | sed "s/$1_//" | sort -V | tail -n 1; }
+highest() { $OBJDUMP -T "$DIR/potato-player" "$DIR"/lib/* | grep -o "$1_[0-9][0-9.]*" | sed "s/$1_//" | sort -V | tail -n 1; }
 GLIBC=$(highest GLIBC)
 echo "highest GLIBC version required: $GLIBC (limit $MAX_GLIBC)"
 [ "$(printf '%s\n' "$GLIBC" "$MAX_GLIBC" | sort -V | tail -n 1)" = "$MAX_GLIBC" ] || { echo "FAIL: needs a newer glibc than $MAX_GLIBC"; FAILED=1; }
@@ -127,12 +127,12 @@ echo "highest GLIBCXX version required: $(highest GLIBCXX)"
 # exit with 1.
 if [ -z "$EMULATOR" ] || command -v "$EMULATOR" >/dev/null; then
   set +e
-  USAGE=$(cd "$DIR" && LD_LIBRARY_PATH="$PWD/lib" $EMULATOR ./mvplayer 2>&1)
+  USAGE=$(cd "$DIR" && LD_LIBRARY_PATH="$PWD/lib" $EMULATOR ./potato-player 2>&1)
   CODE=$?
   set -e
   echo "run without arguments: exit code $CODE"
   echo "$USAGE"
-  { [ "$CODE" = 1 ] && echo "$USAGE" | grep -q "usage: mvplayer --game"; } || { echo "FAIL: unexpected result from the run"; FAILED=1; }
+  { [ "$CODE" = 1 ] && echo "$USAGE" | grep -q "usage: potato-player --game"; } || { echo "FAIL: unexpected result from the run"; FAILED=1; }
 else
   echo "$EMULATOR not available: run skipped"
 fi

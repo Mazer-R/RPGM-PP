@@ -19,7 +19,7 @@
 // what lies under each window.)
 //
 // It never edits game files. To turn it off for one game, name it under
-// "off" in that game's save/mvplayer-patches.json; for every game, remove
+// "off" in that game's save/potato-player-patches.json; for every game, remove
 // its line from patches/index.json or start the player with --no-patches.
 // Its counter is in player.patchStats.windowClip.
 player.patches.windowClip = function (options) {

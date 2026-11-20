@@ -22,7 +22,7 @@
 // `least` and `most` megabytes), or `megabytes` if given.
 //
 // It never edits game files. To turn it off for one game, name it
-// under "off" in that game's save/mvplayer-patches.json; for every game,
+// under "off" in that game's save/potato-player-patches.json; for every game,
 // remove its line from patches/index.json or start the player with
 // --no-patches. Its counters are in player.patchStats.textureBudget.
 player.patches.textureBudget = function (options) {

@@ -1,15 +1,15 @@
 // Entry point of the player.
 //
 // Usage:
-//   mvplayer --game <path> [--player <dir>] [--log <file>] [--run <script.js>]
+//   potato-player --game <path> [--player <dir>] [--log <file>] [--run <script.js>]
 //       Runs a game: loads <player-dir>/js/boot.js, which starts the game in
-//       <www-dir>. The log goes to <www-dir>/save/mvplayer.log, so that
+//       <www-dir>. The log goes to <www-dir>/save/potato-player.log, so that
 //       everything the player writes stays in the game's save folder.
-//   mvplayer --pick [<games-dir> ...] [--games-file <file>] [--can-add] [--browse <dir> ...]
+//   potato-player --pick [<games-dir> ...] [--games-file <file>] [--can-add] [--browse <dir> ...]
 //       Shows a list of games and lets the user choose one: the games found
 //       in the given folders (each game is a folder that holds the game's
 //       www folder) and the games named in <file>, one path per line. Prints
-//       "MVPLAYER_GAME=<www-dir>" on standard output and exits with 0, or
+//       "POTATO_PLAYER_GAME=<www-dir>" on standard output and exits with 0, or
 //       exits with 10 if the user leaves without choosing. The program that
 //       started the player then runs the game. <file> is the list's own
 //       memory: the game chosen goes to its top, so the games played last
@@ -17,17 +17,17 @@
 //       that lets the user look through folders, starting from each
 //       --browse <dir> (from "/" if none is given), for a game to add to
 //       <file>.
-//   mvplayer --resolve <path>
+//   potato-player --resolve <path>
 //       Prints the game's www folder for <path> and exits with 0, or exits
 //       with 1 if there is no game there. Opens no window.
 //
 // A game's <path> may be its www folder (the one with index.html), the
 // folder that holds www, or any file directly inside either, such as the
 // game's .exe.
-//   mvplayer <script.js> [--log <file>]
+//   potato-player <script.js> [--log <file>]
 //       Runs one script, for tests.
 // --no-patches runs the game without the per-game patches in patches/.
-// --fps starts with the frame-rate display on (also MVPLAYER_FPS=1). It can
+// --fps starts with the frame-rate display on (also POTATO_PLAYER_FPS=1). It can
 // be switched while playing: F2, or the console's menu button plus Select.
 // --profile-slow samples where the scripts spend their time after a slow
 // stretch of play and logs it; starting the sampler stops the game for
@@ -103,7 +103,7 @@ int PlayerMain(int argc, char** argv) {
   std::vector<std::string> library_dirs, library_games, forgotten_games, browse_dirs;
   std::string game_path, games_file, resolve_path, sessions_file;
   bool can_add = false;
-  const char* fps_setting = std::getenv("MVPLAYER_FPS");
+  const char* fps_setting = std::getenv("POTATO_PLAYER_FPS");
   bool show_fps = fps_setting && fps_setting[0] == '1';
   for (int i = 1; i < argc; i++) {
     std::string arg = argv[i];
@@ -135,7 +135,7 @@ int PlayerMain(int argc, char** argv) {
     game_dir = ResolveGameDir(game_path);
     if (game_dir.empty()) {
       std::fprintf(stderr,
-                   "mvplayer: no RPG Maker MV or MZ game at %s\n"
+                   "potato-player: no RPG Maker MV or MZ game at %s\n"
                    "Give the game's www folder (the one with index.html), the folder that holds\n"
                    "it, or the game's .exe.\n",
                    game_path.c_str());
@@ -158,23 +158,23 @@ int PlayerMain(int argc, char** argv) {
   if (script.empty() && !game_dir.empty()) script = player_dir + "/js/boot.js";
   if (script.empty() && pick) {
     script = player_dir + "/js/picker.js";
-    if (log_path.empty()) log_path = "/tmp/mvplayer-picker.log";
+    if (log_path.empty()) log_path = "/tmp/potato-player-picker.log";
   }
   if (script.empty()) {
-    std::fprintf(stderr, "usage: mvplayer --game <game folder, www folder or .exe> [--log <file>]\n"
-                         "       mvplayer --pick [<games-dir> ...] [--games-file <file>] [--can-add] [--browse <dir> ...]\n"
+    std::fprintf(stderr, "usage: potato-player --game <game folder, www folder or .exe> [--log <file>]\n"
+                         "       potato-player --pick [<games-dir> ...] [--games-file <file>] [--can-add] [--browse <dir> ...]\n"
                          "       (--sessions <file> with --game: add a line about the run to that file when it ends)\n"
-                         "       mvplayer --resolve <path>\n"
-                         "       mvplayer <script.js> [--log <file>]\n");
+                         "       potato-player --resolve <path>\n"
+                         "       potato-player <script.js> [--log <file>]\n");
     return 1;
   }
   if (log_path.empty()) {
     if (game_dir.empty()) {
-      log_path = "mvplayer.log";
+      log_path = "potato-player.log";
     } else {
       // The save folder is the one place inside the game the player writes to.
       mkdir((game_dir + "/save").c_str(), 0755);
-      log_path = game_dir + "/save/mvplayer.log";
+      log_path = game_dir + "/save/potato-player.log";
     }
   }
 
