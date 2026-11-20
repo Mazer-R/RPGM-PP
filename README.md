@@ -91,6 +91,9 @@ measurements are in `docs/history/feasibility-study.md`.
   the touch controls. Both are kept per game.
 - A game list, to choose among the games found, add others, and take off
   the ones you no longer want (their files are not deleted).
+- A profile, from the game list: a name and a potato avatar to dress.
+  More characters and pieces are won by using the player. Kept on the
+  device, with no account.
 
 ## What does not
 
@@ -477,6 +480,9 @@ viabilidad anteriores están en `docs/history/feasibility-study.md`.
   de los controles táctiles. Ambos se guardan por juego.
 - Una lista de juegos para elegir entre los encontrados, añadir otros y
   quitar los que ya no quieras (sus archivos no se borran).
+- Un perfil, desde la lista de juegos: un nombre y un avatar patata al que
+  vestir. Usando el reproductor se ganan más personajes y piezas. Se guarda
+  en el dispositivo, sin cuenta.
 
 ## Qué no
 
