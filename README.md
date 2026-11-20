@@ -292,6 +292,7 @@ in the game's `save/mvplayer-patches.json`.
 | `leanTint` | MV | A sprite's flash or tone is worked out without the fills that change nothing |
 | `idleToneFilter` | MV | The screen's tone filter is off while there is no tone |
 | `idleBattleLayers` | MV | A battle's empty backgrounds, and the picture of the map behind a solid one, are not drawn |
+| `renderAfterClockStep` | MV | The picture is drawn again after the system sets its clock back in the middle of a drawing (without it the game runs on but the screen never changes again) |
 | `pictureScale` | MV | On a screen smaller than the game, pictures shown whole are kept in the graphics memory at the size the screen shows |
 | `textureBudget` | MV, MZ | Textures not drawn lately are dropped when they take more than a share of the device's memory |
 
@@ -681,6 +682,7 @@ en el `save/mvplayer-patches.json` del juego.
 | `leanTint` | MV | El destello o el tono de un sprite se calcula sin los rellenos que no cambian nada |
 | `idleToneFilter` | MV | El filtro de tono de la pantalla se apaga mientras no hay tono |
 | `idleBattleLayers` | MV | No se dibujan los fondos de combate vacíos, ni la captura del mapa cuando un fondo sólido la tapa |
+| `renderAfterClockStep` | MV | La imagen se vuelve a dibujar después de que el sistema atrase su reloj en mitad de un dibujado (sin él el juego sigue en marcha pero la pantalla no cambia más) |
 | `pictureScale` | MV | En una pantalla menor que el juego, las imágenes que se muestran enteras se guardan en la memoria gráfica al tamaño que la pantalla enseña |
 | `textureBudget` | MV, MZ | Las texturas que no se dibujan desde hace rato se liberan cuando ocupan más de una parte de la memoria del dispositivo |
 

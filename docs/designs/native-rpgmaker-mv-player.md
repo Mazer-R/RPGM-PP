@@ -1978,6 +1978,38 @@ adjustments where the game's own code is too expensive for this hardware.
         `idleBattleLayers` has only its tests), a screen with a tone on the
         handheld, MZ.
 
+*   **A game left on stops showing anything: the clock set back during a
+    drawing (2026-11-20)**
+    *   **What was seen**: on the handheld, an MV game left alone for a
+        while showed one still picture and seemed not to hear its buttons,
+        while the player's own menu still opened.
+    *   **What it was not**: the system's idle sleep, which was tried
+        first. A game with no input and a dimmed screen runs at 60 frames
+        per second, and the long halted frames in older logs are the
+        console asleep, which is a different thing.
+    *   **What the log of a stuck game shows**: with every key and the
+        game's state logged, keys reach the scripts and the scene runs its
+        60 steps per second, but the time spent drawing falls from 2.5 ms
+        per frame to 0.0 and stays there: the game runs on and nothing is
+        drawn.
+    *   **Cause**: the engine (1.6) times each drawing with the clock of
+        the wall, skips a frame for every 15 ms it took, and draws only
+        when the count to skip is exactly zero. muOS sets the clock from
+        the network every ten seconds or so, in one step each time. A step
+        back during a drawing makes the count negative, and it only goes
+        down from there.
+    *   **Change**: new patch `renderAfterClockStep` for MV: a count below
+        zero, or not a number, is put back to zero before the engine's
+        function runs. Frames skipped for a slow drawing are skipped as
+        before.
+    *   **Checked**: tests with the engine's own function and a clock set
+        back in the middle of a drawing, failing first: without the patch
+        nothing is drawn again, with it the next frame is.
+    *   **Not checked**: the stuck game's count itself was not read, so
+        the cause rests on the log and the engine's code; a long run on
+        the handheld with the patch. Other code in a game that subtracts
+        two readings of the wall's clock is not covered.
+
 ## Critical User Journeys (CUJs)
 
 ### CUJ 1: First launch

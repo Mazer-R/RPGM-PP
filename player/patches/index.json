@@ -12,6 +12,7 @@
   {"patch": "leanTint", "file": "lean-tint.js", "when": {"engine": "MV"}, "options": {"engineCode": ["1388:176922ca"]}},
   {"patch": "idleToneFilter", "file": "idle-tone-filter.js", "when": {"engine": "MV"}},
   {"patch": "idleBattleLayers", "file": "idle-battle-layers.js", "when": {"engine": "MV"}},
+  {"patch": "renderAfterClockStep", "file": "render-after-clock-step.js", "when": {"engine": "MV"}},
   {"patch": "pictureScale", "file": "picture-scale.js", "when": {"engine": "MV"}, "options": {"folders": ["img/pictures/"], "least": 0.5, "unless": 0.95}},
   {"patch": "textureBudget", "file": "texture-budget.js", "options": {"share": 0.25, "least": 96, "most": 512, "every": 30}}
 ]
