@@ -2033,6 +2033,35 @@ adjustments where the game's own code is too expensive for this hardware.
     *   **Not renamed**: the `mvp` namespace and the `MVP_` build
         settings in the code, and the build images' names.
 
+*   **The Android app asks for access to all files only when asked to
+    (2026-11-20)**: the app opened the system's "all files access"
+    screen every time it started without it. The user found asking for
+    every file too much for a player of games.
+    *   **Why it is needed at all**: the program opens a game's files
+        by their paths. Android gives a program paths into an ordinary
+        shared folder with that permission only. The system's folder
+        chooser gives one folder, but as documents to be opened through
+        Java, not as paths: every read of a picture, a sound or a save
+        would have to go that way. Not done; it is the way to ask for
+        one folder, if that is wanted later.
+    *   **Change**: the app starts without asking. With no access it
+        shows the games in its own folder only (the shared folder's
+        names can be listed but its files not read, so its games are
+        left out), and the folder "Add a game" starts from ends in a
+        line, "Look in all folders (asks for access)". Choosing it ends
+        the list with `POTATO_PLAYER_ASK_ACCESS=1` (`--ask-access`), and
+        the app opens the system's screen and ends. Once access is
+        allowed, the list of games, the profile and the sessions kept
+        in the app's folder are copied next to the games, where there
+        are none yet.
+    *   **Checked**: two tests for where the line is shown, failing
+        first. On a phone without the access: the app opens on an empty
+        list with no system screen, "Add a game" shows the app's folder
+        and the line, and touching the line opens the system's screen.
+    *   **Not checked**: allowing the access and opening the app again;
+        the copy of the profile; a game played from the app's own
+        folder; Android 8 to 10, which ask for the older permission.
+
 ## Critical User Journeys (CUJs)
 
 ### CUJ 1: First launch

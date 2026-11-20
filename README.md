@@ -154,13 +154,18 @@ to keep it.
    store and is signed with a test key, so Play Protect may ask once more.
    With a computer and USB debugging the same is done with
    `adb install -r potato-player-android-arm64.apk`.
-2. Start "Potato Player". It opens the system's "all files access"
-   screen: allow it and open the app again. Without it the app cannot read
-   the games.
-3. Copy each game to the device, with a USB cable or a file manager. The
-   app looks in the `RPGMV` folder at the top of the shared storage, one
-   folder per game, each holding the game's `www` folder:
-   `RPGMV/<Game>/www`. The app creates that folder once access is allowed.
+2. Start "Potato Player". It asks for nothing. Without any permission it
+   plays the games in its own folder,
+   `Android/data/org.potatoplayer/files/games/<Game>/www`, which current
+   Android versions let a computer fill over USB but hardly any file
+   manager on the device.
+3. To keep games anywhere else, choose "Add a game" and then "Look in all
+   folders": the app opens the system's "all files access" screen. Allow
+   it and open the app again. From then on the app also looks in the
+   `RPGMV` folder at the top of the shared storage, one folder per game,
+   each holding the game's `www` folder: `RPGMV/<Game>/www`. Copy games
+   there with a USB cable or a file manager. Android has no smaller
+   permission that lets a program read a folder's files by their paths.
 4. Touch a game to choose it and touch it again to start it; the games
    played last come first. A game kept anywhere else on the device is added
    with the list's "Add a game" line: go into the game's own folder and
@@ -562,13 +567,19 @@ conservarlo.
    ninguna tienda y va firmada con una clave de pruebas, así que Play
    Protect puede preguntar una vez más. Con un ordenador y la depuración
    USB se hace lo mismo con `adb install -r potato-player-android-arm64.apk`.
-2. Abre "Potato Player". Muestra la pantalla del sistema de "acceso a
-   todos los archivos": permítelo y vuelve a abrir la app. Sin eso no puede
-   leer los juegos.
-3. Copia cada juego al dispositivo, con un cable USB o un gestor de
-   archivos. La app busca en la carpeta `RPGMV`, en la raíz del
+2. Abre "Potato Player". No pide nada. Sin ningún permiso reproduce los
+   juegos de su propia carpeta,
+   `Android/data/org.potatoplayer/files/games/<Juego>/www`, que las
+   versiones actuales de Android dejan llenar desde un ordenador por USB,
+   pero casi a ningún gestor de archivos del dispositivo.
+3. Para tener juegos en cualquier otro sitio, elige "Add a game" y luego
+   "Look in all folders": la app abre la pantalla del sistema de "acceso a
+   todos los archivos". Permítelo y vuelve a abrir la app. Desde entonces
+   la app busca también en la carpeta `RPGMV`, en la raíz del
    almacenamiento compartido, una carpeta por juego con su `www` dentro:
-   `RPGMV/<Juego>/www`. La app crea esa carpeta una vez permitido el acceso.
+   `RPGMV/<Juego>/www`. Copia ahí los juegos con un cable USB o un gestor
+   de archivos. Android no tiene un permiso menor que deje a un programa
+   leer los archivos de una carpeta por su ruta.
 4. Toca un juego para elegirlo y vuelve a tocarlo para empezar; los últimos
    jugados salen primero. Un juego guardado en cualquier otro sitio del
    dispositivo se añade con la línea "Add a game" de la lista: entra en la

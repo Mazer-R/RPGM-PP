@@ -5,7 +5,6 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
-import android.os.Bundle;
 import android.os.Environment;
 import android.provider.Settings;
 
@@ -14,8 +13,8 @@ import org.libsdl.app.SDLActivity;
 /**
  * The app's only screen. Everything is done by SDL's own activity and by the
  * native program (libmain.so, started through its SDL_main); this class names
- * the libraries to load and, the first time, sends the user to the system
- * screen that lets the app read the games folder on the shared storage.
+ * the libraries to load and, when the user asks for it, opens the system
+ * screen that lets the app read the games folders on the shared storage.
  */
 public class PlayerActivity extends SDLActivity {
     @Override
@@ -23,13 +22,15 @@ public class PlayerActivity extends SDLActivity {
         return new String[] {"SDL2", "main"};
     }
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
+    /**
+     * Sends the user to the system screen that gives the app access to every
+     * folder, or asks for the older storage permission where that screen does
+     * not exist. Called by the native program when the user chooses the game
+     * list's line for it; the app is never sent there on its own.
+     */
+    public void askForAllFiles() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             if (!Environment.isExternalStorageManager()) {
-                // The game list, already running, says to come back and open
-                // the app again once access has been allowed.
                 try {
                     startActivity(new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
                             Uri.parse("package:" + getPackageName())));

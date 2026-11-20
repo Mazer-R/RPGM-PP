@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The player as an Android app: one full-screen activity that hands over
      to SDL: upright for the list of games, on its side for a game (the
-     player asks for each when it makes its window). Games are read from the RPGMV folder at the top of the
-     shared storage, where the user can copy them with any file manager or
-     over USB; current Android versions let nobody but the app itself write
-     to an app's own folder, so that folder cannot be the place for games.
-     Reading and writing (saves) an ordinary shared folder needs the "all
-     files access" permission, which the user grants on a system screen. -->
+     player asks for each when it makes its window). Games are read from the app's own folder, which needs no permission but
+     which current Android versions let hardly anything on the device write
+     to, and from the RPGMV folder at the top of the shared storage, where
+     the user can copy them with any file manager or over USB. Reading and
+     writing (saves) an ordinary shared folder needs the "all files access"
+     permission, which the user grants on a system screen; the app sends
+     the user there only when asked to look in all folders. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="org.potatoplayer"
     android:versionCode="3"

@@ -44,11 +44,15 @@ list to move it. The cross at the end of the chosen game's line takes the
 game off the list (touch it again to confirm); its files stay. Saves and the log stay in each game's
 `www/save`.
 
-The first time it starts, the app opens the system screen for "all files
-access": allow it and open the app again. Current Android versions give an
-app no other way to read and write an ordinary shared folder, and let nobody
-but the app write to the app's own folder (`Android/data/org.potatoplayer`), so
-that one cannot be where games are copied.
+The app asks for nothing when it starts. Without any permission it plays
+the games in its own folder (`Android/data/org.potatoplayer/files/games`),
+which current Android versions let a computer fill over USB but hardly any
+app on the device. "Add a game" then ends in a line, "Look in all folders",
+that opens the system screen for "all files access": allow it and open the
+app again. Current Android versions give an app no other way to read and
+write an ordinary shared folder by its files' paths. Once access is allowed
+the player's own files (the list of games, the profile) are copied from the
+app's folder to `RPGMV/potato-player`, where there are none yet.
 
 | Path | What |
 | --- | --- |

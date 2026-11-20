@@ -46,8 +46,12 @@
   // folder, else null. roots: the folders the browser may start from.
   // Each line is { kind, label, path }; kinds: 'game' (add the game at
   // path), 'up' and 'folder' (show path), 'places' (show the roots), 'file'
-  // (add the game the file at path belongs to).
-  function browse(dir, names, game, roots) {
+  // (add the game the file at path belongs to), 'access' (ask the system
+  // for access to every folder). askAccess: the app has not been given that
+  // access and may ask for it; the line that asks is the last one of every
+  // folder the browser starts from.
+  var ACCESS = { kind: 'access', label: 'Look in all folders (asks for access)', path: '' };
+  function browse(dir, names, game, roots, askAccess) {
     var rows = [];
     if (game) rows.push({ kind: 'game', label: 'Add this game: ' + game.title, path: game.www });
     if (roots.indexOf(dir) < 0) rows.push({ kind: 'up', label: '.. (up one folder)', path: parentOf(dir) });
@@ -56,12 +60,15 @@
       if (name.slice(-1) === '/') rows.push({ kind: 'folder', label: name, path: join(dir, name.slice(0, -1)) });
       else if (standsForGame(name)) rows.push({ kind: 'file', label: name, path: join(dir, name) });
     });
+    if (askAccess && roots.indexOf(dir) >= 0) rows.push(ACCESS);
     return rows;
   }
 
   // The lines that offer the folders the browser may start from.
-  function places(roots) {
-    return roots.map(function (root) { return { kind: 'folder', label: root, path: root }; });
+  function places(roots, askAccess) {
+    var rows = roots.map(function (root) { return { kind: 'folder', label: root, path: root }; });
+    if (askAccess) rows.push(ACCESS);
+    return rows;
   }
 
   // --- Fingers and the mouse ------------------------------------------------

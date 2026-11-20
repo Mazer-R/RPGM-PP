@@ -25,6 +25,12 @@
 // with the game chosen. What each screen shows is decided in
 // picker-model.js.
 //
+// When player.canAskAccess is set the app has not been given access to
+// every folder (Android). The folders the second screen starts from then
+// end in a line that asks for it: choosing it prints
+// "POTATO_PLAYER_ASK_ACCESS=1" and ends the list, and the program that
+// started it opens the system's screen.
+//
 // The list is drawn on a native canvas and shown through WebGL; none of the
 // browser stand-in layers are loaded for it.
 (function () {
@@ -107,16 +113,18 @@
   // --- Looking through folders for a game to add ---------------------------
   // `browsing` is null while the list is shown; else the folder shown ('' for
   // the list of starting folders) and its lines.
-  var roots = (player.browseDirs || []).filter(function (dir) { return player.listFolder(dir).length > 0; });
+  // A folder with nothing in it is not offered, except the app's own while
+  // it may ask for access: it is then the only place, and where games go.
+  var roots = (player.browseDirs || []).filter(function (dir) { return player.canAskAccess || player.listFolder(dir).length > 0; });
   if (!roots.length) roots = ['/'];
   var browsing = null, note = '';
   function show(dir) {
     var rows;
     if (dir === '') {
-      rows = model.places(roots);
+      rows = model.places(roots, player.canAskAccess);
     } else {
       var www = player.resolveGame(dir);
-      rows = model.browse(dir, player.listFolder(dir), www ? { title: titleOf(www, folderName(www)), www: www } : null, roots);
+      rows = model.browse(dir, player.listFolder(dir), www ? { title: titleOf(www, folderName(www)), www: www } : null, roots, player.canAskAccess);
     }
     browsing = { dir: dir, rows: rows };
     selected = 0; first = 0; changed = true;
@@ -398,7 +406,7 @@
   }
   function paintBrowseLine(entry, x, y, h, chosen) {
     var colour = chosen ? INK : MUTED, top = y + (h - 24) / 2;
-    if (entry.kind === 'game') plus(x + 23, y + h / 2, INK);
+    if (entry.kind === 'game' || entry.kind === 'access') plus(x + 23, y + h / 2, INK);
     else if (entry.kind === 'file') fileSign(x + 10, top, colour);
     else if (entry.kind === 'folder') folderSign(x + 10, top, colour);
     else upSign(x + 10, top, colour);
@@ -467,7 +475,7 @@
       var words = player.canAddGame
         ? ['No games around here yet.', 'Choose "Add a game" and point at the game\'s .exe.']
         : ['No games around here yet.', 'Copy a game\'s whole folder into:'].concat((player.libraryDirs || []).slice(0, 1));
-      if (player.needsFileAccess) words.push('Allow "all files access" for this app, then open it again.');
+      if (player.canAskAccess) words.push('"Add a game" can also look in all your folders, if you allow it.');
       var wordsTop = m.top + m.row * 2 + 34;
       words.forEach(function (each, i) { text(fitted(each, 15, W - 2 * x), x, wordsTop + i * 22, 15, MUTED); });
       // Someone to wait with: the knight, sitting on the grass.
@@ -577,6 +585,10 @@
     note = '';
     if (line.kind === 'game' || line.kind === 'file') add(line.path);
     else if (line.kind === 'places') show('');
+    else if (line.kind === 'access') {
+      console.info('picker: asked for access to all folders');
+      leave(0, 'POTATO_PLAYER_ASK_ACCESS=1');
+    }
     else show(line.path);
   }
   function choose() {

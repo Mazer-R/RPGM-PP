@@ -23,6 +23,7 @@
 #include <SDL.h>
 #include <SDL_main.h>
 #include <android/log.h>
+#include <jni.h>
 #include <dirent.h>
 #include <dlfcn.h>
 #include <sys/stat.h>
@@ -143,6 +144,43 @@ void KeepLog(const std::string& game_dir, const std::string& logs_dir, int exit_
 // Points the player at the video decoder the package carries: Android has
 // no ffmpeg, so one comes in the package's library folder, next to this
 // program, the only place an app may start programs from.
+// Whether the app can write in `dir`, which is where it stands with the
+// system's access to every folder: the shared storage can be written only
+// once the user has allowed it.
+bool CanWriteIn(const std::string& dir) {
+  mkdir(dir.c_str(), 0775);
+  std::string probe = dir + "/.writable";
+  if (!std::ofstream(probe, std::ios::trunc).good()) return false;
+  std::remove(probe.c_str());
+  return true;
+}
+
+// Copies what the player kept in the app's own folder while it had no
+// access (the list of games, the profile, the sessions) to the folder next
+// to the games, for each one that folder does not have yet.
+void BringOwnFiles(const std::string& from, const std::string& to) {
+  for (const char* name : {"games.txt", "profile.json", "sessions.log"}) {
+    std::string target = to + "/" + name;
+    if (std::ifstream(target).good()) continue;
+    std::ifstream in(from + "/" + name, std::ios::binary);
+    if (in.good()) std::ofstream(target, std::ios::binary) << in.rdbuf();
+  }
+}
+
+// Opens the system's screen where the user allows access to every folder
+// (PlayerActivity.askForAllFiles).
+void AskForAllFiles() {
+  JNIEnv* env = static_cast<JNIEnv*>(SDL_AndroidGetJNIEnv());
+  jobject activity = static_cast<jobject>(SDL_AndroidGetActivity());
+  if (!env || !activity) return;
+  jclass type = env->GetObjectClass(activity);
+  jmethodID method = env->GetMethodID(type, "askForAllFiles", "()V");
+  if (method) env->CallVoidMethod(activity, method);
+  if (env->ExceptionCheck()) env->ExceptionClear();
+  env->DeleteLocalRef(type);
+  env->DeleteLocalRef(activity);
+}
+
 void UseOwnVideoDecoder() {
   Dl_info here;
   if (!dladdr(reinterpret_cast<void*>(&UseOwnVideoDecoder), &here) || !here.dli_fname) return;
@@ -165,7 +203,8 @@ int main(int, char**) {
     Note("no app storage");
     return 1;
   }
-  std::string base = external, player_dir = std::string(internal) + "/player";
+  const std::string app_dir = external;
+  std::string base = app_dir, player_dir = std::string(internal) + "/player";
   const std::string test_arguments_file = base + "/args.txt";
   std::string games = base + "/games", logs = base + "/logs";
   // The shared storage's top folder is the part of the app's own folder
@@ -174,11 +213,13 @@ int main(int, char**) {
   std::string shared_games = (android_data == std::string::npos ? base : base.substr(0, android_data)) + "/RPGMV";
   mkdir(shared_games.c_str(), 0775);  // fails quietly until access is allowed
   MakeDirs(games);
-  // The player's own folder goes next to the games when that can be written.
+  // The app works without access to every folder: games are then the ones
+  // in its own folder, and its own things are kept there too. With access,
+  // the player's own folder goes next to the games in the shared storage.
   std::string own = shared_games + "/potato-player";
-  mkdir(own.c_str(), 0775);
-  if (std::ofstream(own + "/.writable", std::ios::trunc).good()) {
-    std::remove((own + "/.writable").c_str());
+  const bool has_access = CanWriteIn(own);
+  if (has_access) {
+    BringOwnFiles(app_dir, own);
     base = own;
     logs = base + "/logs";
   }
@@ -202,9 +243,18 @@ int main(int, char**) {
     if (!std::freopen(answers.c_str(), "w", stdout)) return 1;
     // The list remembers the games played and added, and can look through
     // the shared storage for a game to add.
-    std::vector<std::string> pick = {"--pick", shared_games, games, "--player", player_dir,
+    // Without access the shared folder's names can still be listed, but
+    // not its files read: its games are left out, not shown and then fail.
+    std::vector<std::string> pick = {"--pick"};
+    if (has_access) pick.push_back(shared_games);
+    pick.insert(pick.end(), {games, "--player", player_dir,
                                      "--log", logs + "/picker.log", "--games-file", base + "/games.txt",
-                                     "--can-add", "--browse", shared_games.substr(0, shared_games.rfind('/'))};
+                                     "--can-add"});
+    // With access the user looks through the shared storage for a game to
+    // add; without it, through the app's own folder, where a line offers
+    // to ask for the access.
+    if (has_access) pick.insert(pick.end(), {"--browse", shared_games.substr(0, shared_games.rfind('/'))});
+    else pick.insert(pick.end(), {"--browse", games, "--ask-access"});
     // The list is read like any other list on a phone, held upright; a game
     // is a wide picture, shown with the phone on its side. SDL asks Android
     // for the orientation when the window of each is made.
@@ -212,8 +262,16 @@ int main(int, char**) {
     int code = Run(pick);
     std::fflush(stdout);
     std::string game;
+    bool ask = false;
     for (const std::string& line : Lines(ReadText(answers))) {
       if (line.rfind("POTATO_PLAYER_GAME=", 0) == 0) game = line.substr(19);
+      if (line == "POTATO_PLAYER_ASK_ACCESS=1") ask = true;
+    }
+    if (ask) {
+      // The system's screen takes over; the app ends, and finds out what
+      // the user answered the next time it is opened.
+      AskForAllFiles();
+      return 0;
     }
     if (code != 0 || game.empty()) return 0;
 

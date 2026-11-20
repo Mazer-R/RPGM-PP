@@ -16,7 +16,9 @@
 //       are shown first. With --can-add the list has an "add a game" line
 //       that lets the user look through folders, starting from each
 //       --browse <dir> (from "/" if none is given), for a game to add to
-//       <file>.
+//       <file>. With --ask-access those folders end in a line that asks
+//       for access to every folder: choosing it prints
+//       "POTATO_PLAYER_ASK_ACCESS=1" and exits with 0.
 //   potato-player --resolve <path>
 //       Prints the game's www folder for <path> and exits with 0, or exits
 //       with 1 if there is no game there. Opens no window.
@@ -102,7 +104,7 @@ int PlayerMain(int argc, char** argv) {
   bool pick = false;
   std::vector<std::string> library_dirs, library_games, forgotten_games, browse_dirs;
   std::string game_path, games_file, resolve_path, sessions_file;
-  bool can_add = false;
+  bool can_add = false, ask_access = false;
   const char* fps_setting = std::getenv("POTATO_PLAYER_FPS");
   bool show_fps = fps_setting && fps_setting[0] == '1';
   for (int i = 1; i < argc; i++) {
@@ -118,6 +120,7 @@ int PlayerMain(int argc, char** argv) {
     else if (arg == "--games-file" && i + 1 < argc) games_file = argv[++i];
     else if (arg == "--sessions" && i + 1 < argc) sessions_file = argv[++i];
     else if (arg == "--can-add") can_add = true;
+    else if (arg == "--ask-access") ask_access = true;
     else if (arg == "--browse" && i + 1 < argc) browse_dirs.push_back(WithoutTrailingSlash(argv[++i]));
     else if (arg == "--fps") show_fps = true;
     else if (arg == "--resolve" && i + 1 < argc) resolve_path = argv[++i];
@@ -237,6 +240,7 @@ int PlayerMain(int argc, char** argv) {
     host.SetStringList("libraryGames", library_games);
     host.SetStringList("forgottenGames", forgotten_games);
     host.SetFlag("canAddGame", can_add);
+    host.SetFlag("canAskAccess", ask_access);
     host.SetStringList("browseDirs", browse_dirs);
     host.SetGamesFile(games_file);
     if (noted) host.SetSession(&session);
@@ -245,7 +249,7 @@ int PlayerMain(int argc, char** argv) {
       host.SetStringList("profileFiles", {profile_dir + "/profile.json", profile_dir + "/sessions.log"});
     }
 #ifdef __ANDROID__
-    // The game list then explains the permission the games folder needs.
+    // A phone: the game list's hints speak of touching from the start.
     host.SetFlag("needsFileAccess", true);
 #endif
     host.SetFlag("showFps", show_fps);

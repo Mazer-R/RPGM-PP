@@ -72,6 +72,21 @@ const tests = {
     ]);
   },
 
+  'where the app may ask for access to every folder, the folders it starts from end in a line that asks'() {
+    const ask = { kind: 'access', label: 'Look in all folders (asks for access)', path: '' };
+    const rows = model.browse('/own/games', ['Fear/'], null, ['/own/games'], true);
+    assert.deepStrictEqual(plain(rows), [{ kind: 'folder', label: 'Fear/', path: '/own/games/Fear' }, ask]);
+    assert.deepStrictEqual(plain(model.places(['/a', '/b'], true)[2]), ask);
+  },
+
+  'the line that asks for access is not shown inside a folder, nor where there is nothing to ask'() {
+    const inside = model.browse('/own/games/Fear', ['www/'], null, ['/own/games'], true);
+    assert.deepStrictEqual(plain(inside.map((row) => row.kind)), ['up', 'folder']);
+    const allowed = model.browse('/own/games', ['Fear/'], null, ['/own/games'], false);
+    assert.deepStrictEqual(plain(allowed.map((row) => row.kind)), ['folder']);
+    assert.strictEqual(model.places(['/a', '/b']).length, 2);
+  },
+
   'up from a folder directly under the top of the file system leads to the top'() {
     const rows = model.browse('/mnt', ['mmc/'], null, ['/']);
     assert.strictEqual(rows[0].path, '/');
